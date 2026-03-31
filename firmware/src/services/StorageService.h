@@ -2,12 +2,11 @@
 
 #include "core/CoreState.h"
 #include "core/Config.h"
-#include "core/ReleaseInfo.h"
 
 class StorageService {
 public:
   StorageService(CoreState &state, NetworkConfig &networkConfig,
-                 GpioConfig &gpioConfig, ReleaseInfo &releaseInfo);
+                 GpioConfig &gpioConfig);
 
   void begin();
   bool save();
@@ -16,14 +15,11 @@ public:
   bool loadNetworkConfig();
   bool saveGpioConfig();
   bool loadGpioConfig();
-  bool saveReleaseInfo();
-  bool loadReleaseInfo();
 
 private:
   CoreState &state_;
   NetworkConfig &networkConfig_;
   GpioConfig &gpioConfig_;
-  ReleaseInfo &releaseInfo_;
 
   bool saveState();
   bool loadState();

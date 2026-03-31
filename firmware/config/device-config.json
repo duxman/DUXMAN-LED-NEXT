@@ -1,11 +1,11 @@
 {
   "network": {
     "wifi": {
-      "mode": "ap-sta",
+      "mode": "ap_sta",
       "apAvailability": "always",
       "connection": {
-        "ssid": "BUBU-DUXMAN-WLAN",
-        "password": "205070400"
+        "ssid": "BUBU_DUXMAN_WLAN",
+        "password": "2005070400"
       }
     },
     "ip": {
@@ -25,10 +25,22 @@
       }
     },
     "dns": {
-      "hostname": "duxman-led-1"
+      "hostname": "duxman-led"
     }
   },
   "debug": {
-    "enabled": true
+    "enabled": false,
+    "heartbeatMs": 5000
+  },
+  "gpio": {
+    "outputs": [
+      {
+        "id": 0,
+        "pin": 8,
+        "ledCount": 60,
+        "ledType": "ws2812b",
+        "colorOrder": "GRB"
+      }
+    ]
   }
 }

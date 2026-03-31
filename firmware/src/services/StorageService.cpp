@@ -7,12 +7,11 @@ namespace {
 constexpr const char *kStatePath = "/state.json";
 constexpr const char *kNetworkConfigPath = "/device-config.json";
 constexpr const char *kGpioConfigPath = "/gpio-config.json";
-constexpr const char *kReleaseInfoPath = "/release-info.json";
 } // namespace
 
 StorageService::StorageService(CoreState &state, NetworkConfig &networkConfig,
-                               GpioConfig &gpioConfig, ReleaseInfo &releaseInfo)
-  : state_(state), networkConfig_(networkConfig), gpioConfig_(gpioConfig), releaseInfo_(releaseInfo) {}
+                               GpioConfig &gpioConfig)
+  : state_(state), networkConfig_(networkConfig), gpioConfig_(gpioConfig) {}
 
 void StorageService::begin() {
   if (!LittleFS.begin(true)) {
@@ -20,7 +19,6 @@ void StorageService::begin() {
     state_ = CoreState::defaults();
     networkConfig_ = NetworkConfig::defaults();
     gpioConfig_ = GpioConfig::defaults();
-    releaseInfo_ = ReleaseInfo::defaults();
     return;
   }
 
@@ -31,41 +29,14 @@ bool StorageService::save() {
   const bool stateSaved = saveState();
   const bool networkSaved = saveNetworkConfig();
   const bool gpioSaved = saveGpioConfig();
-  const bool releaseSaved = saveReleaseInfo();
-  return stateSaved && networkSaved && gpioSaved && releaseSaved;
+  return stateSaved && networkSaved && gpioSaved;
 }
 
 bool StorageService::load() {
   const bool stateLoaded = loadState();
   const bool networkLoaded = loadNetworkConfig();
   const bool gpioLoaded = loadGpioConfig();
-  const bool releaseLoaded = loadReleaseInfo();
-  return stateLoaded && networkLoaded && gpioLoaded && releaseLoaded;
-}
-
-bool StorageService::saveReleaseInfo() {
-  return writeFile(kReleaseInfoPath, releaseInfo_.toJson());
-}
-
-bool StorageService::loadReleaseInfo() {
-  String raw;
-  if (!readFile(kReleaseInfoPath, raw)) {
-    releaseInfo_ = ReleaseInfo::defaults();
-    return saveReleaseInfo();
-  }
-
-  ReleaseInfo loaded = ReleaseInfo::defaults();
-  String error;
-  loaded.applyJson(raw, &error);
-  if (!error.isEmpty()) {
-    Serial.print("[storage] invalid release info: ");
-    Serial.println(error);
-    releaseInfo_ = ReleaseInfo::defaults();
-    return saveReleaseInfo();
-  }
-
-  releaseInfo_ = loaded;
-  return true;
+  return stateLoaded && networkLoaded && gpioLoaded;
 }
 
 bool StorageService::saveNetworkConfig() {

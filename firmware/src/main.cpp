@@ -4,7 +4,6 @@
 #include "core/BuildProfile.h"
 #include "core/CoreState.h"
 #include "core/Config.h"
-#include "core/ReleaseInfo.h"
 #include "drivers/LedDriver.h"
 #include "effects/EffectEngine.h"
 #include "services/StorageService.h"
@@ -14,12 +13,11 @@ namespace {
 CoreState state = CoreState::defaults();
 NetworkConfig networkConfig = NetworkConfig::defaults();
 GpioConfig gpioConfig = GpioConfig::defaults();
-ReleaseInfo releaseInfo = ReleaseInfo::defaults();
 LedDriver ledDriver;
 EffectEngine effectEngine(state, ledDriver);
-StorageService storageService(state, networkConfig, gpioConfig, releaseInfo);
+StorageService storageService(state, networkConfig, gpioConfig);
 WifiService wifiService(networkConfig);
-ApiService apiService(state, networkConfig, gpioConfig, releaseInfo, storageService, wifiService);
+ApiService apiService(state, networkConfig, gpioConfig, storageService, wifiService);
 
 unsigned long lastFrameAtMs = 0;
 constexpr unsigned long kFrameIntervalMs = 16;

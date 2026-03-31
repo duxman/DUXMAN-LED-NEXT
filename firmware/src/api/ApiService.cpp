@@ -4,8 +4,8 @@
 #include <ArduinoJson.h>
 
 ApiService::ApiService(CoreState &state, NetworkConfig &networkConfig, GpioConfig &gpioConfig,
-                       ReleaseInfo &releaseInfo, StorageService &storageService, WifiService &wifiService)
-    : state_(state), networkConfig_(networkConfig), gpioConfig_(gpioConfig), releaseInfo_(releaseInfo),
+                       StorageService &storageService, WifiService &wifiService)
+    : state_(state), networkConfig_(networkConfig), gpioConfig_(gpioConfig),
       storageService_(storageService), wifiService_(wifiService), httpServer_(80) {}
 
 void ApiService::begin() {
@@ -75,7 +75,7 @@ void ApiService::processCommand(const String &command) {
   }
 
   if (command == "GET /api/v1/release") {
-    Serial.println(releaseInfo_.toJson());
+    Serial.println(ReleaseInfo::toJson());
     return;
   }
 
@@ -339,7 +339,7 @@ void ApiService::setupHttpRoutes() {
   });
 
   httpServer_.on("/api/v1/release", HTTP_GET, [this]() {
-    httpServer_.send(200, "application/json", releaseInfo_.toJson());
+    httpServer_.send(200, "application/json", ReleaseInfo::toJson());
   });
 
   httpServer_.onNotFound([this]() {
@@ -820,7 +820,7 @@ String ApiService::buildHomeHtml() const {
 </body>
 </html>
 )HTML";
-  const String versionLabel = releaseInfo_.version.isEmpty() ? "V0.0" : releaseInfo_.version;
+  const String versionLabel = String(BuildProfile::kFwVersion);
   html.replace("__FW_VERSION__", versionLabel);
   return html;
 }

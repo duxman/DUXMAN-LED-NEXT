@@ -12,7 +12,7 @@
 class ApiService {
 public:
   ApiService(CoreState &state, NetworkConfig &networkConfig, GpioConfig &gpioConfig,
-             ReleaseInfo &releaseInfo, StorageService &storageService, WifiService &wifiService);
+             StorageService &storageService, WifiService &wifiService);
 
   void begin();
   void handle();
@@ -21,7 +21,6 @@ private:
   CoreState &state_;
   NetworkConfig &networkConfig_;
   GpioConfig &gpioConfig_;
-  ReleaseInfo &releaseInfo_;
   StorageService &storageService_;
   WifiService &wifiService_;
   String commandBuffer_;
