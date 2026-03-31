@@ -1,0 +1,34 @@
+{
+  "network": {
+    "wifi": {
+      "mode": "ap-sta",
+      "apAvailability": "always",
+      "connection": {
+        "ssid": "BUBU-DUXMAN-WLAN",
+        "password": "205070400"
+      }
+    },
+    "ip": {
+      "ap": {
+        "mode": "static",
+        "address": "192.168.4.1",
+        "gateway": "192.168.4.1",
+        "subnet": "255.255.255.0"
+      },
+      "sta": {
+        "mode": "dhcp",
+        "address": "192.168.1.50",
+        "gateway": "192.168.1.1",
+        "subnet": "255.255.255.0",
+        "primaryDns": "8.8.8.8",
+        "secondaryDns": "1.1.1.1"
+      }
+    },
+    "dns": {
+      "hostname": "duxman-led-1"
+    }
+  },
+  "debug": {
+    "enabled": true
+  }
+}

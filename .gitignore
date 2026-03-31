@@ -1,0 +1,12 @@
+# OS
+Thumbs.db
+Desktop.ini
+
+# IDE
+.vscode/
+.idea/
+
+# Build artifacts
+**/.pio/
+**/build/
+**/dist/
