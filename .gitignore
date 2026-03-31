@@ -6,6 +6,9 @@ Desktop.ini
 .vscode/
 .idea/
 
+# Copilot memory (local only, never commit)
+.copilot-memory/
+
 # Build artifacts
 **/.pio/
 **/build/

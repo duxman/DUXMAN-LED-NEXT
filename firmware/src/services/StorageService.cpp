@@ -6,17 +6,20 @@
 namespace {
 constexpr const char *kStatePath = "/state.json";
 constexpr const char *kNetworkConfigPath = "/device-config.json";
+constexpr const char *kGpioConfigPath = "/gpio-config.json";
 constexpr const char *kReleaseInfoPath = "/release-info.json";
 } // namespace
 
-StorageService::StorageService(CoreState &state, NetworkConfig &networkConfig, ReleaseInfo &releaseInfo)
-  : state_(state), networkConfig_(networkConfig), releaseInfo_(releaseInfo) {}
+StorageService::StorageService(CoreState &state, NetworkConfig &networkConfig,
+                               GpioConfig &gpioConfig, ReleaseInfo &releaseInfo)
+  : state_(state), networkConfig_(networkConfig), gpioConfig_(gpioConfig), releaseInfo_(releaseInfo) {}
 
 void StorageService::begin() {
   if (!LittleFS.begin(true)) {
     Serial.println("[storage] LittleFS mount failed");
     state_ = CoreState::defaults();
     networkConfig_ = NetworkConfig::defaults();
+    gpioConfig_ = GpioConfig::defaults();
     releaseInfo_ = ReleaseInfo::defaults();
     return;
   }
@@ -27,15 +30,17 @@ void StorageService::begin() {
 bool StorageService::save() {
   const bool stateSaved = saveState();
   const bool networkSaved = saveNetworkConfig();
+  const bool gpioSaved = saveGpioConfig();
   const bool releaseSaved = saveReleaseInfo();
-  return stateSaved && networkSaved && releaseSaved;
+  return stateSaved && networkSaved && gpioSaved && releaseSaved;
 }
 
 bool StorageService::load() {
   const bool stateLoaded = loadState();
   const bool networkLoaded = loadNetworkConfig();
+  const bool gpioLoaded = loadGpioConfig();
   const bool releaseLoaded = loadReleaseInfo();
-  return stateLoaded && networkLoaded && releaseLoaded;
+  return stateLoaded && networkLoaded && gpioLoaded && releaseLoaded;
 }
 
 bool StorageService::saveReleaseInfo() {
@@ -65,6 +70,31 @@ bool StorageService::loadReleaseInfo() {
 
 bool StorageService::saveNetworkConfig() {
   return writeFile(kNetworkConfigPath, networkConfig_.toJson());
+}
+
+bool StorageService::saveGpioConfig() {
+  return writeFile(kGpioConfigPath, gpioConfig_.toJson());
+}
+
+bool StorageService::loadGpioConfig() {
+  String raw;
+  if (!readFile(kGpioConfigPath, raw)) {
+    gpioConfig_ = GpioConfig::defaults();
+    return saveGpioConfig();
+  }
+
+  GpioConfig loaded = GpioConfig::defaults();
+  String error;
+  loaded.applyPatchJson(raw, &error);
+  if (!error.isEmpty()) {
+    Serial.print("[storage] invalid gpio config: ");
+    Serial.println(error);
+    gpioConfig_ = GpioConfig::defaults();
+    return saveGpioConfig();
+  }
+
+  gpioConfig_ = loaded;
+  return true;
 }
 
 bool StorageService::loadNetworkConfig() {

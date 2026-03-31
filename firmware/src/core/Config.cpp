@@ -1,4 +1,5 @@
 #include "core/Config.h"
+#include "core/BuildProfile.h"
 
 #include <ArduinoJson.h>
 
@@ -127,7 +128,194 @@ void patchIpConfig(const JsonObjectConst &source, NetworkIpConfig &target) {
   setIfPresent(source, "primaryDns", target.primaryDns);
   setIfPresent(source, "secondaryDns", target.secondaryDns);
 }
+
+void setInt8IfPresent(const JsonObjectConst &source, const char *key, int8_t &target) {
+  JsonVariantConst value = source[key];
+  if (value.isNull()) {
+    return;
+  }
+  if (value.is<int>()) {
+    const int parsed = value.as<int>();
+    if (parsed >= -1 && parsed <= 127) {
+      target = static_cast<int8_t>(parsed);
+    }
+  }
+}
+
+void setUInt16IfPresent(const JsonObjectConst &source, const char *key, uint16_t &target) {
+  JsonVariantConst value = source[key];
+  if (value.isNull()) {
+    return;
+  }
+  if (value.is<int>() || value.is<unsigned int>()) {
+    const int parsed = value.as<int>();
+    if (parsed >= 0 && parsed <= 65535) {
+      target = static_cast<uint16_t>(parsed);
+    }
+  }
+}
+
+constexpr int kLedCountMin = 1;
+constexpr int kLedCountMax = 1500;
+constexpr int kGpioPinMin = -1;
+constexpr int kGpioPinMax = 48;
+
+bool isValidLedType(const String &type) {
+  return type == "digital" || type == "ws2812b" || type == "ws2811" ||
+         type == "ws2813" || type == "ws2815" || type == "sk6812" ||
+         type == "apa102" || type == "tm1814";
+}
+
+bool isDigitalLedType(const String &type) {
+  return type == "digital";
+}
+
+bool isValidDigitalColor(const String &color) {
+  return color == "R" || color == "G" || color == "B" || color == "W";
+}
+
+bool isValidColorOrder(const String &order) {
+  return order == "GRB" || order == "RGB" || order == "BRG" ||
+         order == "RBG" || order == "GBR" || order == "BGR" ||
+         order == "RGBW" || order == "GRBW";
+}
+
+// Input-only GPIOs en ESP32 clásico (no usar para salidas)
+bool isInputOnlyGpio(int8_t pin) {
+  return pin == 34 || pin == 35 || pin == 36 || pin == 39;
+}
 } // namespace
+
+// ── GpioConfig ──────────────────────────────────────────────────
+
+GpioConfig GpioConfig::defaults() {
+  GpioConfig config;
+  config.outputCount = 1;
+  LedOutput &out = config.outputs[0];
+  out.id = 0;
+  out.pin = static_cast<int8_t>(BuildProfile::kLedPin);
+  out.ledCount = static_cast<uint16_t>(BuildProfile::kLedCount);
+  out.ledType = "ws2812b";
+  out.colorOrder = "GRB";
+  return config;
+}
+
+String GpioConfig::toJson() const {
+  JsonDocument doc;
+  JsonObject gpio = doc["gpio"].to<JsonObject>();
+  JsonArray arr = gpio["outputs"].to<JsonArray>();
+
+  for (uint8_t i = 0; i < outputCount; ++i) {
+    JsonObject item = arr.add<JsonObject>();
+    item["id"] = outputs[i].id;
+    item["pin"] = outputs[i].pin;
+    item["ledCount"] = outputs[i].ledCount;
+    item["ledType"] = outputs[i].ledType;
+    item["colorOrder"] = outputs[i].colorOrder;
+  }
+
+  String out;
+  serializeJson(doc, out);
+  return out;
+}
+
+bool GpioConfig::validate(String *error) const {
+  if (outputCount > kMaxLedOutputs) {
+    if (error) *error = "too_many_outputs";
+    return false;
+  }
+
+  for (uint8_t i = 0; i < outputCount; ++i) {
+    const LedOutput &o = outputs[i];
+
+    if (o.pin < kGpioPinMin || o.pin > kGpioPinMax) {
+      if (error) *error = "invalid_pin_output_" + String(i);
+      return false;
+    }
+    if (o.pin >= 0 && isInputOnlyGpio(o.pin)) {
+      if (error) *error = "pin_input_only_output_" + String(i);
+      return false;
+    }
+    if (o.ledCount < kLedCountMin || o.ledCount > kLedCountMax) {
+      if (error) *error = "invalid_led_count_output_" + String(i);
+      return false;
+    }
+    if (!isValidLedType(o.ledType)) {
+      if (error) *error = "invalid_led_type_output_" + String(i);
+      return false;
+    }
+    if (isDigitalLedType(o.ledType)) {
+      if (!isValidDigitalColor(o.colorOrder)) {
+        if (error) *error = "invalid_digital_color_output_" + String(i);
+        return false;
+      }
+      if (o.ledCount != 1) {
+        if (error) *error = "digital_led_count_must_be_1_output_" + String(i);
+        return false;
+      }
+    } else {
+      if (!isValidColorOrder(o.colorOrder)) {
+        if (error) *error = "invalid_color_order_output_" + String(i);
+        return false;
+      }
+    }
+
+    // Comprobar pines duplicados (solo si pin >= 0)
+    for (uint8_t j = 0; j < i; ++j) {
+      if (o.pin >= 0 && outputs[j].pin == o.pin) {
+        if (error) *error = "duplicate_pin_outputs_" + String(j) + "_" + String(i);
+        return false;
+      }
+    }
+  }
+
+  return true;
+}
+
+bool GpioConfig::applyPatchJson(const String &payload, String *error) {
+  JsonDocument doc;
+  const DeserializationError parseResult = deserializeJson(doc, payload);
+  if (parseResult) {
+    if (error) *error = "invalid_json";
+    return false;
+  }
+
+  JsonObjectConst root = doc.as<JsonObjectConst>();
+  JsonObjectConst gpioObj = root["gpio"].isNull() ? root : root["gpio"].as<JsonObjectConst>();
+
+  GpioConfig candidate = *this;
+
+  JsonArrayConst arr = gpioObj["outputs"].as<JsonArrayConst>();
+  if (!arr.isNull()) {
+    const uint8_t count = (arr.size() > kMaxLedOutputs) ? kMaxLedOutputs : static_cast<uint8_t>(arr.size());
+    candidate.outputCount = count;
+
+    for (uint8_t i = 0; i < count; ++i) {
+      JsonObjectConst item = arr[i].as<JsonObjectConst>();
+      if (item.isNull()) continue;
+
+      LedOutput &o = candidate.outputs[i];
+      o.id = i;
+      setInt8IfPresent(item, "pin", o.pin);
+      setUInt16IfPresent(item, "ledCount", o.ledCount);
+      setIfPresent(item, "ledType", o.ledType);
+      setIfPresent(item, "colorOrder", o.colorOrder);
+    }
+  }
+
+  String validationError;
+  if (!candidate.validate(&validationError)) {
+    if (error) *error = validationError;
+    return false;
+  }
+
+  const bool changed = (candidate.toJson() != this->toJson());
+  *this = candidate;
+  if (error) error->clear();
+  return changed;
+}
+
+// ── NetworkConfig ───────────────────────────────────────────────
 
 NetworkConfig NetworkConfig::defaults() {
   NetworkConfig config;

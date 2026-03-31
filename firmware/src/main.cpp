@@ -13,12 +13,13 @@
 namespace {
 CoreState state = CoreState::defaults();
 NetworkConfig networkConfig = NetworkConfig::defaults();
+GpioConfig gpioConfig = GpioConfig::defaults();
 ReleaseInfo releaseInfo = ReleaseInfo::defaults();
 LedDriver ledDriver;
 EffectEngine effectEngine(state, ledDriver);
-StorageService storageService(state, networkConfig, releaseInfo);
+StorageService storageService(state, networkConfig, gpioConfig, releaseInfo);
 WifiService wifiService(networkConfig);
-ApiService apiService(state, networkConfig, releaseInfo, storageService, wifiService);
+ApiService apiService(state, networkConfig, gpioConfig, releaseInfo, storageService, wifiService);
 
 unsigned long lastFrameAtMs = 0;
 constexpr unsigned long kFrameIntervalMs = 16;
@@ -48,11 +49,20 @@ void setup() {
 
   Serial.println("[boot] DUXMAN-LED-NEXT started");
   Serial.print("[boot] profile=");
-  Serial.print(BuildProfile::kName);
-  Serial.print(" ledPin=");
-  Serial.print(BuildProfile::kLedPin);
-  Serial.print(" ledCount=");
-  Serial.println(BuildProfile::kLedCount);
+  Serial.println(BuildProfile::kName);
+  for (uint8_t i = 0; i < gpioConfig.outputCount; ++i) {
+    const LedOutput &o = gpioConfig.outputs[i];
+    Serial.print("[boot] output[");
+    Serial.print(i);
+    Serial.print("] pin=");
+    Serial.print(o.pin);
+    Serial.print(" count=");
+    Serial.print(o.ledCount);
+    Serial.print(" type=");
+    Serial.print(o.ledType);
+    Serial.print(" order=");
+    Serial.println(o.colorOrder);
+  }
   Serial.print("[boot] debug.enabled=");
   Serial.print(networkConfig.debug.enabled ? "true" : "false");
   Serial.print(" heartbeatMs=");
