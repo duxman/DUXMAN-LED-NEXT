@@ -5,7 +5,8 @@
 #include "core/CoreState.h"
 #include "core/Config.h"
 #include "drivers/CurrentLedDriver.h"
-#include "effects/EffectEngine.h"
+#include "effects/EffectManager.h"
+#include "services/ProfileService.h"
 #include "services/StorageService.h"
 #include "services/WifiService.h"
 
@@ -14,10 +15,12 @@ CoreState state = CoreState::defaults();
 NetworkConfig networkConfig = NetworkConfig::defaults();
 GpioConfig gpioConfig = GpioConfig::defaults();
 DefaultLedDriver ledDriver;
-EffectEngine effectEngine(state, ledDriver);
+EffectManager effectManager(state, ledDriver);
 StorageService storageService(state, networkConfig, gpioConfig);
+ProfileService profileService(gpioConfig, storageService, ledDriver);
 WifiService wifiService(networkConfig);
-ApiService apiService(state, networkConfig, gpioConfig, storageService, wifiService);
+ApiService apiService(state, networkConfig, gpioConfig, storageService, wifiService,
+                      profileService);
 
 unsigned long lastFrameAtMs = 0;
 constexpr unsigned long kFrameIntervalMs = 16;
@@ -41,9 +44,13 @@ void setup() {
   delay(150);
 
   storageService.begin();
+  profileService.begin();
+  String appliedProfileId;
+  String profileError;
+  const bool startupProfileApplied = profileService.applyStartupProfile(&appliedProfileId, &profileError);
   ledDriver.configure(gpioConfig);
   wifiService.begin();
-  effectEngine.begin();
+  effectManager.begin();
   apiService.begin();
 
   Serial.println("[boot] DUXMAN-LED-NEXT started");
@@ -51,6 +58,15 @@ void setup() {
   Serial.println(BuildProfile::kName);
   Serial.print("[boot] led.backend=");
   Serial.println(ledDriver.backendName());
+  if (!appliedProfileId.isEmpty()) {
+    Serial.print("[boot] startupProfile=");
+    Serial.println(appliedProfileId);
+  } else if (!profileError.isEmpty()) {
+    Serial.print("[boot] startupProfile.error=");
+    Serial.println(profileError);
+  } else if (startupProfileApplied) {
+    Serial.println("[boot] startupProfile applied");
+  }
   for (uint8_t i = 0; i < gpioConfig.outputCount; ++i) {
     const LedOutput &o = gpioConfig.outputs[i];
     Serial.print("[boot] output[");
@@ -84,6 +100,6 @@ void loop() {
 
   if (now - lastFrameAtMs >= kFrameIntervalMs) {
     lastFrameAtMs = now;
-    effectEngine.renderFrame();
+    effectManager.renderFrame();
   }
 }

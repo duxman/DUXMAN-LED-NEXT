@@ -37,26 +37,104 @@ function Get-PlatformIoWorkingDirectory {
 }
 
 function Get-SerialPorts {
-  $ports = @(Get-CimInstance Win32_SerialPort |
-    Select-Object DeviceID, Name, Description)
+  $allPorts = @()
+
+  try {
+    $allPorts += @(Get-CimInstance Win32_SerialPort |
+      ForEach-Object {
+        [PSCustomObject]@{
+          DeviceID    = $_.DeviceID
+          Name        = $_.Name
+          Description = $_.Description
+          Status      = "OK"
+          Source      = "Win32_SerialPort"
+        }
+      })
+  }
+  catch {
+  }
+
+  try {
+    $allPorts += @(Get-PnpDevice -Class Ports | Where-Object {
+      $_.FriendlyName -match "\(COM\d+\)"
+    } | ForEach-Object {
+      $friendlyName = $_.FriendlyName
+      $deviceId = ""
+      if ($friendlyName -match "\((COM\d+)\)") {
+        $deviceId = $Matches[1]
+      }
+
+      [PSCustomObject]@{
+        DeviceID    = $deviceId
+        Name        = $friendlyName
+        Description = $friendlyName
+        Status      = $_.Status
+        Source      = "Get-PnpDevice"
+      }
+    })
+  }
+  catch {
+  }
+
+  $uniquePorts = @{}
+  foreach ($port in $allPorts) {
+    if ($null -eq $port -or [string]::IsNullOrWhiteSpace($port.DeviceID)) {
+      continue
+    }
+
+    if (-not $uniquePorts.ContainsKey($port.DeviceID)) {
+      $uniquePorts[$port.DeviceID] = $port
+    }
+  }
+
+  $ports = @($uniquePorts.Values | Sort-Object {
+    [int](($_.DeviceID -replace '^COM', ''))
+  })
 
   return $ports
 }
 
+function Test-IsRecognizedUsbSerialPort {
+  param(
+    [object]$Port
+  )
+
+  return $Port.DeviceID -match "^COM\d+$" -and
+    $Port.DeviceID -ne "COM1" -and
+    ($Port.Name -match "CP210|CH340|CH910|UART|Silicon Labs|FTDI" -or
+     $Port.Description -match "CP210|CH340|CH910|UART|Silicon Labs|FTDI")
+}
+
 function Get-AutoPort {
-  $ports = Get-SerialPorts
+  $ports = @(Get-SerialPorts)
   if (-not $ports -or $ports.Count -eq 0) {
     throw "No se encontraron puertos serie disponibles."
   }
 
-  $usbLike = @($ports | Where-Object {
-    $_.DeviceID -match "^COM\\d+$" -and
-    $_.DeviceID -ne "COM1" -and
-    ($_.Name -match "USB|CP210|CH340|CH910|UART|Silicon Labs|FTDI" -or $_.Description -match "USB|UART")
+  $recognizedHealthyUsb = @($ports | Where-Object {
+    $_.Status -eq "OK" -and (Test-IsRecognizedUsbSerialPort $_)
   })
 
-  if ($usbLike.Count -eq 1) {
-    return $usbLike[0].DeviceID
+  if ($recognizedHealthyUsb.Count -eq 1) {
+    return $recognizedHealthyUsb[0].DeviceID
+  }
+
+  $recognizedUsb = @($ports | Where-Object {
+    Test-IsRecognizedUsbSerialPort $_
+  })
+
+  if ($recognizedUsb.Count -eq 1) {
+    return $recognizedUsb[0].DeviceID
+  }
+
+  $healthyNonCom1 = @($ports | Where-Object {
+    $_.DeviceID -match "^COM\d+$" -and
+    $_.DeviceID -ne "COM1" -and
+    $_.Status -eq "OK"
+  })
+
+  if ($healthyNonCom1.Count -eq 1) {
+    return $healthyNonCom1[0].DeviceID
   }
 
   $nonCom1 = @($ports | Where-Object { $_.DeviceID -match "^COM\\d+$" -and $_.DeviceID -ne "COM1" })
@@ -97,13 +175,13 @@ if (-not (Get-Command pio -ErrorAction SilentlyContinue)) {
 }
 
 if ($ListPorts) {
-  $ports = Get-SerialPorts
+  $ports = @(Get-SerialPorts)
   if (-not $ports -or $ports.Count -eq 0) {
     Write-Host "No se encontraron puertos serie." -ForegroundColor Yellow
     exit 0
   }
 
-  $ports | Format-Table -AutoSize
+  $ports | Select-Object DeviceID, Name, Status, Source | Format-Table -AutoSize
   exit 0
 }
 

@@ -1,6 +1,6 @@
 # DUXMAN-LED-NEXT
 
-Controlador LED modular para ESP32, inspirado en WLED. Firmware beta v0.2.1.
+Controlador LED modular para ESP32, inspirado en WLED. Firmware beta v0.2.2-beta.
 
 ## Características implementadas
 
@@ -28,10 +28,23 @@ Controlador LED modular para ESP32, inspirado en WLED. Firmware beta v0.2.1.
 - Órdenes de color: `GRB`, `RGB`, `BRG`, `RBG`, `GBR`, `BGR`, `RGBW`, `GRBW`.
 - Tipo `digital` para LEDs no direccionables: color fijo (`R`, `G`, `B`, `W`), `ledCount` forzado a 1.
 - Validación de pines duplicados y restricciones por tipo.
+- Soporte de **perfiles GPIO** guardados en LittleFS y presets integrados en firmware.
+- Un perfil puede guardarse, aplicarse al runtime actual y marcarse como perfil por defecto de arranque.
+- Si existe perfil por defecto, se aplica en cada boot y sobrescribe la `gpio-config.json` activa.
 - `LedDriver` es ahora una clase base abstracta con lógica común de configuración de salidas, niveles por output y API genérica.
 - Implementaciones hijas separadas: `LedDriverNeoPixelBus`, `LedDriverFastLed` y `LedDriverDigital`.
 - `NeoPixelBus` y `digital` ya usan la configuración real de `GpioConfig` con múltiples salidas.
 - `FastLED` queda preparado dentro de la jerarquía, pero por ahora trabaja sobre la salida que coincide con el pin de compilación, ya que esa librería impone restricciones más fuertes para GPIOs variables en runtime.
+
+### Perfiles GPIO
+
+- Presets integrados actuales:
+  - el preset base del build activo (`esp32c3supermini`, `esp32dev` o `esp32s3`)
+  - `gledopto_gl_c_017wl_d` como preset futuro para el controlador Gledopto con GPIO `16`, `4` y `2`
+- Persistencia adicional en LittleFS:
+  - `gpio-profiles.json`: perfiles GPIO de usuario
+  - `startup-profile.json`: id del perfil GPIO por defecto de arranque
+- Aplicar un perfil reconfigura el `LedDriver` en caliente sin reiniciar.
 
 ### WiFi y red
 
@@ -47,16 +60,22 @@ Interfaz dual: HTTP (puerto 80) + Serial (115200 baud) con los mismos comandos.
 
 | Método | Ruta | Descripción |
 |---|---|---|
-| GET | `/api/v1/state` | Estado actual (power, brightness, effectId) |
+| GET | `/api/v1/state` | Estado actual (power, brightness, effecto, secciones y colores) |
 | PATCH | `/api/v1/state` | Actualizar estado |
 | GET | `/api/v1/config/network` | Configuración WiFi + IP |
 | PATCH | `/api/v1/config/network` | Actualizar red |
 | GET | `/api/v1/config/gpio` | Configuración de salidas LED |
 | PATCH | `/api/v1/config/gpio` | Actualizar GPIO |
+| GET | `/api/v1/profiles/gpio` | Listar perfiles GPIO integrados y guardados |
+| POST | `/api/v1/profiles/gpio/save` | Guardar o actualizar un perfil GPIO |
+| POST | `/api/v1/profiles/gpio/apply` | Aplicar un perfil GPIO al runtime |
+| POST | `/api/v1/profiles/gpio/default` | Fijar o limpiar el perfil GPIO por defecto |
+| POST | `/api/v1/profiles/gpio/delete` | Eliminar un perfil GPIO de usuario |
 | GET | `/api/v1/config/debug` | Configuración debug (heartbeat) |
 | PATCH | `/api/v1/config/debug` | Actualizar debug |
 | GET | `/api/v1/config/all` | Configuración completa (merge de todo) |
 | POST | `/api/v1/config/all` | Importar configuración completa con validación |
+| GET | `/api/v1/hardware` | Capacidades runtime de la placa: chip, flash y MAC |
 | GET | `/api/v1/release` | Versión, fecha, rama, board, repositorio |
 | GET | `/api/v1/openapi.json` | Especificación OpenAPI 3.0 |
 
@@ -70,6 +89,7 @@ Todos los endpoints PATCH/POST también aceptan POST como alternativa.
 | `/config` | Índice de configuración |
 | `/config/network` | Configuración WiFi e IP |
 | `/config/gpio` | Configuración de salidas LED |
+| `/config/profiles` | Gestión de perfiles GPIO |
 | `/config/debug` | Configuración debug |
 | `/config/manual` | Editor JSON manual (importar/exportar/validar) |
 | `/version` | Información de versión del firmware |
@@ -79,6 +99,8 @@ Todos los endpoints PATCH/POST también aceptan POST como alternativa.
 | `/api/config/gpio` | Tester de endpoint GPIO |
 | `/api/config/debug` | Tester de endpoint debug |
 | `/api/config/all` | Tester de endpoint config completa |
+| `/api/profiles/gpio` | Tester de perfiles GPIO |
+| `/api/hardware` | Tester de hardware runtime |
 | `/api/release` | Tester de endpoint release |
 
 ### Comandos Serial
@@ -87,15 +109,21 @@ Misma sintaxis que la API HTTP:
 
 ```
 GET /api/v1/state
-PATCH /api/v1/state {"power":false}
+PATCH /api/v1/state {"power":true,"brightness":160,"effect":"gradient","sectionCount":6,"primaryColors":["#FF4D00","#FFD400","#00B8D9"],"backgroundColor":"#050505"}
 GET /api/v1/config/network
 PATCH /api/v1/config/network {"network":{"wifi":{"mode":"ap"}}}
 GET /api/v1/config/gpio
 PATCH /api/v1/config/gpio {"outputs":[...]}
+GET /api/v1/profiles/gpio
+POST /api/v1/profiles/gpio/save {"profile":{"id":"mi_perfil","name":"Mi perfil","gpio":{"outputs":[...]},"autoApplyOnBoot":true}}
+POST /api/v1/profiles/gpio/apply {"profile":{"id":"gledopto_gl_c_017wl_d","setDefault":true}}
+POST /api/v1/profiles/gpio/default {"profile":{"id":"gledopto_gl_c_017wl_d"}}
+POST /api/v1/profiles/gpio/delete {"profile":{"id":"mi_perfil"}}
 GET /api/v1/config/debug
 PATCH /api/v1/config/debug {"debug":{"enabled":true}}
 GET /api/v1/config/all
 POST /api/v1/config/all {json completo}
+GET /api/v1/hardware
 GET /api/v1/release
 ```
 
@@ -108,11 +136,12 @@ firmware/
     api/ApiService.*      — HTTP + Serial API (rutas, HTML, comandos)
     core/BuildProfile.h   — Constantes de compilación (board, versión)
     core/Config.*         — Structs de configuración + validación
-    core/CoreState.*      — Estado runtime (power, brightness, effect)
+    core/CoreState.*      — Estado runtime (power, brightness, efecto, secciones y colores)
     core/NetworkConfig.*  — Struct de configuración de red
     core/ReleaseInfo.*    — Namespace read-only con info de versión
     drivers/LedDriver.*   — Abstracción de salida LED
     effects/EffectEngine.* — Motor de efectos (60 Hz)
+    services/ProfileService.* — Perfiles GPIO integrados + guardados
     services/StorageService.* — Persistencia atómica en LittleFS
     services/WifiService.*    — Gestión WiFi (AP/STA/AP_STA)
 web/                      — Futura interfaz web (MVP)
@@ -124,8 +153,8 @@ tools/flash.ps1           — Script de build/upload/monitor
 
 1. Abrir el workspace en la carpeta raíz (`duxman-led-next`).
 2. Instalar PlatformIO (CLI o extensión VS Code).
-3. Compilar: `pio run` (usa perfil por defecto `esp32c3supermini`).
-4. Subir: `pio run -t upload -e esp32c3supermini`.
+3. Compilar: `pio run` (usa perfil por defecto `esp32dev`).
+4. Subir: `pio run -t upload -e esp32dev`.
 
 ### Compilación por perfil
 
@@ -152,7 +181,7 @@ pio run -e esp32c3supermini_digital
 | Perfil | Puerto |
 |---|---|
 | `upload_esp32c3supermini` | COM6 |
-| `upload_esp32dev` | COM8 |
+| `upload_esp32dev` | COM7 |
 | `upload_esp32s3` | COM9 |
 
 Ajustar `upload_port` y `monitor_port` en `platformio.ini` si tu puerto es distinto.
@@ -168,6 +197,13 @@ powershell -ExecutionPolicy Bypass -File .\tools\flash.ps1 -Profile esp32c3super
 
 # Subir y abrir monitor
 powershell -ExecutionPolicy Bypass -File .\tools\flash.ps1 -Profile esp32dev -Action upload-monitor
+```
+
+Consulta directa de capacidades de la placa conectada:
+
+```powershell
+python -m esptool --chip auto --port COM7 chip-id
+python -m esptool --chip auto --port COM7 flash-id
 ```
 
 También hay VS Code Tasks predefinidas: `FW: Build C3`, `FW: Upload C3 (Auto Port)`, `FW: Upload + Monitor C3`, etc.
@@ -199,12 +235,12 @@ Ejemplo de payload:
 }
 ```
 
-## Uso de Flash (v0.2.1)
+## Uso de Flash (v0.2.2-beta)
 
 | Recurso | Uso | Disponible |
 |---|---|---|
-| RAM | 12.1% | 320 KB |
-| Flash (app) | 29.6% | 3072 KB |
+| RAM | 14.6% | 320 KB |
+| Flash (app) | 31.3% | 3072 KB |
 | LittleFS | Configs | 960 KB |
 
 ## Dependencias y licencias

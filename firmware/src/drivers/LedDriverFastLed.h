@@ -7,6 +7,8 @@ public:
   void begin() override;
   void show() override;
   const char *backendName() const override;
+  void setOutputColor(uint8_t outputIndex, uint32_t color) override;
+  void setPixelColor(uint8_t outputIndex, uint16_t pixelIndex, uint32_t color) override;
 
 private:
   uint8_t activeOutputIndex_ = 0xFF;

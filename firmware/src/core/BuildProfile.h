@@ -13,7 +13,7 @@
 #endif
 
 #ifndef DUX_FW_VERSION
-#define DUX_FW_VERSION "0.2.1"
+#define DUX_FW_VERSION "0.2.2-beta"
 #endif
 
 #ifndef DUX_FW_DATE

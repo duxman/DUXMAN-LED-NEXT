@@ -10,6 +10,7 @@ public:
 
   void begin();
   bool save();
+  bool saveState();
   bool load();
   bool saveNetworkConfig();
   bool loadNetworkConfig();
@@ -21,7 +22,6 @@ private:
   NetworkConfig &networkConfig_;
   GpioConfig &gpioConfig_;
 
-  bool saveState();
   bool loadState();
   bool writeFile(const char *path, const String &content);
   bool readFile(const char *path, String &content);

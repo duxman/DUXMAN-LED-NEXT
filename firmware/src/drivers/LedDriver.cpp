@@ -96,17 +96,35 @@ void LedDriver::configure(const GpioConfig &config) {
 }
 
 void LedDriver::setAll(uint8_t level) {
-	level_ = level;
+	setAllColor((static_cast<uint32_t>(level) << 16) |
+							(static_cast<uint32_t>(level) << 8) |
+							static_cast<uint32_t>(level));
+}
+
+void LedDriver::setAllColor(uint32_t color) {
+	level_ = colorLevel(color);
 	for (uint8_t i = 0; i < outputCount_; ++i) {
-		setOutputLevel(i, level);
+		setOutputColor(i, color);
 	}
 }
 
 void LedDriver::setOutputLevel(uint8_t outputIndex, uint8_t level) {
+	setOutputColor(outputIndex,
+								 (static_cast<uint32_t>(level) << 16) |
+								 (static_cast<uint32_t>(level) << 8) |
+								 static_cast<uint32_t>(level));
+}
+
+void LedDriver::setOutputColor(uint8_t outputIndex, uint32_t color) {
 	if (outputIndex >= outputCount_) {
 		return;
 	}
-	outputLevels_[outputIndex] = level;
+	outputLevels_[outputIndex] = colorLevel(color);
+}
+
+void LedDriver::setPixelColor(uint8_t outputIndex, uint16_t pixelIndex, uint32_t color) {
+	(void)pixelIndex;
+	setOutputColor(outputIndex, color);
 }
 
 const LedDriverOutputConfig &LedDriver::outputConfig(uint8_t outputIndex) const {
@@ -122,6 +140,22 @@ uint8_t LedDriver::outputLevel(uint8_t outputIndex) const {
 		return 0;
 	}
 	return outputLevels_[outputIndex];
+}
+
+bool LedDriver::supportsPerPixelColor(uint8_t outputIndex) const {
+	if (outputIndex >= outputCount_) {
+		return false;
+	}
+
+	const LedDriverOutputConfig &output = outputConfig(outputIndex);
+	return output.enabled && !output.isDigital && isAddressableType(output.ledType);
+}
+
+uint8_t LedDriver::colorLevel(uint32_t color) {
+	const uint8_t red = static_cast<uint8_t>((color >> 16) & 0xFF);
+	const uint8_t green = static_cast<uint8_t>((color >> 8) & 0xFF);
+	const uint8_t blue = static_cast<uint8_t>(color & 0xFF);
+	return max(red, max(green, blue));
 }
 
 bool LedDriver::isAddressableType(LedDriverType ledType) {

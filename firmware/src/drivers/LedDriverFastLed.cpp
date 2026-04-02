@@ -115,11 +115,47 @@ void LedDriverFastLed::show() {
     return;
   }
 
-  fill_solid(gFastLedPixels, activeLedCount_, CRGB(outputLevel(activeOutputIndex_), outputLevel(activeOutputIndex_), outputLevel(activeOutputIndex_)));
   FastLED.show();
 #endif
 }
 
 const char *LedDriverFastLed::backendName() const {
   return "fastled";
+}
+
+void LedDriverFastLed::setOutputColor(uint8_t outputIndex, uint32_t color) {
+  LedDriver::setOutputColor(outputIndex, color);
+
+#if DUX_LED_BACKEND == DUX_LED_BACKEND_FASTLED
+  if (!initialized_ || gFastLedPixels == nullptr || outputIndex != activeOutputIndex_) {
+    return;
+  }
+
+  fill_solid(gFastLedPixels, activeLedCount_,
+             CRGB(static_cast<uint8_t>((color >> 16) & 0xFF),
+                  static_cast<uint8_t>((color >> 8) & 0xFF),
+                  static_cast<uint8_t>(color & 0xFF)));
+#else
+  (void)outputIndex;
+  (void)color;
+#endif
+}
+
+void LedDriverFastLed::setPixelColor(uint8_t outputIndex, uint16_t pixelIndex, uint32_t color) {
+  LedDriver::setOutputColor(outputIndex, color);
+
+#if DUX_LED_BACKEND == DUX_LED_BACKEND_FASTLED
+  if (!initialized_ || gFastLedPixels == nullptr || outputIndex != activeOutputIndex_ ||
+      pixelIndex >= activeLedCount_) {
+    return;
+  }
+
+  gFastLedPixels[pixelIndex] = CRGB(static_cast<uint8_t>((color >> 16) & 0xFF),
+                                    static_cast<uint8_t>((color >> 8) & 0xFF),
+                                    static_cast<uint8_t>(color & 0xFF));
+#else
+  (void)outputIndex;
+  (void)pixelIndex;
+  (void)color;
+#endif
 }

@@ -50,12 +50,19 @@ public:
   virtual void begin() = 0;
   virtual void show() = 0;
   virtual const char *backendName() const = 0;
+  virtual bool isInitialized() const {
+    return true;
+  }
 
   virtual void setAll(uint8_t level);
+  virtual void setAllColor(uint32_t color);
   virtual void setOutputLevel(uint8_t outputIndex, uint8_t level);
+  virtual void setOutputColor(uint8_t outputIndex, uint32_t color);
+  virtual void setPixelColor(uint8_t outputIndex, uint16_t pixelIndex, uint32_t color);
+  virtual bool supportsPerPixelColor(uint8_t outputIndex) const;
 
   virtual void clear() {
-    setAll(0);
+    setAllColor(0);
   }
 
   uint8_t outputCount() const {
@@ -70,6 +77,7 @@ protected:
   }
 
   uint8_t outputLevel(uint8_t outputIndex) const;
+  static uint8_t colorLevel(uint32_t color);
   static bool isAddressableType(LedDriverType ledType);
 
   uint8_t level_ = 0;
