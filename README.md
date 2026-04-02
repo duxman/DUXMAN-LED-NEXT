@@ -207,6 +207,22 @@ Ejemplo de payload:
 | Flash (app) | 29.6% | 3072 KB |
 | LittleFS | Configs | 960 KB |
 
+## Dependencias y licencias
+
+Dependencias de terceros actualmente usadas en el firmware:
+
+| Librería | Licencia | Uso actual |
+|---|---|---|
+| `ArduinoJson` | MIT | Serialización y deserialización JSON |
+| `FastLED` | MIT | Backend LED alternativo de compilación |
+| `NeoPixelBus` | LGPL-3.0-or-later | Backend LED principal actual |
+
+Nota importante:
+
+- `ArduinoJson` y `FastLED` no requieren normalmente más que conservar su aviso de licencia.
+- `NeoPixelBus` usa licencia `LGPL-3.0-or-later`, así que si distribuyes binarios o producto final conviene revisar sus obligaciones de redistribución antes de cerrar una release pública o comercial.
+- Este README deja constancia de las licencias detectadas, pero no sustituye una revisión legal si el firmware se va a redistribuir.
+
 ## TODO
 
 - [ ] **OTA** — Actualmente `huge_app` sin OTA dual. Evaluar: OTA con partición reducida, OTA desde LittleFS, o HTTP OTA con rollback manual.
