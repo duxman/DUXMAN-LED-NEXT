@@ -163,7 +163,7 @@ constexpr int kGpioPinMax = 48;
 bool isValidLedType(const String &type) {
   return type == "digital" || type == "ws2812b" || type == "ws2811" ||
          type == "ws2813" || type == "ws2815" || type == "sk6812" ||
-         type == "apa102" || type == "tm1814";
+         type == "tm1814";
 }
 
 bool isDigitalLedType(const String &type) {

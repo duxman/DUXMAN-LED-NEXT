@@ -1748,7 +1748,7 @@ String ApiService::buildGpioConfigHtml() const {
     const INPUT_ONLY = [34,35,36,39];
     const STRAPPING_C3 = [0,1,2,3,4,5];
     const STRAPPING_S3 = [0,3,45,46];
-    const LED_TYPES = ['digital','ws2812b','ws2811','ws2813','ws2815','sk6812','apa102','tm1814'];
+    const LED_TYPES = ['digital','ws2812b','ws2811','ws2813','ws2815','sk6812','tm1814'];
     const COLOR_ORDERS_3CH = ['GRB','RGB','BRG','RBG','GBR','BGR'];
     const COLOR_ORDERS_4CH = ['RGBW','GRBW'];
     const DIGITAL_COLORS = ['R','G','B','W'];

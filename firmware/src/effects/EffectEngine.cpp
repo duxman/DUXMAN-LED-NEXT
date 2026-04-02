@@ -8,7 +8,7 @@ void EffectEngine::begin() {
 
 void EffectEngine::renderFrame() {
   if (!state_.power) {
-    driver_.setAll(0);
+    driver_.clear();
     driver_.show();
     return;
   }

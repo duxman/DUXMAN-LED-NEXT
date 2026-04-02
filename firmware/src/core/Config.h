@@ -34,7 +34,7 @@ struct DebugConfig {
 // ws2813   — WS2813 (3 cables, señal backup)
 // ws2815   — WS2815 (3 cables, 12V)
 // sk6812   — SK6812 (RGBW, 4 canales)
-// apa102   — APA102 / DotStar (4 cables: data + clock)
+// tm1814   — TM1814 (RGBW/12V según variante)
 //
 // ── Ordenes de color / color fijo ───────────────────────────────
 // Direccionables: RGB, GRB, BRG, RBG, GBR, BGR (3ch), RGBW, GRBW (4ch)

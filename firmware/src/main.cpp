@@ -4,7 +4,7 @@
 #include "core/BuildProfile.h"
 #include "core/CoreState.h"
 #include "core/Config.h"
-#include "drivers/LedDriver.h"
+#include "drivers/CurrentLedDriver.h"
 #include "effects/EffectEngine.h"
 #include "services/StorageService.h"
 #include "services/WifiService.h"
@@ -13,7 +13,7 @@ namespace {
 CoreState state = CoreState::defaults();
 NetworkConfig networkConfig = NetworkConfig::defaults();
 GpioConfig gpioConfig = GpioConfig::defaults();
-LedDriver ledDriver;
+DefaultLedDriver ledDriver;
 EffectEngine effectEngine(state, ledDriver);
 StorageService storageService(state, networkConfig, gpioConfig);
 WifiService wifiService(networkConfig);
@@ -41,6 +41,7 @@ void setup() {
   delay(150);
 
   storageService.begin();
+  ledDriver.configure(gpioConfig);
   wifiService.begin();
   effectEngine.begin();
   apiService.begin();
@@ -48,6 +49,8 @@ void setup() {
   Serial.println("[boot] DUXMAN-LED-NEXT started");
   Serial.print("[boot] profile=");
   Serial.println(BuildProfile::kName);
+  Serial.print("[boot] led.backend=");
+  Serial.println(ledDriver.backendName());
   for (uint8_t i = 0; i < gpioConfig.outputCount; ++i) {
     const LedOutput &o = gpioConfig.outputs[i];
     Serial.print("[boot] output[");
