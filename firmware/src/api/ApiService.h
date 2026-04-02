@@ -7,6 +7,7 @@
 #include "core/Config.h"
 #include "core/HardwareInfo.h"
 #include "core/ReleaseInfo.h"
+#include "drivers/LedDriver.h"
 #include "services/ProfileService.h"
 #include "services/StorageService.h"
 #include "services/WifiService.h"
@@ -14,6 +15,7 @@
 class ApiService {
 public:
   ApiService(CoreState &state, NetworkConfig &networkConfig, GpioConfig &gpioConfig,
+             LedDriver &ledDriver,
              StorageService &storageService, WifiService &wifiService,
              ProfileService &profileService);
 
@@ -24,6 +26,7 @@ private:
   CoreState &state_;
   NetworkConfig &networkConfig_;
   GpioConfig &gpioConfig_;
+  LedDriver &ledDriver_;
   StorageService &storageService_;
   WifiService &wifiService_;
   ProfileService &profileService_;
@@ -43,6 +46,7 @@ private:
   void handleHttpGpioProfilesApplyRoute();
   void handleHttpGpioProfilesDefaultRoute();
   void handleHttpGpioProfilesDeleteRoute();
+  String buildLedDebugJson() const;
   String buildFullConfigJson() const;
   String buildOpenApiJson() const;
   String buildHomeHtml() const;

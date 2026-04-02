@@ -7,12 +7,15 @@ struct EffectDescriptor {
   const char *key;
   const char *label;
   const char *description;
+  bool usesSpeed;
 };
 
 namespace EffectRegistry {
 constexpr uint8_t kEffectFixed = 0;
 constexpr uint8_t kEffectGradient = 1;
 constexpr uint8_t kEffectDiagnostic = 2;
+constexpr uint8_t kEffectBlinkFixed = 3;
+constexpr uint8_t kEffectBlinkGradient = 4;
 
 const EffectDescriptor *all();
 size_t count();

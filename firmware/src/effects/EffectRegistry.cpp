@@ -5,11 +5,15 @@
 namespace {
 constexpr EffectDescriptor kEffects[] = {
     {EffectRegistry::kEffectFixed, "fixed", "Color fijo",
-     "Alterna los 3 colores por secciones fijas."},
+    "Alterna los 3 colores por secciones fijas.", false},
     {EffectRegistry::kEffectGradient, "gradient", "Degradado fijo",
-     "Genera un degradado estatico con los 3 colores dentro de cada seccion."},
-  {EffectRegistry::kEffectDiagnostic, "diagnostic", "Diagnostico",
-   "Activa solo la primera salida en rojo para aislar la linea principal."},
+    "Genera un degradado estatico con los 3 colores dentro de cada seccion.", false},
+   {EffectRegistry::kEffectBlinkFixed, "blink_fixed", "Parpadeo fijo",
+    "Parpadea el patron fijo por secciones usando la velocidad configurada.", true},
+   {EffectRegistry::kEffectBlinkGradient, "blink_gradient", "Parpadeo degradado",
+    "Parpadea el degradado por secciones usando la velocidad configurada.", true},
+   {EffectRegistry::kEffectDiagnostic, "diagnostic", "Diagnostico",
+    "Activa solo la primera salida en rojo para aislar la linea principal.", false},
 };
 }
 
@@ -47,6 +51,12 @@ const EffectDescriptor *findByKey(const String &effectKey) {
   }
   if (effectKey == "degradado" || effectKey == "degradado_fijo") {
     return findById(kEffectGradient);
+  }
+  if (effectKey == "parpadeo_fijo" || effectKey == "blink" || effectKey == "blink-fixed") {
+    return findById(kEffectBlinkFixed);
+  }
+  if (effectKey == "parpadeo_degradado" || effectKey == "blink-gradient") {
+    return findById(kEffectBlinkGradient);
   }
   if (effectKey == "diagnostic" || effectKey == "diagnostico") {
     return findById(kEffectDiagnostic);
@@ -96,6 +106,7 @@ String toJsonArray() {
     item["key"] = kEffects[i].key;
     item["label"] = kEffects[i].label;
     item["description"] = kEffects[i].description;
+    item["usesSpeed"] = kEffects[i].usesSpeed;
   }
 
   String json;

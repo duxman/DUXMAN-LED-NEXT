@@ -103,6 +103,7 @@ String CoreState::toJson() const {
   doc["effect"] = effectName(effectId);
   doc["effectLabel"] = effectLabel(effectId);
   doc["sectionCount"] = sectionCount;
+  doc["effectSpeed"] = effectSpeed;
   doc["availableEffects"] = serialized(EffectRegistry::toJsonArray());
 
   JsonArray colors = doc["primaryColors"].to<JsonArray>();
@@ -147,6 +148,10 @@ bool CoreState::applyPatchJson(const String &payload) {
     next.sectionCount = static_cast<uint8_t>(constrain(root["sectionCount"].as<int>(), 1, 255));
   }
 
+  if (!root["effectSpeed"].isNull()) {
+    next.effectSpeed = static_cast<uint8_t>(constrain(root["effectSpeed"].as<int>(), 1, 100));
+  }
+
   if (root["primaryColors"].is<JsonArrayConst>()) {
     JsonArrayConst colors = root["primaryColors"].as<JsonArrayConst>();
     for (uint8_t i = 0; i < 3 && i < colors.size(); ++i) {
@@ -158,6 +163,7 @@ bool CoreState::applyPatchJson(const String &payload) {
 
   bool changed = next.power != power || next.brightness != brightness ||
                  next.effectId != effectId || next.sectionCount != sectionCount ||
+                 next.effectSpeed != effectSpeed ||
                  next.backgroundColor != backgroundColor;
   for (uint8_t i = 0; i < 3 && !changed; ++i) {
     if (next.primaryColors[i] != primaryColors[i]) {

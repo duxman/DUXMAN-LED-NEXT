@@ -19,8 +19,8 @@ EffectManager effectManager(state, ledDriver);
 StorageService storageService(state, networkConfig, gpioConfig);
 ProfileService profileService(gpioConfig, storageService, ledDriver);
 WifiService wifiService(networkConfig);
-ApiService apiService(state, networkConfig, gpioConfig, storageService, wifiService,
-                      profileService);
+ApiService apiService(state, networkConfig, gpioConfig, ledDriver, storageService,
+                      wifiService, profileService);
 
 unsigned long lastFrameAtMs = 0;
 constexpr unsigned long kFrameIntervalMs = 16;

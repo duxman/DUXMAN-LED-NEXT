@@ -4,10 +4,13 @@
 
 EffectManager::EffectManager(CoreState &state, LedDriver &driver)
     : state_(state), driver_(driver), fixedEffect_(state, driver), gradientEffect_(state, driver),
+      blinkFixedEffect_(state, driver), blinkGradientEffect_(state, driver),
       diagnosticEffect_(state, driver) {
   effects_[0] = &fixedEffect_;
   effects_[1] = &gradientEffect_;
-  effects_[2] = &diagnosticEffect_;
+  effects_[2] = &blinkFixedEffect_;
+  effects_[3] = &blinkGradientEffect_;
+  effects_[4] = &diagnosticEffect_;
 }
 
 void EffectManager::begin() {

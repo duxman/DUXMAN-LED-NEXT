@@ -5,10 +5,20 @@
 
 #include <ArduinoJson.h>
 
+namespace {
+String colorToHex(uint32_t color) {
+  char buffer[10];
+  snprintf(buffer, sizeof(buffer), "#%06lX", static_cast<unsigned long>(color & 0xFFFFFF));
+  return String(buffer);
+}
+} // namespace
+
 ApiService::ApiService(CoreState &state, NetworkConfig &networkConfig, GpioConfig &gpioConfig,
+                       LedDriver &ledDriver,
                        StorageService &storageService, WifiService &wifiService,
                        ProfileService &profileService)
     : state_(state), networkConfig_(networkConfig), gpioConfig_(gpioConfig),
+      ledDriver_(ledDriver),
       storageService_(storageService), wifiService_(wifiService),
       profileService_(profileService), httpServer_(80) {}
 
@@ -821,6 +831,36 @@ String ApiService::buildFullConfigJson() const {
   return out;
 }
 
+String ApiService::buildLedDebugJson() const {
+  JsonDocument doc;
+  JsonObject led = doc["led"].to<JsonObject>();
+  led["backend"] = ledDriver_.backendName();
+  led["initialized"] = ledDriver_.isInitialized();
+  led["outputCount"] = ledDriver_.outputCount();
+
+  JsonArray outputs = led["outputs"].to<JsonArray>();
+  for (uint8_t outputIndex = 0; outputIndex < ledDriver_.outputCount(); ++outputIndex) {
+    const LedDriverOutputConfig &output = ledDriver_.outputConfig(outputIndex);
+    JsonObject item = outputs.add<JsonObject>();
+    item["index"] = outputIndex;
+    item["enabled"] = output.enabled;
+    item["pin"] = output.pin;
+    item["ledCount"] = output.ledCount;
+    item["isDigital"] = output.isDigital;
+    item["isRgbw"] = output.isRgbw;
+    item["supportsPerPixelColor"] = ledDriver_.supportsPerPixelColor(outputIndex);
+    item["lastFillColor"] = colorToHex(ledDriver_.debugLastFillColor(outputIndex));
+    JsonObject samples = item["samplePixels"].to<JsonObject>();
+    samples["first"] = colorToHex(ledDriver_.debugSamplePixelColor(outputIndex, 0));
+    samples["middle"] = colorToHex(ledDriver_.debugSamplePixelColor(outputIndex, 1));
+    samples["last"] = colorToHex(ledDriver_.debugSamplePixelColor(outputIndex, 2));
+  }
+
+  String out;
+  serializeJsonPretty(doc, out);
+  return out;
+}
+
 void ApiService::handleHttpConfigAllRoute() {
   const HTTPMethod method = httpServer_.method();
 
@@ -895,7 +935,18 @@ void ApiService::handleHttpConfigAllRoute() {
 
 void ApiService::handleHttpHardwareRoute() {
   if (httpServer_.method() == HTTP_GET) {
-    httpServer_.send(200, "application/json", HardwareInfo::toJson());
+    JsonDocument doc;
+    JsonDocument hardwareDoc;
+    JsonDocument ledDoc;
+    deserializeJson(hardwareDoc, HardwareInfo::toJson());
+    deserializeJson(ledDoc, buildLedDebugJson());
+    for (JsonPairConst item : hardwareDoc.as<JsonObjectConst>()) {
+      doc[item.key()] = item.value();
+    }
+    doc["led"] = ledDoc["led"];
+    String out;
+    serializeJsonPretty(doc, out);
+    httpServer_.send(200, "application/json", out);
     return;
   }
 
@@ -1296,6 +1347,13 @@ String ApiService::buildHomeHtml() const {
                 <input id='sectionCount' type='number' min='1' max='255' value='3'>
               </label>
 
+              <label id='speedControl'>
+                Rapidez del efecto
+                <input id='effectSpeed' type='range' min='1' max='100' value='10'>
+                <span id='effectSpeedValue'>10</span>
+                <span id='effectSpeedHint'>Solo se usa en efectos animados.</span>
+              </label>
+
               <label>
                 Brillo global
                 <input id='brightness' type='range' min='0' max='255' value='128'>
@@ -1337,9 +1395,32 @@ String ApiService::buildHomeHtml() const {
     const status = document.getElementById('status');
     const brightness = document.getElementById('brightness');
     const brightnessValue = document.getElementById('brightnessValue');
+    const effect = document.getElementById('effect');
+    const effectSpeed = document.getElementById('effectSpeed');
+    const effectSpeedValue = document.getElementById('effectSpeedValue');
+    const effectSpeedHint = document.getElementById('effectSpeedHint');
+    const speedControl = document.getElementById('speedControl');
     brightness.addEventListener('input', () => {
       brightnessValue.textContent = brightness.value;
     });
+    effectSpeed.addEventListener('input', () => {
+      effectSpeedValue.textContent = effectSpeed.value;
+    });
+
+    function effectUsesSpeed(effectKey) {
+      return effectKey === 'blink_fixed' || effectKey === 'blink_gradient';
+    }
+
+    function updateSpeedControl() {
+      const enabled = effectUsesSpeed(effect.value);
+      effectSpeed.disabled = !enabled;
+      speedControl.style.opacity = enabled ? '1' : '.6';
+      effectSpeedHint.textContent = enabled
+        ? 'Valor 1..100. Se multiplica por el tiempo base de framerate.'
+        : 'Solo se usa en efectos animados.';
+    }
+
+    effect.addEventListener('change', updateSpeedControl);
 
     function renderState(state) {
       document.getElementById('power').checked = !!state.power;
@@ -1347,11 +1428,14 @@ String ApiService::buildHomeHtml() const {
       document.getElementById('brightness').value = state.brightness ?? 128;
       brightnessValue.textContent = document.getElementById('brightness').value;
       document.getElementById('sectionCount').value = state.sectionCount ?? 3;
+      document.getElementById('effectSpeed').value = state.effectSpeed ?? 10;
+      effectSpeedValue.textContent = document.getElementById('effectSpeed').value;
       const colors = Array.isArray(state.primaryColors) ? state.primaryColors : ['#ff4d00','#ffd400','#00b8d9'];
       document.getElementById('color0').value = colors[0] || '#ff4d00';
       document.getElementById('color1').value = colors[1] || '#ffd400';
       document.getElementById('color2').value = colors[2] || '#00b8d9';
       document.getElementById('backgroundColor').value = state.backgroundColor || '#000000';
+      updateSpeedControl();
       out.textContent = JSON.stringify(state, null, 2);
       status.textContent = 'Estado cargado';
     }
@@ -1370,6 +1454,7 @@ String ApiService::buildHomeHtml() const {
         brightness: Number(document.getElementById('brightness').value),
         effect: document.getElementById('effect').value,
         sectionCount: Number(document.getElementById('sectionCount').value),
+        effectSpeed: Number(document.getElementById('effectSpeed').value),
         primaryColors: [
           document.getElementById('color0').value,
           document.getElementById('color1').value,
@@ -1605,7 +1690,7 @@ String ApiService::buildApiStateHtml() const {
       <h1>API State</h1>
       <button onclick='getState()'>GET /api/v1/state</button>
       <button onclick='patchState()'>PATCH /api/v1/state</button>
-      <textarea id='payload'>{"power":true,"brightness":180,"effect":"fixed","sectionCount":6,"primaryColors":["#FF4D00","#FFD400","#00B8D9"],"backgroundColor":"#050505"}</textarea>
+      <textarea id='payload'>{"power":true,"brightness":180,"effect":"blink_gradient","sectionCount":6,"effectSpeed":12,"primaryColors":["#FF4D00","#FFD400","#00B8D9"],"backgroundColor":"#050505"}</textarea>
     </div>
     <div class='card'><pre id='out'>Sin llamadas aun.</pre></div>
   </main>

@@ -57,3 +57,7 @@ uint16_t EffectEngine::resolveSectionSize(uint16_t ledCount, uint8_t sectionCoun
   const uint8_t safeSections = max<uint8_t>(1, sectionCount);
   return max<uint16_t>(1, static_cast<uint16_t>((ledCount + safeSections - 1) / safeSections));
 }
+
+unsigned long EffectEngine::effectIntervalMs(uint8_t speedScale) {
+  return static_cast<unsigned long>(constrain(speedScale, static_cast<uint8_t>(1), static_cast<uint8_t>(100))) * 16UL;
+}

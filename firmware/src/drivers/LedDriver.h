@@ -60,6 +60,15 @@ public:
   virtual void setOutputColor(uint8_t outputIndex, uint32_t color);
   virtual void setPixelColor(uint8_t outputIndex, uint16_t pixelIndex, uint32_t color);
   virtual bool supportsPerPixelColor(uint8_t outputIndex) const;
+  virtual uint32_t debugLastFillColor(uint8_t outputIndex) const {
+    (void)outputIndex;
+    return 0;
+  }
+  virtual uint32_t debugSamplePixelColor(uint8_t outputIndex, uint8_t sampleIndex) const {
+    (void)outputIndex;
+    (void)sampleIndex;
+    return 0;
+  }
 
   virtual void clear() {
     setAllColor(0);

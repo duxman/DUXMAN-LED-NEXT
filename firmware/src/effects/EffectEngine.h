@@ -27,6 +27,7 @@ protected:
   static uint32_t gradientColor(uint32_t colorA, uint32_t colorB, uint32_t colorC,
                                 uint16_t pixelIndex, uint16_t pixelCount);
   static uint16_t resolveSectionSize(uint16_t ledCount, uint8_t sectionCount);
+  static unsigned long effectIntervalMs(uint8_t speedScale);
 
 private:
   CoreState &state_;
