@@ -215,6 +215,7 @@ jobs:
           output_path = Path(os.environ["GITHUB_OUTPUT"])
           with output_path.open("a", encoding="utf-8") as fh:
               fh.write(f"release_name=DUXMAN-LED-NEXT {version}\n")
+              fh.write(f"tag_name={tag_name}\n")
               fh.write(f"prerelease={'true' if prerelease else 'false'}\n")
           PY
 
@@ -242,6 +243,7 @@ jobs:
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ steps.release_meta.outputs.tag_name }}
           name: ${{ steps.release_meta.outputs.release_name }}
           body_path: release-assets/RELEASE_NOTES.md
           files: release-assets/packages/*.zip
