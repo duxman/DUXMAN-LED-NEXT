@@ -13,12 +13,15 @@ void EffectTripleChase::renderFrame() {
   LedDriver &led = driver();
 
   const float t = normalizedTimeSec();
+  const float speedNorm = speed01(s.effectSpeed);
+  const float levelNorm = level01(s.effectLevel);
+  const float levelCurve = powf(levelNorm, 1.25f);
   const float repeats = static_cast<float>(max<uint8_t>(1, s.sectionCount));
-  const float speedHz = 0.05f + (s.effectSpeed / 100.0f) * 2.45f;
+  const float speedHz = 0.08f + speedNorm * 3.2f;
   const float phase = t * speedHz;
 
-  // effectLevel 1..10 -> ancho 0.06..0.45 del ciclo.
-  const float trainWidth = 0.06f + ((s.effectLevel - 1) / 9.0f) * 0.39f;
+  // level bajo: tren fino. level alto: tren ancho y mas brillante.
+  const float trainWidth = 0.05f + levelCurve * 0.30f;
   const float globalGain = s.brightness / 255.0f;
 
   for (uint8_t outIdx = 0; outIdx < led.outputCount(); ++outIdx) {
@@ -46,9 +49,9 @@ void EffectTripleChase::renderFrame() {
       }
 
       const uint8_t colorIdx = static_cast<uint8_t>((static_cast<uint32_t>(x * repeats) % 3u));
-      uint32_t color = scaleColorFloat(s.backgroundColor, globalGain);
+      uint32_t color = scaleColorFloat(s.backgroundColor, globalGain * (0.10f + 0.25f * (1.0f - levelNorm)));
       if (intensity > 0.0f) {
-        const uint32_t chaseColor = scaleColorFloat(s.primaryColors[colorIdx], intensity * globalGain);
+        const uint32_t chaseColor = scaleColorFloat(s.primaryColors[colorIdx], intensity * globalGain * (0.55f + 0.45f * levelNorm));
         color = addColor(color, chaseColor);
       }
 

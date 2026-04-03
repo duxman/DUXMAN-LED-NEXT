@@ -2,7 +2,7 @@
 
 Proyecto: `DUXMAN-LED-NEXT`.
 
-Documento actualizado según la implementación actual del firmware `v0.3.1-beta` (Fase 4A-4C, persistencia async, watchdog y catalogo de efectos dinamicos).
+Documento actualizado según la implementación actual del firmware `v0.3.2-beta` (Fase 4A-4C, persistencia async, watchdog y catalogo de efectos dinamicos).
 
 ## Visión general
 

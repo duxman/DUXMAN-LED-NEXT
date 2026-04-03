@@ -37,12 +37,12 @@ void EffectRandomColorPop::renderFrame() {
   LedDriver &led = driver();
 
   const float t = normalizedTimeSec();
-  const float speed01 = (s.effectSpeed - 1) / 99.0f;
-  const float level01 = (s.effectLevel - 1) / 9.0f;
-  const float fadeSpeed = 0.12f + speed01 * 4.2f;
-  const float spawn = 0.02f + level01 * 0.30f;
+  const float speedNorm = speed01(s.effectSpeed);
+  const float levelNorm = level01(s.effectLevel);
+  const float fadeSpeed = 0.12f + speedNorm * 4.2f;
+  const float spawn = 0.02f + levelNorm * 0.30f;
   const float gain = s.brightness / 255.0f;
-  const float stepRate = 1.0f + speed01 * 14.0f;
+  const float stepRate = 1.0f + speedNorm * 14.0f;
   const uint32_t frameKey = static_cast<uint32_t>(t * stepRate);
 
   for (uint8_t outIdx = 0; outIdx < led.outputCount(); ++outIdx) {
@@ -62,13 +62,13 @@ void EffectRandomColorPop::renderFrame() {
       float rnd = (r & 0xFFFF) / 65535.0f;
       float pop = 0.0f;
       if (rnd < spawn) {
-        pop = 0.75f + 0.25f * level01;
+        pop = 0.75f + 0.25f * levelNorm;
       } else {
         pop = 0.06f + 0.30f * (0.5f + 0.5f * sinf((t * fadeSpeed + px * 0.031f) * 2.0f * PI));
       }
 
       uint8_t idx = static_cast<uint8_t>((r >> 8) % 3u);
-      uint32_t base = scaleColorFloat(s.backgroundColor, gain * (0.12f + 0.28f * (1.0f - level01)));
+      uint32_t base = scaleColorFloat(s.backgroundColor, gain * (0.12f + 0.28f * (1.0f - levelNorm)));
       uint32_t light = scaleColorFloat(s.primaryColors[idx], clamp01(pop) * gain);
       led.setPixelColor(outIdx, px, addColor(base, light));
     }

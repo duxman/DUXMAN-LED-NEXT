@@ -13,8 +13,11 @@ void EffectLavaFlow::renderFrame() {
   LedDriver &led = driver();
 
   const float t = normalizedTimeSec();
-  const float speed = 0.08f + (s.effectSpeed / 100.0f) * 1.8f;
-  const float deform = 0.05f + ((s.effectLevel - 1) / 9.0f) * 0.45f;
+  const float speedNorm = speed01(s.effectSpeed);
+  const float levelNorm = level01(s.effectLevel);
+  const float levelCurve = powf(levelNorm, 1.2f);
+  const float speed = 0.10f + speedNorm * 2.2f;
+  const float deform = 0.06f + levelCurve * 0.56f;
   const float repeats = static_cast<float>(max<uint8_t>(1, s.sectionCount));
   const float gain = s.brightness / 255.0f;
 
@@ -36,8 +39,8 @@ void EffectLavaFlow::renderFrame() {
 
       const uint32_t hot = lerpColor(s.primaryColors[0], s.primaryColors[1], mix);
       const uint32_t lava = lerpColor(hot, s.primaryColors[2], clamp01(0.2f + 0.8f * mix));
-      const uint32_t base = scaleColorFloat(s.backgroundColor, gain);
-      const uint32_t glow = scaleColorFloat(lava, gain);
+      const uint32_t base = scaleColorFloat(s.backgroundColor, gain * (0.08f + 0.20f * (1.0f - levelNorm)));
+      const uint32_t glow = scaleColorFloat(lava, gain * (0.60f + 0.40f * levelNorm));
       led.setPixelColor(outIdx, px, addColor(base, glow));
     }
   }

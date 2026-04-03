@@ -13,7 +13,10 @@ void EffectGradientMeteor::renderFrame() {
   LedDriver &led = driver();
 
   const float t = normalizedTimeSec();
-  const float speedHz = 0.05f + (s.effectSpeed / 100.0f) * 2.0f;
+  const float speedNorm = speed01(s.effectSpeed);
+  const float levelNorm = level01(s.effectLevel);
+  const float levelCurve = powf(levelNorm, 1.2f);
+  const float speedHz = 0.06f + speedNorm * 3.0f;
   const float globalGain = s.brightness / 255.0f;
 
   for (uint8_t outIdx = 0; outIdx < led.outputCount(); ++outIdx) {
@@ -32,8 +35,8 @@ void EffectGradientMeteor::renderFrame() {
     const float ledCountF = static_cast<float>(out.ledCount);
     const float headPos = fmodf(t * speedHz * ledCountF, ledCountF);
 
-    // effectLevel 1..10 -> cola de 8%..55% de la tira
-    const float tailLen = max(1.0f, ledCountF * (0.08f + ((s.effectLevel - 1) / 9.0f) * 0.47f));
+    // level bajo: cola corta; level alto: cola larga y mas presencia.
+    const float tailLen = max(1.0f, ledCountF * (0.08f + levelCurve * 0.57f));
 
     for (uint16_t px = 0; px < out.ledCount; ++px) {
       float dist = headPos - static_cast<float>(px);
@@ -47,10 +50,10 @@ void EffectGradientMeteor::renderFrame() {
         intensity = smoothstep(0.0f, 1.0f, norm);
       }
 
-      uint32_t color = scaleColorFloat(s.backgroundColor, globalGain);
+      uint32_t color = scaleColorFloat(s.backgroundColor, globalGain * (0.08f + 0.22f * (1.0f - levelNorm)));
       if (intensity > 0.0f) {
         const uint32_t meteorColor = gradientColor(s.primaryColors[0], s.primaryColors[1], s.primaryColors[2], px, out.ledCount);
-        color = addColor(color, scaleColorFloat(meteorColor, intensity * globalGain));
+        color = addColor(color, scaleColorFloat(meteorColor, intensity * globalGain * (0.60f + 0.40f * levelNorm)));
       }
 
       led.setPixelColor(outIdx, px, color);

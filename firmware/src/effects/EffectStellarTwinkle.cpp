@@ -37,12 +37,12 @@ void EffectStellarTwinkle::renderFrame() {
   LedDriver &led = driver();
 
   const float t = normalizedTimeSec();
-  const float speed01 = (s.effectSpeed - 1) / 99.0f;
-  const float level01 = (s.effectLevel - 1) / 9.0f;
-  const float speed = 0.15f + speed01 * 4.5f;
-  const float density = 0.03f + level01 * 0.40f;
+  const float speedNorm = speed01(s.effectSpeed);
+  const float levelNorm = level01(s.effectLevel);
+  const float speed = 0.15f + speedNorm * 4.5f;
+  const float density = 0.03f + levelNorm * 0.40f;
   const float gain = s.brightness / 255.0f;
-  const float stepRate = 2.0f + speed01 * 16.0f;
+  const float stepRate = 2.0f + speedNorm * 16.0f;
   const uint32_t frameKey = static_cast<uint32_t>(t * stepRate);
 
   for (uint8_t outIdx = 0; outIdx < led.outputCount(); ++outIdx) {
@@ -51,7 +51,7 @@ void EffectStellarTwinkle::renderFrame() {
 
     if (!led.supportsPerPixelColor(outIdx) || out.ledCount <= 1) {
       uint32_t r = hash32(seed_ ^ frameKey ^ outIdx);
-      float flash = ((r & 0xFF) / 255.0f) < density ? (0.65f + 0.35f * level01) : 0.10f;
+      float flash = ((r & 0xFF) / 255.0f) < density ? (0.65f + 0.35f * levelNorm) : 0.10f;
       led.setOutputColor(outIdx, scaleColorFloat(s.primaryColors[outIdx % 3], flash * gain));
       continue;
     }
@@ -62,11 +62,11 @@ void EffectStellarTwinkle::renderFrame() {
       float sparkle = 0.0f;
       if (rnd < density) {
         const float pulse = 0.5f + 0.5f * sinf((t * speed + px * 0.071f) * 2.0f * PI);
-        sparkle = smoothstep(0.0f, 1.0f, pulse) * (0.45f + 0.55f * level01);
+        sparkle = smoothstep(0.0f, 1.0f, pulse) * (0.45f + 0.55f * levelNorm);
       }
 
       const uint8_t colorIdx = static_cast<uint8_t>(r % 3u);
-      const uint32_t base = scaleColorFloat(s.backgroundColor, gain * (0.15f + 0.20f * (1.0f - level01)));
+      const uint32_t base = scaleColorFloat(s.backgroundColor, gain * (0.15f + 0.20f * (1.0f - levelNorm)));
       const uint32_t star = scaleColorFloat(s.primaryColors[colorIdx], sparkle * gain);
       led.setPixelColor(outIdx, px, addColor(base, star));
     }

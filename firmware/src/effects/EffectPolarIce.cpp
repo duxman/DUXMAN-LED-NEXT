@@ -13,8 +13,11 @@ void EffectPolarIce::renderFrame() {
   LedDriver &led = driver();
 
   const float t = normalizedTimeSec();
-  const float speed = 0.05f + (s.effectSpeed / 100.0f) * 1.6f;
-  const float contrast = 0.2f + ((s.effectLevel - 1) / 9.0f) * 0.8f;
+  const float speedNorm = speed01(s.effectSpeed);
+  const float levelNorm = level01(s.effectLevel);
+  const float levelCurve = powf(levelNorm, 1.2f);
+  const float speed = 0.06f + speedNorm * 2.0f;
+  const float contrast = 0.25f + levelCurve * 0.75f;
   const float repeats = static_cast<float>(max<uint8_t>(1, s.sectionCount));
   const float gain = s.brightness / 255.0f;
 
@@ -36,8 +39,8 @@ void EffectPolarIce::renderFrame() {
 
       const uint32_t cold = lerpColor(s.primaryColors[2], s.primaryColors[1], mix);
       const uint32_t ice = lerpColor(cold, s.primaryColors[0], 0.15f * (1.0f - mix));
-      const uint32_t base = scaleColorFloat(s.backgroundColor, gain);
-      const uint32_t glow = scaleColorFloat(ice, gain);
+      const uint32_t base = scaleColorFloat(s.backgroundColor, gain * (0.10f + 0.25f * (1.0f - levelNorm)));
+      const uint32_t glow = scaleColorFloat(ice, gain * (0.58f + 0.42f * levelNorm));
       led.setPixelColor(outIdx, px, addColor(base, glow));
     }
   }

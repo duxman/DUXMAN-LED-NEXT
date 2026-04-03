@@ -301,7 +301,7 @@ Mitigación: límites de tamaño + validación estricta.
 
 ## 15) Estado actual de sesión (snapshot)
 
-**Fase 4A-4C COMPLETADAS (v0.3.1-beta)**
+**Fase 4A-4C COMPLETADAS (v0.3.2-beta)**
 - ✅ FreeRTOS dual-core: `TaskControl` (core 0, 10ms) + `TaskRender` (core 1, 16ms)
 - ✅ CoreState sincronizado: Mutex para API-render + snapshot pattern
 - ✅ Persistencia asíncrona: `PersistenceSchedulerService` con coalescent flags
@@ -322,7 +322,7 @@ Mitigación: límites de tamaño + validación estricta.
 
 Usar este bloque al abrir un chat nuevo:
 
-> "Continuamos DUXMAN-LED-NEXT en v0.3.1-beta según `evolucion led-next.md`.
+> "Continuamos DUXMAN-LED-NEXT en v0.3.2-beta según `evolucion led-next.md`.
 > Stack cerrado: ESP32 (C3/Dev/S3) + PlatformIO + Arduino + FreeRTOS.
 > 
 > **Estado actual (Fases 4A-4C COMPLETAS):**

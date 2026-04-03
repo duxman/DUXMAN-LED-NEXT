@@ -1,6 +1,6 @@
 # DUXMAN-LED-NEXT
 
-Controlador LED modular para ESP32, inspirado en WLED. Firmware beta v0.3.1-beta (FreeRTOS + Watchdog + catalogo de efectos dinamicos).
+Controlador LED modular para ESP32, inspirado en WLED. Firmware beta v0.3.2-beta (FreeRTOS + Watchdog + catalogo de efectos dinamicos).
 
 ## Características implementadas
 
@@ -51,7 +51,7 @@ Controlador LED modular para ESP32, inspirado en WLED. Firmware beta v0.3.1-beta
 - Modos WiFi: `ap`, `sta`, `ap_sta`.
 - Política de AP: `always` o `untilStaConnected` (AP se apaga al conectar STA, se reactiva si cae).
 - IP estática o DHCP para AP y STA de forma independiente.
-- Hostname mDNS configurable (1-63 caracteres alfanuméricos).
+- Hostname mDNS configurable y resolución local vía `hostname.local` (1-63 caracteres alfanuméricos).
 - Validación completa de IPv4, SSID, hostname.
 
 ### API REST (v1)
@@ -235,7 +235,7 @@ Ejemplo de payload:
 }
 ```
 
-## Uso de Flash (v0.3.1-beta)
+## Uso de Flash (v0.3.2-beta)
 
 | Recurso | Uso | Disponible |
 |---|---|---|
@@ -243,7 +243,7 @@ Ejemplo de payload:
 | Flash (app) | 31.3% | 3072 KB |
 | LittleFS | Configs | 960 KB |
 
-## Catalogo de efectos dinamicos (v0.3.1-beta)
+## Catalogo de efectos dinamicos (v0.3.2-beta)
 
 Disponibles actualmente en runtime:
 
@@ -281,7 +281,6 @@ Nota importante:
 - [ ] **Efectos (afinado)** — Ajustar presets visuales por hardware, curvas no lineales de `effectLevel` y perfiles por tipo de tira LED.
 - [ ] **Audio reactivo** — Integrar micrófono I2S y FFT para mapear bajos, medios y agudos a parámetros del motor de efectos.
 - [ ] **Web UI (SPA)** — Interfaz web moderna en `web/` que reemplace los HTML embebidos.
-- [ ] **mDNS** — Responder a `hostname.local` para acceso sin IP.
 - [ ] **Seguridad** — Autenticación básica o token para la API.
 - [ ] **Tests** — Unit tests con PlatformIO Test Runner (`firmware/test/`).
 - [ ] **Arquitectura hub/nodo** — Mantener abierta la opción de delegar navegación, UI y API a una Raspberry Pi como hub central, dejando el ESP32 como nodo ejecutor puro. Falta definir protocolo hub↔nodo y reparto final de responsabilidades.

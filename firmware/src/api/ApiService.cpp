@@ -1801,6 +1801,12 @@ String ApiService::buildHomeHtml() const {
                   <button class='alt' onclick='restartBoard()'>Reiniciar placa</button>
                 </div>
 
+                <div class='actions'>
+                  <button class='alt' onclick='applyVisualPreset("smooth")'>Preset suave</button>
+                  <button class='alt' onclick='applyVisualPreset("show")'>Preset show</button>
+                  <button class='alt' onclick='applyVisualPreset("aggressive")'>Preset agresivo</button>
+                </div>
+
                 <div class='sequence-tools'>
                   <label>
                     Duracion para nueva entrada
@@ -2057,6 +2063,38 @@ String ApiService::buildHomeHtml() const {
           status.textContent = 'Esperando a que la placa vuelva a responder...';
         });
       }, 4000);
+    }
+
+    function setSliderWithReadout(sliderId, readoutId, value, suffix = '') {
+      const slider = document.getElementById(sliderId);
+      const readout = document.getElementById(readoutId);
+      slider.value = String(value);
+      readout.textContent = String(value) + suffix;
+    }
+
+    async function applyVisualPreset(presetName) {
+      const presets = {
+        smooth: { sectionCount: 3, effectSpeed: 24, effectLevel: 3, brightness: 120, backgroundColor: '#020202' },
+        show: { sectionCount: 4, effectSpeed: 56, effectLevel: 6, brightness: 170, backgroundColor: '#000000' },
+        aggressive: { sectionCount: 6, effectSpeed: 86, effectLevel: 9, brightness: 220, backgroundColor: '#000000' }
+      };
+
+      const preset = presets[presetName];
+      if (!preset) {
+        status.textContent = 'Preset no valido';
+        return;
+      }
+
+      setSliderWithReadout('sectionCount', 'sectionCountValue', preset.sectionCount);
+      setSliderWithReadout('effectSpeed', 'effectSpeedValue', preset.effectSpeed);
+      setSliderWithReadout('effectLevel', 'effectLevelValue', preset.effectLevel);
+      setSliderWithReadout('brightness', 'brightnessValue', preset.brightness);
+      document.getElementById('backgroundColor').value = preset.backgroundColor;
+      updateSpeedControl();
+
+      status.textContent = 'Aplicando preset ' + presetName + '...';
+      await applyState();
+      status.textContent = 'Preset ' + presetName + ' aplicado';
     }
 
     async function loadState() {
