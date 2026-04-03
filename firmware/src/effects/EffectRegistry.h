@@ -16,6 +16,17 @@ constexpr uint8_t kEffectGradient = 1;
 constexpr uint8_t kEffectDiagnostic = 2;
 constexpr uint8_t kEffectBlinkFixed = 3;
 constexpr uint8_t kEffectBlinkGradient = 4;
+constexpr uint8_t kEffectBreathFixed = 5;
+constexpr uint8_t kEffectBreathGradient = 6;
+constexpr uint8_t kEffectTripleChase = 7;
+constexpr uint8_t kEffectGradientMeteor = 8;
+constexpr uint8_t kEffectScanningPulse = 9;
+constexpr uint8_t kEffectTrigRibbon = 10;
+constexpr uint8_t kEffectLavaFlow = 11;
+constexpr uint8_t kEffectPolarIce = 12;
+constexpr uint8_t kEffectStellarTwinkle = 13;
+constexpr uint8_t kEffectRandomColorPop = 14;
+constexpr uint8_t kEffectBouncingPhysics = 15;
 
 const EffectDescriptor *all();
 size_t count();

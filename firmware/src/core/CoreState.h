@@ -12,6 +12,17 @@ struct CoreState {
   static constexpr uint8_t kEffectBlinkFixed = EffectRegistry::kEffectBlinkFixed;
   static constexpr uint8_t kEffectBlinkGradient = EffectRegistry::kEffectBlinkGradient;
   static constexpr uint8_t kEffectDiagnostic = EffectRegistry::kEffectDiagnostic;
+  static constexpr uint8_t kEffectBreathFixed = EffectRegistry::kEffectBreathFixed;
+  static constexpr uint8_t kEffectBreathGradient = EffectRegistry::kEffectBreathGradient;
+  static constexpr uint8_t kEffectTripleChase = EffectRegistry::kEffectTripleChase;
+  static constexpr uint8_t kEffectGradientMeteor = EffectRegistry::kEffectGradientMeteor;
+  static constexpr uint8_t kEffectScanningPulse = EffectRegistry::kEffectScanningPulse;
+  static constexpr uint8_t kEffectTrigRibbon = EffectRegistry::kEffectTrigRibbon;
+  static constexpr uint8_t kEffectLavaFlow = EffectRegistry::kEffectLavaFlow;
+  static constexpr uint8_t kEffectPolarIce = EffectRegistry::kEffectPolarIce;
+  static constexpr uint8_t kEffectStellarTwinkle = EffectRegistry::kEffectStellarTwinkle;
+  static constexpr uint8_t kEffectRandomColorPop = EffectRegistry::kEffectRandomColorPop;
+  static constexpr uint8_t kEffectBouncingPhysics = EffectRegistry::kEffectBouncingPhysics;
 
   bool power = true;
   uint8_t brightness = 128;

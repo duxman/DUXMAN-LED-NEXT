@@ -59,5 +59,68 @@ uint16_t EffectEngine::resolveSectionSize(uint16_t ledCount, uint8_t sectionCoun
 }
 
 unsigned long EffectEngine::effectIntervalMs(uint8_t speedScale) {
-  return static_cast<unsigned long>(constrain(speedScale, static_cast<uint8_t>(1), static_cast<uint8_t>(100))) * 16UL;
+  const float s = speed01(speedScale);
+  // 1 -> ~1200 ms (lento), 100 -> ~40 ms (rapido)
+  return static_cast<unsigned long>(1200.0f - 1160.0f * s);
+}
+
+float EffectEngine::speed01(uint8_t speedScale) {
+  return (constrain(speedScale, static_cast<uint8_t>(1), static_cast<uint8_t>(100)) - 1) / 99.0f;
+}
+
+float EffectEngine::level01(uint8_t levelScale) {
+  return (constrain(levelScale, static_cast<uint8_t>(1), static_cast<uint8_t>(10)) - 1) / 9.0f;
+}
+
+// ── Helpers matemáticos para efectos dinámicos ────────────────────────────
+
+float EffectEngine::normalizedX(uint16_t pixelIndex, uint16_t pixelCount) {
+  if (pixelCount <= 1) return 0.0f;
+  return static_cast<float>(pixelIndex) / static_cast<float>(pixelCount - 1);
+}
+
+float EffectEngine::normalizedTimeSec() {
+  return static_cast<float>(millis()) / 1000.0f;
+}
+
+float EffectEngine::clamp01(float v) {
+  return v < 0.0f ? 0.0f : (v > 1.0f ? 1.0f : v);
+}
+
+float EffectEngine::smoothstep(float edge0, float edge1, float x) {
+  const float t = clamp01((x - edge0) / (edge1 - edge0));
+  return t * t * (3.0f - 2.0f * t);
+}
+
+uint32_t EffectEngine::lerpColor(uint32_t colorA, uint32_t colorB, float t) {
+  const float tc = clamp01(t);
+  const float inv = 1.0f - tc;
+  const uint8_t r = static_cast<uint8_t>(((colorA >> 16) & 0xFF) * inv + ((colorB >> 16) & 0xFF) * tc);
+  const uint8_t g = static_cast<uint8_t>(((colorA >> 8)  & 0xFF) * inv + ((colorB >> 8)  & 0xFF) * tc);
+  const uint8_t b = static_cast<uint8_t>((colorA & 0xFF)         * inv + (colorB & 0xFF)         * tc);
+  return (static_cast<uint32_t>(r) << 16) | (static_cast<uint32_t>(g) << 8) | b;
+}
+
+uint32_t EffectEngine::addColor(uint32_t colorA, uint32_t colorB) {
+  const uint32_t r = min(255u, ((colorA >> 16) & 0xFF) + ((colorB >> 16) & 0xFF));
+  const uint32_t g = min(255u, ((colorA >> 8)  & 0xFF) + ((colorB >> 8)  & 0xFF));
+  const uint32_t b = min(255u, (colorA & 0xFF)         + (colorB & 0xFF));
+  return (r << 16) | (g << 8) | b;
+}
+
+uint32_t EffectEngine::scaleColorFloat(uint32_t color, float gain) {
+  const float g = clamp01(gain);
+  const uint8_t r = static_cast<uint8_t>(((color >> 16) & 0xFF) * g);
+  const uint8_t gr = static_cast<uint8_t>(((color >> 8)  & 0xFF) * g);
+  const uint8_t b = static_cast<uint8_t>((color & 0xFF)          * g);
+  return (static_cast<uint32_t>(r) << 16) | (static_cast<uint32_t>(gr) << 8) | b;
+}
+
+uint32_t EffectEngine::applyGamma(uint32_t color) {
+  auto gammaChannel = [](uint8_t v) -> uint8_t {
+    return static_cast<uint8_t>(powf(v / 255.0f, 2.2f) * 255.0f + 0.5f);
+  };
+  return (static_cast<uint32_t>(gammaChannel((color >> 16) & 0xFF)) << 16) |
+         (static_cast<uint32_t>(gammaChannel((color >> 8)  & 0xFF)) << 8) |
+         static_cast<uint32_t>(gammaChannel(color & 0xFF));
 }

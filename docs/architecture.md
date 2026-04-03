@@ -2,7 +2,7 @@
 
 Proyecto: `DUXMAN-LED-NEXT`.
 
-Documento actualizado según la implementación actual del firmware `v0.3.0-beta` (Fase 4A-4C: FreeRTOS, async persistence, watchdog).
+Documento actualizado según la implementación actual del firmware `v0.3.1-beta` (Fase 4A-4C, persistencia async, watchdog y catalogo de efectos dinamicos).
 
 ## Visión general
 
@@ -33,8 +33,22 @@ Campos actuales:
 
 Efectos soportados actualmente:
 
-- `0` / `fixed`: color fijo por secciones, ciclando entre los 3 colores de primer plano
-- `1` / `gradient`: degradado fijo dentro de cada sección usando los 3 colores de primer plano
+- `0` / `fixed`: color fijo por secciones
+- `1` / `gradient`: degradado fijo por sección
+- `2` / `diagnostic`: diagnóstico de salida principal
+- `3` / `blink_fixed`: parpadeo fijo
+- `4` / `blink_gradient`: parpadeo degradado
+- `5` / `breath_fixed`: respiración de secciones fijas
+- `6` / `breath_gradient`: respiración con degradado global
+- `7` / `triple_chase`: tren de color en movimiento
+- `8` / `gradient_meteor`: cabeza y cola con gradiente
+- `9` / `scanning_pulse`: pulso de barrido con rebote
+- `10` / `trig_ribbon`: mezcla sinusoidal multicapa
+- `11` / `lava_flow`: deformación orgánica cálida
+- `12` / `polar_ice`: interferencia fría
+- `13` / `stellar_twinkle`: destellos estelares
+- `14` / `random_color_pop`: pops aleatorios de color
+- `15` / `bouncing_physics`: bolas luminosas en rebote
 
 Es la parte más cercana al "estado operativo" del render, no a la configuración persistente de infraestructura.
 

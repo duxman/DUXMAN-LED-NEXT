@@ -5,12 +5,28 @@
 EffectManager::EffectManager(CoreState &state, LedDriver &driver)
     : state_(state), driver_(driver), fixedEffect_(state, driver), gradientEffect_(state, driver),
       blinkFixedEffect_(state, driver), blinkGradientEffect_(state, driver),
-      diagnosticEffect_(state, driver) {
+      diagnosticEffect_(state, driver), breathFixedEffect_(state, driver),
+      breathGradientEffect_(state, driver), tripleChaseEffect_(state, driver),
+      gradientMeteorEffect_(state, driver), scanningPulseEffect_(state, driver),
+  trigRibbonEffect_(state, driver), lavaFlowEffect_(state, driver),
+  polarIceEffect_(state, driver), stellarTwinkleEffect_(state, driver),
+  randomColorPopEffect_(state, driver), bouncingPhysicsEffect_(state, driver) {
   effects_[0] = &fixedEffect_;
   effects_[1] = &gradientEffect_;
   effects_[2] = &blinkFixedEffect_;
   effects_[3] = &blinkGradientEffect_;
   effects_[4] = &diagnosticEffect_;
+  effects_[5] = &breathFixedEffect_;
+  effects_[6] = &breathGradientEffect_;
+  effects_[7] = &tripleChaseEffect_;
+  effects_[8] = &gradientMeteorEffect_;
+  effects_[9] = &scanningPulseEffect_;
+  effects_[10] = &trigRibbonEffect_;
+  effects_[11] = &lavaFlowEffect_;
+  effects_[12] = &polarIceEffect_;
+  effects_[13] = &stellarTwinkleEffect_;
+  effects_[14] = &randomColorPopEffect_;
+  effects_[15] = &bouncingPhysicsEffect_;
 }
 
 void EffectManager::begin() {
@@ -34,12 +50,27 @@ void EffectManager::renderFrame() {
   }
 
   EffectEngine &activeEffect = resolveActiveEffect();
+
+  // Ciclo de vida: detectar cambio de efecto y notificar onActivate/onDeactivate.
+  if (state_.effectId != lastEffectId_) {
+    if (lastEffectId_ != 255) {
+      for (size_t i = 0; i < kEffectCount; ++i) {
+        if (effects_[i] && effects_[i]->supports(lastEffectId_)) {
+          effects_[i]->onDeactivate();
+          break;
+        }
+      }
+    }
+    activeEffect.onActivate();
+    lastEffectId_ = state_.effectId;
+  }
+
   activeEffect.renderFrame();
   state_.unlock();
 }
 
 EffectEngine &EffectManager::resolveActiveEffect() {
-  for (size_t i = 0; i < sizeof(effects_) / sizeof(effects_[0]); ++i) {
+  for (size_t i = 0; i < kEffectCount; ++i) {
     if (effects_[i] != nullptr && effects_[i]->supports(state_.effectId)) {
       return *effects_[i];
     }

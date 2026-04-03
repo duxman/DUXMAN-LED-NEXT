@@ -1,6 +1,6 @@
 # DUXMAN-LED-NEXT
 
-Controlador LED modular para ESP32, inspirado en WLED. Firmware beta v0.3.0-beta (FreeRTOS + Watchdog).
+Controlador LED modular para ESP32, inspirado en WLED. Firmware beta v0.3.1-beta (FreeRTOS + Watchdog + catalogo de efectos dinamicos).
 
 ## Características implementadas
 
@@ -235,13 +235,28 @@ Ejemplo de payload:
 }
 ```
 
-## Uso de Flash (v0.3.0-beta)
+## Uso de Flash (v0.3.1-beta)
 
 | Recurso | Uso | Disponible |
 |---|---|---|
 | RAM | 14.6% | 320 KB |
 | Flash (app) | 31.3% | 3072 KB |
 | LittleFS | Configs | 960 KB |
+
+## Catalogo de efectos dinamicos (v0.3.1-beta)
+
+Disponibles actualmente en runtime:
+
+- `fixed`, `gradient`, `blink_fixed`, `blink_gradient`
+- `breath_fixed`, `breath_gradient`
+- `triple_chase`, `gradient_meteor`, `scanning_pulse`, `trig_ribbon`
+- `lava_flow`, `polar_ice`, `stellar_twinkle`, `random_color_pop`, `bouncing_physics`
+
+Calibrado de controles:
+
+- `effectSpeed` en escala `1..100` unificada (bajo = lento, alto = rapido)
+- `effectLevel` en escala `1..10` con impacto visual consistente por efecto
+- Respeto de `primaryColors[3]` y `backgroundColor` en todo el pipeline
 
 ## Dependencias y licencias
 
@@ -263,9 +278,7 @@ Nota importante:
 
 - [ ] **OTA** — Actualmente `huge_app` sin OTA dual. Evaluar: OTA con partición reducida, OTA desde LittleFS, o HTTP OTA con rollback manual.
 - [ ] **LedDriver avanzado** — Completar soporte de reconfiguración en caliente y cerrar la brecha de `FastLED` para escenarios multi-salida con pines variables.
-- [ ] **Efectos** — Implementar motor de efectos independiente del número de LEDs usando coordenadas normalizadas y configuración por JSON/presets.
-- [ ] **Primeros efectos dinámicos** — Añadir `solid`, `rainbow`, `chase`, `string_beads`, `meteor_shower` y `cinema_dots`, incluyendo huecos negros reales para dar sensación de movimiento.
-- [ ] **FreeRTOS** — Separar render/audio de comunicaciones cuando el firmware lo requiera, con estado compartido protegido por mutex/semaphores.
+- [ ] **Efectos (afinado)** — Ajustar presets visuales por hardware, curvas no lineales de `effectLevel` y perfiles por tipo de tira LED.
 - [ ] **Audio reactivo** — Integrar micrófono I2S y FFT para mapear bajos, medios y agudos a parámetros del motor de efectos.
 - [ ] **Web UI (SPA)** — Interfaz web moderna en `web/` que reemplace los HTML embebidos.
 - [ ] **mDNS** — Responder a `hostname.local` para acceso sin IP.

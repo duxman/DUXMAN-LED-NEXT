@@ -301,13 +301,15 @@ Mitigación: límites de tamaño + validación estricta.
 
 ## 15) Estado actual de sesión (snapshot)
 
-**Fase 4A-4C COMPLETADAS (v0.3.0-beta)**
+**Fase 4A-4C COMPLETADAS (v0.3.1-beta)**
 - ✅ FreeRTOS dual-core: `TaskControl` (core 0, 10ms) + `TaskRender` (core 1, 16ms)
 - ✅ CoreState sincronizado: Mutex para API-render + snapshot pattern
 - ✅ Persistencia asíncrona: `PersistenceSchedulerService` con coalescent flags
 - ✅ ProfileService desacoplado: Cola interna para saves diferidos
 - ✅ Task Watchdog Timers (TWDT): Monitoreo per-core con recuperación
 - ✅ Boot timestamp: Fecha/hora último arranque en respuesta state
+- ✅ Catalogo de efectos dinámicos (ids 0..15) integrado y validado en hardware
+- ✅ Calibrado de sliders (`effectSpeed` y `effectLevel`) unificado y corregido
 
 **Próximas fases:**
 - Fase 5: Audio reactivity (I2S + FFT para efectos reactivos)
@@ -320,7 +322,7 @@ Mitigación: límites de tamaño + validación estricta.
 
 Usar este bloque al abrir un chat nuevo:
 
-> "Continuamos DUXMAN-LED-NEXT en v0.3.0-beta según `evolucion led-next.md`.
+> "Continuamos DUXMAN-LED-NEXT en v0.3.1-beta según `evolucion led-next.md`.
 > Stack cerrado: ESP32 (C3/Dev/S3) + PlatformIO + Arduino + FreeRTOS.
 > 
 > **Estado actual (Fases 4A-4C COMPLETAS):**

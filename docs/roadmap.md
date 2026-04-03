@@ -84,6 +84,5 @@ Fases incrementales según `evolucion led-next.md`.
 - [ ] Arquitectura hub/nodo — Delegar UI, API y navegación a una Raspberry Pi (hub). ESP32 como nodo ejecutor puro (recibe config, controla LEDs). Definir protocolo de comunicación hub↔nodo y alcance de cada componente.
 - [ ] Completar `LedDriver` real sobre la base ya preparada: selección por compilación entre `NeoPixelBus`, `FastLED` y `digital`, con soporte multi-salida y color order.
 - [ ] Definir esquema JSON de efectos/presets independiente del número de LEDs y segmentos.
-- [ ] Implementar primeros efectos dinámicos con huecos reales: `string_beads`, `meteor_shower`, `cinema_dots`.
-- [ ] Diseñar migración a FreeRTOS por tareas y estado compartido seguro.
+- [ ] Afinar catalogo de efectos dinámicos ya implementado (curvas, presets, perfiles por hardware LED).
 - [ ] Diseñar pipeline de audio reactivo con I2S + FFT.

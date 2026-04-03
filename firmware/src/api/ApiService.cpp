@@ -1904,17 +1904,10 @@ String ApiService::buildHomeHtml() const {
       effectDurationSecValue.textContent = effectDurationSec.value + ' s';
     });
 
-    function effectUsesSpeed(effectKey) {
-      return effectKey === 'blink_fixed' || effectKey === 'blink_gradient';
-    }
-
     function updateSpeedControl() {
-      const enabled = effectUsesSpeed(effect.value);
-      effectSpeed.disabled = !enabled;
-      speedControl.style.opacity = enabled ? '1' : '.6';
-      effectSpeedHint.textContent = enabled
-        ? 'Valor 1..100. Se multiplica por el tiempo base de framerate.'
-        : 'Solo se usa en efectos animados.';
+      effectSpeed.disabled = false;
+      speedControl.style.opacity = '1';
+      effectSpeedHint.textContent = 'Valor 1..100. Disponible siempre; cada efecto decide si lo usa.';
     }
 
     effect.addEventListener('change', updateSpeedControl);
