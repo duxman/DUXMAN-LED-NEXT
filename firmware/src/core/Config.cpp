@@ -339,6 +339,8 @@ NetworkConfig NetworkConfig::defaults() {
   config.sta.secondaryDns = "1.1.1.1";
 
   config.dns.hostname = "duxman-led";
+  config.time.syncOnBoot = true;
+  config.time.ntpServer = "europe.pool.ntp.org";
   config.debug.enabled = false;
   config.debug.heartbeatMs = 5000;
   return config;
@@ -373,6 +375,10 @@ String NetworkConfig::toJson() const {
 
   JsonObject dns = network["dns"].to<JsonObject>();
   dns["hostname"] = this->dns.hostname;
+
+  JsonObject time = network["time"].to<JsonObject>();
+  time["syncOnBoot"] = this->time.syncOnBoot;
+  time["ntpServer"] = this->time.ntpServer;
 
   JsonObject debug = doc["debug"].to<JsonObject>();
   debug["enabled"] = this->debug.enabled;
@@ -428,25 +434,32 @@ bool NetworkConfig::validate(String *error) const {
       }
       return false;
     }
+  }
 
-    if (!sta.primaryDns.isEmpty() && !isValidIpv4(sta.primaryDns)) {
-      if (error != nullptr) {
-        *error = "invalid_sta_primary_dns";
-      }
-      return false;
+  if (!sta.primaryDns.isEmpty() && !isValidIpv4(sta.primaryDns)) {
+    if (error != nullptr) {
+      *error = "invalid_sta_primary_dns";
     }
+    return false;
+  }
 
-    if (!sta.secondaryDns.isEmpty() && !isValidIpv4(sta.secondaryDns)) {
-      if (error != nullptr) {
-        *error = "invalid_sta_secondary_dns";
-      }
-      return false;
+  if (!sta.secondaryDns.isEmpty() && !isValidIpv4(sta.secondaryDns)) {
+    if (error != nullptr) {
+      *error = "invalid_sta_secondary_dns";
     }
+    return false;
   }
 
   if (!isValidHostname(dns.hostname)) {
     if (error != nullptr) {
       *error = "invalid_dns_hostname";
+    }
+    return false;
+  }
+
+  if (time.ntpServer.isEmpty() || time.ntpServer.length() > 128) {
+    if (error != nullptr) {
+      *error = "invalid_ntp_server";
     }
     return false;
   }
@@ -504,6 +517,12 @@ bool NetworkConfig::applyPatchJson(const String &payload, String *error) {
   JsonObjectConst dnsObj = network["dns"].as<JsonObjectConst>();
   if (!dnsObj.isNull()) {
     setIfPresent(dnsObj, "hostname", candidate.dns.hostname);
+  }
+
+  JsonObjectConst timeObj = network["time"].as<JsonObjectConst>();
+  if (!timeObj.isNull()) {
+    setBoolIfPresent(timeObj, "syncOnBoot", candidate.time.syncOnBoot);
+    setIfPresent(timeObj, "ntpServer", candidate.time.ntpServer);
   }
 
   JsonObjectConst debugObj = root["debug"].as<JsonObjectConst>();

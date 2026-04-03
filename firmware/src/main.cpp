@@ -6,6 +6,7 @@
 #include "core/Config.h"
 #include "drivers/CurrentLedDriver.h"
 #include "effects/EffectManager.h"
+#include "services/EffectPersistenceService.h"
 #include "services/ProfileService.h"
 #include "services/StorageService.h"
 #include "services/WifiService.h"
@@ -17,10 +18,11 @@ GpioConfig gpioConfig = GpioConfig::defaults();
 DefaultLedDriver ledDriver;
 EffectManager effectManager(state, ledDriver);
 StorageService storageService(state, networkConfig, gpioConfig);
+EffectPersistenceService effectPersistenceService(state);
 ProfileService profileService(gpioConfig, storageService, ledDriver);
 WifiService wifiService(networkConfig);
-ApiService apiService(state, networkConfig, gpioConfig, ledDriver, storageService,
-                      wifiService, profileService);
+ApiService apiService(state, networkConfig, gpioConfig, storageService, wifiService,
+                      effectPersistenceService, profileService);
 
 unsigned long lastFrameAtMs = 0;
 constexpr unsigned long kFrameIntervalMs = 16;
@@ -44,10 +46,12 @@ void setup() {
   delay(150);
 
   storageService.begin();
+  effectPersistenceService.begin();
   profileService.begin();
   String appliedProfileId;
   String profileError;
   const bool startupProfileApplied = profileService.applyStartupProfile(&appliedProfileId, &profileError);
+  const bool startupEffectApplied = effectPersistenceService.applyStartupEffect();
   ledDriver.configure(gpioConfig);
   wifiService.begin();
   effectManager.begin();
@@ -66,6 +70,9 @@ void setup() {
     Serial.println(profileError);
   } else if (startupProfileApplied) {
     Serial.println("[boot] startupProfile applied");
+  }
+  if (startupEffectApplied) {
+    Serial.println("[boot] startupEffect applied");
   }
   for (uint8_t i = 0; i < gpioConfig.outputCount; ++i) {
     const LedOutput &o = gpioConfig.outputs[i];
@@ -91,6 +98,7 @@ void loop() {
   wifiService.handle();
 
   const unsigned long now = millis();
+  effectPersistenceService.handle(now);
   const unsigned long heartbeatIntervalMs = networkConfig.debug.heartbeatMs;
   if (heartbeatIntervalMs > 0 && now - lastHeartbeatAtMs >= heartbeatIntervalMs) {
     lastHeartbeatAtMs = now;

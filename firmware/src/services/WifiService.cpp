@@ -1,10 +1,17 @@
 #include "services/WifiService.h"
 
-#include <WiFi.h>
+#include <time.h>
 
+
+#include <esp_netif.h>
+#include <WiFi.h>
+#include <ESPmDNS.h>
 #include <lwip/ip4_addr.h>
 
 namespace {
+bool hasCustomDns(const NetworkIpConfig &config) {
+  return !config.primaryDns.isEmpty() || !config.secondaryDns.isEmpty();
+}
 IPAddress parseIpOrDefault(const String &raw, const IPAddress &fallback) {
   IPAddress ip;
   if (!ip.fromString(raw)) {
@@ -109,12 +116,26 @@ bool WifiService::begin() {
     }
   }
 
+  // Activar mDNS si hay hostname
+  if (!networkConfig_.dns.hostname.isEmpty()) {
+    if (MDNS.begin(networkConfig_.dns.hostname.c_str())) {
+      Serial.print("[mdns] responder iniciado: ");
+      Serial.print(networkConfig_.dns.hostname);
+      Serial.println(".local");
+    } else {
+      Serial.println("[mdns] error al iniciar responder");
+    }
+  }
+
   return ok;
 }
 
 bool WifiService::applyConfig() {
   networkConfig_.wifi.mode = normalizedWifiMode(networkConfig_.wifi.mode);
   const String mode = networkConfig_.wifi.mode;
+  staConnected_ = false;
+  dnsApplied_ = false;
+  ntpSynced_ = false;
 
   if (networkConfig_.debug.enabled) {
     Serial.print("[wifi][debug] applyConfig mode=");
@@ -171,10 +192,23 @@ void WifiService::handle() {
       Serial.println(wifiStatusToString(currentStatus));
 
       if (currentStatus == WL_CONNECTED) {
+        staConnected_ = true;
         Serial.print("[wifi] STA connected ssid=");
         Serial.println(WiFi.SSID());
         printIpDetails("STA", WiFi.localIP(), WiFi.gatewayIP(), WiFi.subnetMask(), WiFi.dnsIP(0),
                        WiFi.dnsIP(1));
+
+        if (hasCustomDns(networkConfig_.sta)) {
+          applyStaDnsOverrides();
+        }
+
+        if (networkConfig_.time.syncOnBoot) {
+          syncTimeFromNtp();
+        }
+      } else {
+        staConnected_ = false;
+        dnsApplied_ = false;
+        ntpSynced_ = false;
       }
 
       if (networkConfig_.debug.enabled && currentStatus == WL_CONNECTED) {
@@ -223,6 +257,8 @@ bool WifiService::configureSta() {
     }
   }
 
+  dnsApplied_ = false;
+  ntpSynced_ = false;
   WiFi.begin(ssid.c_str(), password.c_str());
   Serial.print("[wifi] STA connecting to ");
   Serial.println(ssid);
@@ -267,6 +303,69 @@ bool WifiService::configureAp() {
     Serial.println("[wifi] AP start failed");
   }
   return ok;
+}
+
+bool WifiService::applyStaDnsOverrides() {
+  if (!staConnected_) {
+    return false;
+  }
+
+  esp_netif_t *staNetif = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
+  if (staNetif == nullptr) {
+    Serial.println("[wifi] STA netif not found for DNS override");
+    return false;
+  }
+
+  esp_netif_dns_info_t dnsInfo;
+  bool updated = false;
+
+  if (!networkConfig_.sta.primaryDns.isEmpty()) {
+    const IPAddress dns1 = parseIpOrDefault(networkConfig_.sta.primaryDns, IPAddress(8, 8, 8, 8));
+    dnsInfo.ip.type = IPADDR_TYPE_V4;
+    dnsInfo.ip.u_addr.ip4.addr = static_cast<uint32_t>(dns1);
+    if (esp_netif_set_dns_info(staNetif, ESP_NETIF_DNS_MAIN, &dnsInfo) == ESP_OK) {
+      updated = true;
+    }
+  }
+
+  if (!networkConfig_.sta.secondaryDns.isEmpty()) {
+    const IPAddress dns2 = parseIpOrDefault(networkConfig_.sta.secondaryDns, IPAddress(1, 1, 1, 1));
+    dnsInfo.ip.type = IPADDR_TYPE_V4;
+    dnsInfo.ip.u_addr.ip4.addr = static_cast<uint32_t>(dns2);
+    if (esp_netif_set_dns_info(staNetif, ESP_NETIF_DNS_BACKUP, &dnsInfo) == ESP_OK) {
+      updated = true;
+    }
+  }
+
+  if (updated) {
+    dnsApplied_ = true;
+    printIpDetails("STA DNS override", WiFi.localIP(), WiFi.gatewayIP(), WiFi.subnetMask(),
+                   WiFi.dnsIP(0), WiFi.dnsIP(1));
+  }
+  return updated;
+}
+
+bool WifiService::syncTimeFromNtp() {
+  if (!staConnected_ || ntpSynced_ || networkConfig_.time.ntpServer.isEmpty()) {
+    return false;
+  }
+
+  Serial.print("[ntp] syncing with ");
+  Serial.println(networkConfig_.time.ntpServer);
+  configTime(0, 0, networkConfig_.time.ntpServer.c_str());
+
+  struct tm timeInfo;
+  if (!getLocalTime(&timeInfo, 10000)) {
+    Serial.println("[ntp] sync failed");
+    return false;
+  }
+
+  ntpSynced_ = true;
+  char buffer[32];
+  strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", &timeInfo);
+  Serial.print("[ntp] synced utc=");
+  Serial.println(buffer);
+  return true;
 }
 
 void WifiService::updateApAvailabilityPolicy() {

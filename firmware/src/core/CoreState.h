@@ -16,6 +16,7 @@ struct CoreState {
   uint8_t effectId = kEffectFixed;
   uint8_t sectionCount = 3;
   uint8_t effectSpeed = 10;
+  uint8_t effectLevel = 5;
   uint32_t primaryColors[3] = {0xFF4D00, 0xFFD400, 0x00B8D9};
   uint32_t backgroundColor = 0x000000;
 

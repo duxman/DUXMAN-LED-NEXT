@@ -3,12 +3,13 @@
 #include <LittleFS.h>
 #include <ArduinoJson.h>
 
-#include "core/BuildProfile.h"
-
 namespace {
 constexpr const char *kProfilesPath = "/gpio-profiles.json";
 constexpr const char *kStartupProfilePath = "/startup-profile.json";
-constexpr const char *kBuiltInGenericProfileName = "Perfil base del firmware";
+constexpr const char *kDefaultProfileId = "DEFAULT";
+constexpr const char *kDefaultProfileName = "DEFAULT";
+constexpr const char *kDefaultProfileDescription =
+  "Configuracion GPIO activa del dispositivo. Se actualiza automaticamente al guardar GPIO o aplicar un profile.";
 constexpr const char *kGledoptoProfileId = "gledopto_gl_c_017wl_d";
 constexpr const char *kGledoptoProfileName = "Gledopto GL-C-017WL-D";
 constexpr const char *kGledoptoProfileDescription =
@@ -58,7 +59,9 @@ ProfileService::ProfileService(GpioConfig &gpioConfig,
 void ProfileService::begin() {
   initializeBuiltInProfiles();
   loadUserProfiles();
+  initializeBuiltInProfiles();
   loadDefaultProfileId();
+  refreshDefaultProfile();
 }
 
 bool ProfileService::applyStartupProfile(String *appliedId, String *error) {
@@ -105,12 +108,28 @@ void ProfileService::applyActiveConfig() {
   ledDriver_.begin();
 }
 
+bool ProfileService::syncDefaultProfileFromActiveConfig(String *error) {
+  refreshDefaultProfile();
+  defaultProfileId_ = kDefaultProfileId;
+  if (!saveDefaultProfileId()) {
+    if (error != nullptr) {
+      *error = "persistence_failed";
+    }
+    return false;
+  }
+
+  if (error != nullptr) {
+    error->clear();
+  }
+  return true;
+}
+
 String ProfileService::listProfilesJson() const {
   JsonDocument doc;
   JsonObject profiles = doc["profiles"].to<JsonObject>();
   profiles["defaultProfileId"] = defaultProfileId_;
   profiles["activeProfileId"] = detectActiveProfileId();
-  profiles["buildProfile"] = BuildProfile::kName;
+  profiles["buildProfile"] = kDefaultProfileId;
   JsonArray items = profiles["items"].to<JsonArray>();
   appendProfileJson(items);
 
@@ -189,9 +208,10 @@ bool ProfileService::saveProfileFromJson(const String &payload, String *response
   const bool applyNow = jsonBoolOrDefault(profileObj["applyNow"]);
   const bool setDefault = jsonBoolOrDefault(profileObj["autoApplyOnBoot"]) ||
                           jsonBoolOrDefault(profileObj["setDefault"]);
+  const bool activateAsCurrent = applyNow || setDefault;
 
   bool applied = false;
-  if (applyNow) {
+  if (activateAsCurrent) {
     gpioConfig_ = candidate;
     if (!storageService_.saveGpioConfig()) {
       if (error != nullptr) {
@@ -199,17 +219,14 @@ bool ProfileService::saveProfileFromJson(const String &payload, String *response
       }
       return false;
     }
+    if (!syncDefaultProfileFromActiveConfig(error)) {
+      return false;
+    }
     applyActiveConfig();
     applied = true;
   }
 
-  bool defaultUpdated = false;
-  if (setDefault) {
-    if (!setDefaultProfileId(id, error)) {
-      return false;
-    }
-    defaultUpdated = true;
-  }
+  const bool defaultUpdated = activateAsCurrent;
 
   if (response != nullptr) {
     JsonDocument responseDoc;
@@ -244,9 +261,8 @@ bool ProfileService::applyProfileFromJson(const String &payload, String *respons
                               ? root
                               : root["profile"].as<JsonObjectConst>();
   const String id = request["id"].isNull() ? "" : request["id"].as<String>();
-  const bool setDefault = jsonBoolOrDefault(request["setDefault"]);
 
-  return applyProfileById(id, setDefault, response, error);
+  return applyProfileById(id, true, response, error);
 }
 
 bool ProfileService::setDefaultProfileFromJson(const String &payload,
@@ -265,17 +281,8 @@ bool ProfileService::setDefaultProfileFromJson(const String &payload,
                               ? root
                               : root["profile"].as<JsonObjectConst>();
   const String id = request["id"].isNull() ? "" : request["id"].as<String>();
-  if (!setDefaultProfileId(id, error)) {
+  if (!applyProfileById(id, true, response, error)) {
     return false;
-  }
-
-  if (response != nullptr) {
-    JsonDocument responseDoc;
-    responseDoc["updated"] = true;
-    responseDoc["defaultProfileId"] = defaultProfileId_;
-    String out;
-    serializeJson(responseDoc, out);
-    *response = out;
   }
 
   if (error != nullptr) {
@@ -301,11 +308,26 @@ bool ProfileService::deleteProfileFromJson(const String &payload, String *respon
   const String id = request["id"].isNull() ? "" : request["id"].as<String>();
   const int index = findUserProfileIndexById(id);
   if (index < 0) {
-    if (findProfileById(id) != nullptr) {
-      if (error != nullptr) {
-        *error = "readonly_profile";
+    const GpioProfile *profile = findProfileById(id);
+    if (profile != nullptr && profile->builtIn) {
+      if (!markBuiltInProfileDeleted(id, error)) {
+        return false;
       }
-      return false;
+
+      if (response != nullptr) {
+        JsonDocument responseDoc;
+        responseDoc["deleted"] = true;
+        responseDoc["id"] = id;
+        responseDoc["defaultCleared"] = false;
+        String out;
+        serializeJson(responseDoc, out);
+        *response = out;
+      }
+
+      if (error != nullptr) {
+        error->clear();
+      }
+      return true;
     }
     if (error != nullptr) {
       *error = "profile_not_found";
@@ -360,15 +382,16 @@ void ProfileService::initializeBuiltInProfiles() {
   builtInProfileCount_ = 0;
 
   GpioProfile buildProfile;
-  buildProfile.id = BuildProfile::kName;
-  buildProfile.name = kBuiltInGenericProfileName;
-  buildProfile.description = "Preset generado desde el profile de compilacion activo.";
+  buildProfile.id = kDefaultProfileId;
+  buildProfile.name = kDefaultProfileName;
+  buildProfile.description = kDefaultProfileDescription;
   buildProfile.readOnly = true;
   buildProfile.builtIn = true;
-  buildProfile.gpio = GpioConfig::defaults();
+  buildProfile.gpio = gpioConfig_;
   builtInProfiles_[builtInProfileCount_++] = buildProfile;
 
-  if (buildProfile.id != kGledoptoProfileId &&
+    if (!isBuiltInProfileDeleted(kGledoptoProfileId) &&
+      buildProfile.id != kGledoptoProfileId &&
       builtInProfileCount_ < kMaxBuiltInGpioProfiles) {
     GpioProfile gledoptoProfile;
     gledoptoProfile.id = kGledoptoProfileId;
@@ -381,7 +404,25 @@ void ProfileService::initializeBuiltInProfiles() {
   }
 }
 
+void ProfileService::refreshDefaultProfile() {
+  if (builtInProfileCount_ == 0) {
+    initializeBuiltInProfiles();
+  }
+
+  builtInProfiles_[0].id = kDefaultProfileId;
+  builtInProfiles_[0].name = kDefaultProfileName;
+  builtInProfiles_[0].description = kDefaultProfileDescription;
+  builtInProfiles_[0].readOnly = true;
+  builtInProfiles_[0].builtIn = true;
+  builtInProfiles_[0].gpio = gpioConfig_;
+}
+
 bool ProfileService::loadUserProfiles() {
+  for (uint8_t i = 0; i < kMaxDeletedBuiltInGpioProfiles; ++i) {
+    deletedBuiltInProfileIds_[i].clear();
+  }
+  deletedBuiltInProfileCount_ = 0;
+
   for (uint8_t i = 0; i < kMaxUserGpioProfiles; ++i) {
     userProfiles_[i] = GpioProfile();
   }
@@ -400,6 +441,29 @@ bool ProfileService::loadUserProfiles() {
   JsonArrayConst items = doc["profiles"].as<JsonArrayConst>();
   if (items.isNull()) {
     return false;
+  }
+
+  JsonArrayConst deletedBuiltIns = doc["deletedBuiltIns"].as<JsonArrayConst>();
+  if (!deletedBuiltIns.isNull()) {
+    for (JsonVariantConst item : deletedBuiltIns) {
+      if (deletedBuiltInProfileCount_ >= kMaxDeletedBuiltInGpioProfiles) {
+        break;
+      }
+      const String id = item.isNull() ? "" : item.as<String>();
+      if (id.isEmpty() || id == kDefaultProfileId) {
+        continue;
+      }
+      bool exists = false;
+      for (uint8_t i = 0; i < deletedBuiltInProfileCount_; ++i) {
+        if (deletedBuiltInProfileIds_[i] == id) {
+          exists = true;
+          break;
+        }
+      }
+      if (!exists) {
+        deletedBuiltInProfileIds_[deletedBuiltInProfileCount_++] = id;
+      }
+    }
   }
 
   for (JsonObjectConst item : items) {
@@ -444,17 +508,22 @@ bool ProfileService::saveUserProfiles() const {
     serializeProfile(item, userProfiles_[i]);
   }
 
+  JsonArray deletedBuiltIns = doc["deletedBuiltIns"].to<JsonArray>();
+  for (uint8_t i = 0; i < deletedBuiltInProfileCount_; ++i) {
+    deletedBuiltIns.add(deletedBuiltInProfileIds_[i]);
+  }
+
   String out;
   serializeJsonPretty(doc, out);
   return writeFile(kProfilesPath, out);
 }
 
 bool ProfileService::loadDefaultProfileId() {
-  defaultProfileId_.clear();
+  defaultProfileId_ = kDefaultProfileId;
 
   String raw;
   if (!readFile(kStartupProfilePath, raw)) {
-    return true;
+    return saveDefaultProfileId();
   }
 
   JsonDocument doc;
@@ -465,11 +534,11 @@ bool ProfileService::loadDefaultProfileId() {
   const String id = doc["defaultProfileId"].isNull()
                       ? ""
                       : doc["defaultProfileId"].as<String>();
-  if (!id.isEmpty() && findProfileById(id) == nullptr) {
-    return false;
+  if (id != kDefaultProfileId) {
+    defaultProfileId_ = kDefaultProfileId;
+    return saveDefaultProfileId();
   }
 
-  defaultProfileId_ = id;
   return true;
 }
 
@@ -519,6 +588,15 @@ int ProfileService::findUserProfileIndexById(const String &id) const {
   return -1;
 }
 
+int ProfileService::findDeletedBuiltInProfileIndexById(const String &id) const {
+  for (uint8_t i = 0; i < deletedBuiltInProfileCount_; ++i) {
+    if (deletedBuiltInProfileIds_[i] == id) {
+      return i;
+    }
+  }
+  return -1;
+}
+
 String ProfileService::detectActiveProfileId() const {
   const String activeJson = gpioConfig_.toJson();
   for (uint8_t i = 0; i < builtInProfileCount_; ++i) {
@@ -552,16 +630,38 @@ bool ProfileService::upsertUserProfile(const GpioProfile &profile, String *error
   return true;
 }
 
-bool ProfileService::setDefaultProfileId(const String &id, String *error) {
-  if (!id.isEmpty() && findProfileById(id) == nullptr) {
+bool ProfileService::markBuiltInProfileDeleted(const String &id, String *error) {
+  if (id.isEmpty()) {
     if (error != nullptr) {
       *error = "profile_not_found";
     }
     return false;
   }
 
-  defaultProfileId_ = id;
-  if (!saveDefaultProfileId()) {
+  if (id == kDefaultProfileId) {
+    if (error != nullptr) {
+      *error = "cannot_delete_default";
+    }
+    return false;
+  }
+
+  if (findDeletedBuiltInProfileIndexById(id) >= 0) {
+    if (error != nullptr) {
+      error->clear();
+    }
+    return true;
+  }
+
+  if (deletedBuiltInProfileCount_ >= kMaxDeletedBuiltInGpioProfiles) {
+    if (error != nullptr) {
+      *error = "profile_limit_reached";
+    }
+    return false;
+  }
+
+  deletedBuiltInProfileIds_[deletedBuiltInProfileCount_++] = id;
+  initializeBuiltInProfiles();
+  if (!saveUserProfiles()) {
     if (error != nullptr) {
       *error = "persistence_failed";
     }
@@ -574,8 +674,25 @@ bool ProfileService::setDefaultProfileId(const String &id, String *error) {
   return true;
 }
 
+bool ProfileService::isBuiltInProfileDeleted(const String &id) const {
+  return findDeletedBuiltInProfileIndexById(id) >= 0;
+}
+
+bool ProfileService::setDefaultProfileId(const String &id, String *error) {
+  (void)id;
+  if (!syncDefaultProfileFromActiveConfig(error)) {
+    return false;
+  }
+
+  if (error != nullptr) {
+    error->clear();
+  }
+  return true;
+}
+
 bool ProfileService::applyProfileById(const String &id, bool setAsDefault,
                                       String *response, String *error) {
+  (void)setAsDefault;
   const GpioProfile *profile = findProfileById(id);
   if (profile == nullptr) {
     if (error != nullptr) {
@@ -592,7 +709,7 @@ bool ProfileService::applyProfileById(const String &id, bool setAsDefault,
     return false;
   }
 
-  if (setAsDefault && !setDefaultProfileId(id, error)) {
+  if (!syncDefaultProfileFromActiveConfig(error)) {
     return false;
   }
 
@@ -601,7 +718,8 @@ bool ProfileService::applyProfileById(const String &id, bool setAsDefault,
   if (response != nullptr) {
     JsonDocument responseDoc;
     responseDoc["applied"] = true;
-    responseDoc["defaultUpdated"] = setAsDefault;
+    responseDoc["defaultUpdated"] = true;
+    responseDoc["defaultProfileId"] = kDefaultProfileId;
     JsonObject profileJson = responseDoc["profile"].to<JsonObject>();
     serializeProfile(profileJson, *profile);
     String out;

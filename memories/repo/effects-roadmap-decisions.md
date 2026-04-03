@@ -1,0 +1,12 @@
+- Efectos dinamicos: implementar por fases, no todos de golpe.
+- Fase 1: refactor `EffectEngine` + ciclo de vida en `EffectManager` + `Triple Fixed Breathe` + `Global Gradient Breathe`.
+- Mantener la UI actual inicialmente: `brightness`, `effectSpeed`, `effectLevel`, `sectionCount`.
+- Semantica global acordada:
+  - `brightness` = brillo final global
+  - `effectSpeed` = velocidad temporal
+  - `effectLevel` = intensidad estructural del efecto
+  - `sectionCount` = bloques, repeticiones o densidad segun efecto
+- No mover aun el render a task separada/core dedicado; primero medir con loop actual a 16 ms.
+- Antes de `Twinkle`, `Random Color Pop` y `Bouncing Physics`, anadir `onActivate` y reseteo de estado por cambio de efecto.
+- Centralizar helpers float, blend, smoothstep y gamma en `EffectEngine`; no duplicarlos dentro de cada efecto.
+- Orden recomendado: breathe -> chase -> meteor -> scanning pulse -> trig-ribbon -> lava -> polar ice -> twinkle -> color pop -> bouncing.

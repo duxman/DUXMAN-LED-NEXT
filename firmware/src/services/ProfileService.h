@@ -9,6 +9,7 @@
 
 constexpr uint8_t kMaxUserGpioProfiles = 8;
 constexpr uint8_t kMaxBuiltInGpioProfiles = 2;
+constexpr uint8_t kMaxDeletedBuiltInGpioProfiles = 4;
 
 struct GpioProfile {
   String id;
@@ -27,6 +28,7 @@ public:
   void begin();
   bool applyStartupProfile(String *appliedId = nullptr, String *error = nullptr);
   void applyActiveConfig();
+  bool syncDefaultProfileFromActiveConfig(String *error = nullptr);
 
   String listProfilesJson() const;
   bool saveProfileFromJson(const String &payload, String *response = nullptr,
@@ -44,11 +46,14 @@ private:
   LedDriver &ledDriver_;
   GpioProfile builtInProfiles_[kMaxBuiltInGpioProfiles];
   GpioProfile userProfiles_[kMaxUserGpioProfiles];
+  String deletedBuiltInProfileIds_[kMaxDeletedBuiltInGpioProfiles];
   uint8_t builtInProfileCount_ = 0;
   uint8_t userProfileCount_ = 0;
+  uint8_t deletedBuiltInProfileCount_ = 0;
   String defaultProfileId_;
 
   void initializeBuiltInProfiles();
+  void refreshDefaultProfile();
   bool loadUserProfiles();
   bool saveUserProfiles() const;
   bool loadDefaultProfileId();
@@ -56,8 +61,11 @@ private:
   const GpioProfile *findProfileById(const String &id) const;
   GpioProfile *findUserProfileById(const String &id);
   int findUserProfileIndexById(const String &id) const;
+  int findDeletedBuiltInProfileIndexById(const String &id) const;
   String detectActiveProfileId() const;
   bool upsertUserProfile(const GpioProfile &profile, String *error = nullptr);
+  bool markBuiltInProfileDeleted(const String &id, String *error = nullptr);
+  bool isBuiltInProfileDeleted(const String &id) const;
   bool setDefaultProfileId(const String &id, String *error = nullptr);
   bool applyProfileById(const String &id, bool setAsDefault, String *response = nullptr,
                         String *error = nullptr);

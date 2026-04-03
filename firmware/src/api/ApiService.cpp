@@ -4,22 +4,34 @@
 #include "effects/EffectRegistry.h"
 
 #include <ArduinoJson.h>
+#include <time.h>
 
 namespace {
-String colorToHex(uint32_t color) {
-  char buffer[10];
-  snprintf(buffer, sizeof(buffer), "#%06lX", static_cast<unsigned long>(color & 0xFFFFFF));
-  return String(buffer);
+String buildBootedAtLabel() {
+  const time_t now = time(nullptr);
+  if (now < 1700000000) {
+    return "Arranque: pendiente de hora";
+  }
+
+  const time_t bootAt = now - static_cast<time_t>(millis() / 1000UL);
+  struct tm timeInfo;
+  if (gmtime_r(&bootAt, &timeInfo) == nullptr) {
+    return "Arranque: no disponible";
+  }
+
+  char buffer[32];
+  strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S UTC", &timeInfo);
+  return String("Arranque: ") + buffer;
 }
 } // namespace
 
 ApiService::ApiService(CoreState &state, NetworkConfig &networkConfig, GpioConfig &gpioConfig,
-                       LedDriver &ledDriver,
                        StorageService &storageService, WifiService &wifiService,
+                       EffectPersistenceService &effectPersistenceService,
                        ProfileService &profileService)
     : state_(state), networkConfig_(networkConfig), gpioConfig_(gpioConfig),
-      ledDriver_(ledDriver),
       storageService_(storageService), wifiService_(wifiService),
+      effectPersistenceService_(effectPersistenceService),
       profileService_(profileService), httpServer_(80) {}
 
 void ApiService::begin() {
@@ -32,6 +44,8 @@ void ApiService::begin() {
   Serial.println("[api] ready: GET /api/v1/profiles/gpio | POST /api/v1/profiles/gpio/save|apply|default|delete {json}");
   Serial.println("[api] ready: GET /api/v1/config/debug | PATCH /api/v1/config/debug {json}");
   Serial.println("[api] ready: GET /api/v1/config/all | POST /api/v1/config/all {json}");
+  Serial.println("[api] ready: GET /api/v1/effects | POST /api/v1/effects/startup/save | POST /api/v1/effects/sequence/add|delete");
+  Serial.println("[api] ready: POST /api/v1/system/restart");
   Serial.println("[api] ready: GET /api/v1/hardware");
   Serial.println("[api] ready: GET /api/v1/release");
   Serial.println("[api] ui: GET / | GET /config | GET /config/network | GET /config/gpio | GET /config/debug | GET /config/manual | GET /api | GET /version");
@@ -104,6 +118,19 @@ void ApiService::processCommand(const String &command) {
     return;
   }
 
+  if (command == "GET /api/v1/effects") {
+    Serial.println(effectPersistenceService_.toJson());
+    return;
+  }
+
+  if (command == "POST /api/v1/system/restart") {
+    Serial.println("{\"restart\":true}");
+    Serial.flush();
+    delay(150);
+    ESP.restart();
+    return;
+  }
+
   if (command.startsWith("PATCH /api/v1/config/network ")) {
     const int payloadPos = command.indexOf('{');
     if (payloadPos < 0) {
@@ -172,6 +199,13 @@ void ApiService::processCommand(const String &command) {
     }
 
     if (changed) {
+      String syncError;
+      if (!profileService_.syncDefaultProfileFromActiveConfig(&syncError)) {
+        Serial.print("{\"error\":\"");
+        Serial.print(syncError);
+        Serial.println("\"}");
+        return;
+      }
       profileService_.applyActiveConfig();
     }
 
@@ -364,6 +398,7 @@ void ApiService::processCommand(const String &command) {
     gpioConfig_ = gpioCandidate;
     storageService_.saveNetworkConfig();
     storageService_.saveGpioConfig();
+    profileService_.syncDefaultProfileFromActiveConfig();
     wifiService_.applyConfig();
 
     Serial.print("{\"imported\":true,\"config\":");
@@ -470,6 +505,26 @@ void ApiService::setupHttpRoutes() {
 
   httpServer_.on("/api/v1/profiles/gpio/delete", HTTP_ANY, [this]() {
     handleHttpGpioProfilesDeleteRoute();
+  });
+
+  httpServer_.on("/api/v1/effects", HTTP_ANY, [this]() {
+    handleHttpEffectsRoute();
+  });
+
+  httpServer_.on("/api/v1/effects/startup/save", HTTP_ANY, [this]() {
+    handleHttpEffectsStartupRoute();
+  });
+
+  httpServer_.on("/api/v1/effects/sequence/add", HTTP_ANY, [this]() {
+    handleHttpEffectsSequenceAddRoute();
+  });
+
+  httpServer_.on("/api/v1/effects/sequence/delete", HTTP_ANY, [this]() {
+    handleHttpEffectsSequenceDeleteRoute();
+  });
+
+  httpServer_.on("/api/v1/system/restart", HTTP_ANY, [this]() {
+    handleHttpRestartRoute();
   });
 
   httpServer_.on("/api/v1/config/debug", HTTP_ANY, [this]() {
@@ -616,6 +671,14 @@ void ApiService::handleHttpGpioRoute() {
     }
 
     if (changed) {
+      String syncError;
+      if (!profileService_.syncDefaultProfileFromActiveConfig(&syncError)) {
+        String response = "{\"error\":\"";
+        response += syncError;
+        response += "\"}";
+        httpServer_.send(500, "application/json", response);
+        return;
+      }
       profileService_.applyActiveConfig();
     }
 
@@ -744,6 +807,125 @@ void ApiService::handleHttpGpioProfilesDeleteRoute() {
   httpServer_.send(200, "application/json", response);
 }
 
+void ApiService::handleHttpEffectsRoute() {
+  if (httpServer_.method() == HTTP_GET) {
+    httpServer_.send(200, "application/json", effectPersistenceService_.toJson());
+    return;
+  }
+
+  httpServer_.send(405, "application/json", "{\"error\":\"method_not_allowed\"}");
+}
+
+void ApiService::handleHttpEffectsStartupRoute() {
+  const HTTPMethod method = httpServer_.method();
+  if (method != HTTP_POST && method != HTTP_PATCH) {
+    httpServer_.send(405, "application/json", "{\"error\":\"method_not_allowed\"}");
+    return;
+  }
+
+  String error;
+  if (!effectPersistenceService_.saveStartupFromCurrent(&error)) {
+    String response = "{\"error\":\"";
+    response += error;
+    response += "\"}";
+    httpServer_.send(500, "application/json", response);
+    return;
+  }
+
+  String response = "{\"saved\":true,\"effects\":";
+  response += effectPersistenceService_.toJson();
+  response += "}";
+  httpServer_.send(200, "application/json", response);
+}
+
+void ApiService::handleHttpEffectsSequenceAddRoute() {
+  const HTTPMethod method = httpServer_.method();
+  if (method != HTTP_POST && method != HTTP_PATCH) {
+    httpServer_.send(405, "application/json", "{\"error\":\"method_not_allowed\"}");
+    return;
+  }
+
+  uint16_t durationSec = 30;
+  const String payload = httpServer_.arg("plain");
+  if (!payload.isEmpty()) {
+    JsonDocument doc;
+    if (deserializeJson(doc, payload)) {
+      httpServer_.send(400, "application/json", "{\"error\":\"invalid_json\"}");
+      return;
+    }
+    durationSec = constrain(doc["durationSec"] | 30, 1, 3600);
+  }
+
+  uint16_t createdId = 0;
+  String error;
+  if (!effectPersistenceService_.addCurrentToSequence(durationSec, &createdId, &error)) {
+    String response = "{\"error\":\"";
+    response += error;
+    response += "\"}";
+    httpServer_.send(400, "application/json", response);
+    return;
+  }
+
+  String response = "{\"added\":true,\"id\":";
+  response += createdId;
+  response += ",\"effects\":";
+  response += effectPersistenceService_.toJson();
+  response += "}";
+  httpServer_.send(200, "application/json", response);
+}
+
+void ApiService::handleHttpEffectsSequenceDeleteRoute() {
+  const HTTPMethod method = httpServer_.method();
+  if (method != HTTP_POST && method != HTTP_PATCH) {
+    httpServer_.send(405, "application/json", "{\"error\":\"method_not_allowed\"}");
+    return;
+  }
+
+  const String payload = httpServer_.arg("plain");
+  if (payload.isEmpty()) {
+    httpServer_.send(400, "application/json", "{\"error\":\"invalid_payload\"}");
+    return;
+  }
+
+  JsonDocument doc;
+  if (deserializeJson(doc, payload)) {
+    httpServer_.send(400, "application/json", "{\"error\":\"invalid_json\"}");
+    return;
+  }
+
+  const uint16_t entryId = doc["id"] | 0;
+  if (entryId == 0) {
+    httpServer_.send(400, "application/json", "{\"error\":\"invalid_id\"}");
+    return;
+  }
+
+  String error;
+  if (!effectPersistenceService_.deleteSequenceEntry(entryId, &error)) {
+    String response = "{\"error\":\"";
+    response += error;
+    response += "\"}";
+    httpServer_.send(400, "application/json", response);
+    return;
+  }
+
+  String response = "{\"deleted\":true,\"effects\":";
+  response += effectPersistenceService_.toJson();
+  response += "}";
+  httpServer_.send(200, "application/json", response);
+}
+
+void ApiService::handleHttpRestartRoute() {
+  const HTTPMethod method = httpServer_.method();
+  if (method != HTTP_POST && method != HTTP_PATCH) {
+    httpServer_.send(405, "application/json", "{\"error\":\"method_not_allowed\"}");
+    return;
+  }
+
+  httpServer_.send(200, "application/json", "{\"restart\":true}");
+  delay(150);
+  ESP.restart();
+}
+
 void ApiService::handleHttpDebugRoute() {
   const HTTPMethod method = httpServer_.method();
 
@@ -831,36 +1013,6 @@ String ApiService::buildFullConfigJson() const {
   return out;
 }
 
-String ApiService::buildLedDebugJson() const {
-  JsonDocument doc;
-  JsonObject led = doc["led"].to<JsonObject>();
-  led["backend"] = ledDriver_.backendName();
-  led["initialized"] = ledDriver_.isInitialized();
-  led["outputCount"] = ledDriver_.outputCount();
-
-  JsonArray outputs = led["outputs"].to<JsonArray>();
-  for (uint8_t outputIndex = 0; outputIndex < ledDriver_.outputCount(); ++outputIndex) {
-    const LedDriverOutputConfig &output = ledDriver_.outputConfig(outputIndex);
-    JsonObject item = outputs.add<JsonObject>();
-    item["index"] = outputIndex;
-    item["enabled"] = output.enabled;
-    item["pin"] = output.pin;
-    item["ledCount"] = output.ledCount;
-    item["isDigital"] = output.isDigital;
-    item["isRgbw"] = output.isRgbw;
-    item["supportsPerPixelColor"] = ledDriver_.supportsPerPixelColor(outputIndex);
-    item["lastFillColor"] = colorToHex(ledDriver_.debugLastFillColor(outputIndex));
-    JsonObject samples = item["samplePixels"].to<JsonObject>();
-    samples["first"] = colorToHex(ledDriver_.debugSamplePixelColor(outputIndex, 0));
-    samples["middle"] = colorToHex(ledDriver_.debugSamplePixelColor(outputIndex, 1));
-    samples["last"] = colorToHex(ledDriver_.debugSamplePixelColor(outputIndex, 2));
-  }
-
-  String out;
-  serializeJsonPretty(doc, out);
-  return out;
-}
-
 void ApiService::handleHttpConfigAllRoute() {
   const HTTPMethod method = httpServer_.method();
 
@@ -920,6 +1072,15 @@ void ApiService::handleHttpConfigAllRoute() {
       return;
     }
 
+    String syncError;
+    if (!profileService_.syncDefaultProfileFromActiveConfig(&syncError)) {
+      String response = "{\"error\":\"";
+      response += syncError;
+      response += "\"}";
+      httpServer_.send(500, "application/json", response);
+      return;
+    }
+
     wifiService_.applyConfig();
     profileService_.applyActiveConfig();
 
@@ -935,18 +1096,7 @@ void ApiService::handleHttpConfigAllRoute() {
 
 void ApiService::handleHttpHardwareRoute() {
   if (httpServer_.method() == HTTP_GET) {
-    JsonDocument doc;
-    JsonDocument hardwareDoc;
-    JsonDocument ledDoc;
-    deserializeJson(hardwareDoc, HardwareInfo::toJson());
-    deserializeJson(ledDoc, buildLedDebugJson());
-    for (JsonPairConst item : hardwareDoc.as<JsonObjectConst>()) {
-      doc[item.key()] = item.value();
-    }
-    doc["led"] = ledDoc["led"];
-    String out;
-    serializeJsonPretty(doc, out);
-    httpServer_.send(200, "application/json", out);
+    httpServer_.send(200, "application/json", HardwareInfo::toJson());
     return;
   }
 
@@ -972,7 +1122,7 @@ String ApiService::buildOpenApiJson() const {
 
   JsonObject netPath = paths["/api/v1/config/network"].to<JsonObject>();
   netPath["get"]["summary"] = "Obtener configuracion de red";
-  netPath["patch"]["summary"] = "Actualizar configuracion de red con JSON parcial";
+  netPath["patch"]["summary"] = "Actualizar configuracion de red, DNS STA y NTP con JSON parcial";
   netPath["post"]["summary"] = "Alias de PATCH para clientes limitados";
 
   JsonObject debugPath = paths["/api/v1/config/debug"].to<JsonObject>();
@@ -993,16 +1143,20 @@ String ApiService::buildOpenApiJson() const {
   profilesSavePath["patch"]["summary"] = "Alias de POST para guardar perfil GPIO";
 
   JsonObject profilesApplyPath = paths["/api/v1/profiles/gpio/apply"].to<JsonObject>();
-  profilesApplyPath["post"]["summary"] = "Aplicar un perfil GPIO al runtime actual";
+  profilesApplyPath["post"]["summary"] = "Aplicar un perfil GPIO y copiarlo en DEFAULT";
   profilesApplyPath["patch"]["summary"] = "Alias de POST para aplicar perfil GPIO";
 
   JsonObject profilesDefaultPath = paths["/api/v1/profiles/gpio/default"].to<JsonObject>();
-  profilesDefaultPath["post"]["summary"] = "Establecer o limpiar el perfil GPIO por defecto de arranque";
-  profilesDefaultPath["patch"]["summary"] = "Alias de POST para fijar perfil por defecto";
+  profilesDefaultPath["post"]["summary"] = "Alias de aplicar: copia el perfil elegido en DEFAULT";
+  profilesDefaultPath["patch"]["summary"] = "Alias de POST para copiar el perfil en DEFAULT";
 
   JsonObject profilesDeletePath = paths["/api/v1/profiles/gpio/delete"].to<JsonObject>();
   profilesDeletePath["post"]["summary"] = "Eliminar un perfil GPIO de usuario";
   profilesDeletePath["patch"]["summary"] = "Alias de POST para eliminar perfil GPIO";
+
+  JsonObject restartPath = paths["/api/v1/system/restart"].to<JsonObject>();
+  restartPath["post"]["summary"] = "Reiniciar la placa";
+  restartPath["patch"]["summary"] = "Alias de POST para reiniciar la placa";
 
   JsonObject releasePath = paths["/api/v1/release"].to<JsonObject>();
   releasePath["get"]["summary"] = "Obtener metadatos de release";
@@ -1072,16 +1226,17 @@ String ApiService::buildOpenApiJson() const {
   serialCommands.add("GET /api/v1/state");
   serialCommands.add("PATCH /api/v1/state {json}");
   serialCommands.add("GET /api/v1/config/network");
-  serialCommands.add("PATCH /api/v1/config/network {json}");
+  serialCommands.add("PATCH /api/v1/config/network {\"network\":{\"wifi\":{\"mode\":\"sta\",\"connection\":{\"ssid\":\"MiWiFi\",\"password\":\"secreto\"}},\"ip\":{\"sta\":{\"mode\":\"dhcp\",\"primaryDns\":\"8.8.8.8\",\"secondaryDns\":\"1.1.1.1\"}},\"dns\":{\"hostname\":\"duxman-led\"},\"time\":{\"syncOnBoot\":true,\"ntpServer\":\"europe.pool.ntp.org\"}}}");
   serialCommands.add("GET /api/v1/config/debug");
   serialCommands.add("PATCH /api/v1/config/debug {\"debug\":{\"enabled\":true,\"heartbeatMs\":5000}}");
   serialCommands.add("GET /api/v1/config/gpio");
   serialCommands.add("PATCH /api/v1/config/gpio {\"gpio\":{\"outputs\":[{\"pin\":8,\"ledCount\":60,\"ledType\":\"ws2812b\",\"colorOrder\":\"GRB\"}]}}");
   serialCommands.add("GET /api/v1/profiles/gpio");
-  serialCommands.add("POST /api/v1/profiles/gpio/save {\"profile\":{\"id\":\"mi_perfil\",\"name\":\"Mi perfil\",\"gpio\":{\"outputs\":[{\"pin\":8,\"ledCount\":60,\"ledType\":\"ws2812b\",\"colorOrder\":\"GRB\"}]},\"autoApplyOnBoot\":true}} ");
-  serialCommands.add("POST /api/v1/profiles/gpio/apply {\"profile\":{\"id\":\"gledopto_gl_c_017wl_d\",\"setDefault\":true}} ");
+  serialCommands.add("POST /api/v1/profiles/gpio/save {\"profile\":{\"id\":\"mi_perfil\",\"name\":\"Mi perfil\",\"gpio\":{\"outputs\":[{\"pin\":8,\"ledCount\":60,\"ledType\":\"ws2812b\",\"colorOrder\":\"GRB\"}]},\"applyNow\":true}} ");
+  serialCommands.add("POST /api/v1/profiles/gpio/apply {\"profile\":{\"id\":\"gledopto_gl_c_017wl_d\"}} ");
   serialCommands.add("POST /api/v1/profiles/gpio/default {\"profile\":{\"id\":\"gledopto_gl_c_017wl_d\"}} ");
   serialCommands.add("POST /api/v1/profiles/gpio/delete {\"profile\":{\"id\":\"mi_perfil\"}} ");
+  serialCommands.add("POST /api/v1/system/restart");
   serialCommands.add("GET /api/v1/config/all");
   serialCommands.add("POST /api/v1/config/all {json_completo}");
   serialCommands.add("GET /api/v1/hardware");
@@ -1133,36 +1288,224 @@ String ApiService::buildHomeHtml() const {
       box-shadow:0 16px 34px rgba(31,22,14,.1);
       padding:22px;
       margin-bottom:12px;
+      display:grid;
+      gap:14px;
+    }
+    .hero-title {
+      display:flex;
+      align-items:baseline;
+      gap:12px;
+      flex-wrap:wrap;
     }
     h1 { margin:0 0 8px 0; font-size:30px; }
+    .boot-at {
+      display:inline-flex;
+      align-items:center;
+      padding:2px 8px;
+      border-radius:999px;
+      background:rgba(15,106,122,.08);
+      color:var(--muted);
+      font-size:11px;
+      font-weight:700;
+      letter-spacing:.02em;
+      margin-bottom:8px;
+    }
     p { margin:0; color:var(--muted); }
     .menu {
       display:grid;
-      grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));
+      grid-template-columns:repeat(3, minmax(0, 1fr));
       gap:10px;
-      margin-top:14px;
+      width:100%;
+      padding:10px;
+      border:1px solid var(--line);
+      border-radius:14px;
+      background:linear-gradient(180deg, rgba(255,255,255,.86) 0%, rgba(249,241,229,.95) 100%);
+      box-shadow:inset 0 1px 0 rgba(255,255,255,.7);
     }
     .panel {
-      display:grid;
-      grid-template-columns:1.5fr .9fr;
-      gap:12px;
-      margin-top:12px;
+      display:block;
     }
     .controls {
       display:grid;
-      gap:12px;
+      gap:14px;
       background:#fff;
       border:1px solid var(--line);
       border-radius:14px;
       padding:16px;
       box-shadow:0 16px 34px rgba(31,22,14,.08);
     }
-    .stats {
+    .controls-top {
+      display:grid;
+      grid-template-columns:minmax(280px, 1fr) minmax(0, 1.35fr);
+      gap:12px;
+    }
+    .controls-bottom {
+      display:grid;
+      grid-template-columns:1fr;
+      gap:12px;
+    }
+    .power-card {
+      display:grid;
+      gap:14px;
+      padding:14px;
+      border:1px solid var(--line);
+      border-radius:12px;
+      background:linear-gradient(180deg, #fffdf9 0%, #f7efe4 100%);
+    }
+    .power-copy {
+      display:grid;
+      gap:6px;
+    }
+    .power-copy h2 {
+      margin:0;
+      font-size:18px;
+    }
+    .power-actions {
+      display:grid;
+      gap:10px;
+    }
+    .sequence-tools {
+      display:grid;
+      gap:10px;
+      padding:12px;
+      border:1px solid rgba(15,106,122,.16);
+      border-radius:12px;
+      background:rgba(255,255,255,.6);
+    }
+    .slider-readout {
+      font-size:12px;
+      font-weight:700;
+      color:var(--accent);
+    }
+    .saved-effects-card {
+      display:grid;
+      gap:14px;
+      padding:14px;
+      border:1px solid var(--line);
+      border-radius:12px;
+      background:linear-gradient(180deg, #fbfffd 0%, #eef7f5 100%);
+    }
+    .saved-effects-copy {
+      display:grid;
+      gap:6px;
+    }
+    .saved-effects-copy h2 {
+      margin:0;
+      font-size:18px;
+    }
+    .effects-status {
+      font-size:12px;
+      font-weight:700;
+      color:var(--primary);
+    }
+    .sequence-list {
+      display:grid;
+      gap:10px;
+    }
+    .sequence-item {
+      display:grid;
+      gap:8px;
+      padding:12px;
+      border:1px solid rgba(15,106,122,.16);
+      border-radius:12px;
       background:#fff;
+      box-shadow:0 8px 16px rgba(31,22,14,.05);
+    }
+    .sequence-head {
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:10px;
+    }
+    .sequence-title {
+      display:grid;
+      gap:4px;
+    }
+    .sequence-title strong {
+      font-size:14px;
+    }
+    .sequence-meta {
+      font-size:12px;
+      color:var(--muted);
+    }
+    .sequence-colors {
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+    }
+    .sequence-color {
+      width:22px;
+      height:22px;
+      border-radius:999px;
+      border:1px solid rgba(0,0,0,.18);
+      box-shadow:inset 0 1px 0 rgba(255,255,255,.25);
+    }
+    .empty-note {
+      padding:12px;
+      border:1px dashed rgba(15,106,122,.26);
+      border-radius:12px;
+      color:var(--muted);
+      background:rgba(255,255,255,.55);
+    }
+    .delete-btn {
+      width:auto;
+      border:none;
+      background:var(--accent);
+      color:#fff;
+      font-weight:700;
+      cursor:pointer;
+    }
+    .runtime-card {
+      background:linear-gradient(180deg, #fffdfa 0%, #f6efe5 100%);
       border:1px solid var(--line);
       border-radius:14px;
       padding:16px;
       box-shadow:0 16px 34px rgba(31,22,14,.08);
+      margin-top:12px;
+    }
+    .runtime-head {
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:12px;
+    }
+    .runtime-copy {
+      display:grid;
+      gap:6px;
+    }
+    .runtime-copy h2 {
+      margin:0;
+      display:flex;
+      align-items:center;
+      gap:10px;
+    }
+    .runtime-pill {
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      padding:4px 10px;
+      border-radius:999px;
+      background:#14313a;
+      color:#dff7ff;
+      font-size:11px;
+      font-weight:700;
+      letter-spacing:.04em;
+      text-transform:uppercase;
+    }
+    .toggle-btn {
+      width:auto;
+      min-width:140px;
+      border:none;
+      background:var(--primary);
+      color:#fff;
+      font-weight:700;
+      cursor:pointer;
+    }
+    .runtime-body.hidden {
+      display:none;
+    }
+    .runtime-body {
+      margin-top:12px;
     }
     .row {
       display:grid;
@@ -1171,7 +1514,7 @@ String ApiService::buildHomeHtml() const {
     }
     .control-sections {
       display:grid;
-      grid-template-columns:repeat(2, minmax(0, 1fr));
+      grid-template-columns:1fr;
       gap:12px;
     }
     .control-card {
@@ -1185,6 +1528,9 @@ String ApiService::buildHomeHtml() const {
     .control-card.effect {
       background:linear-gradient(180deg, #fbfefe 0%, #f1f8fa 100%);
     }
+    .control-card.colors {
+      background:linear-gradient(180deg, #fffefb 0%, #fff7ec 100%);
+    }
     .control-card h2 {
       margin:0;
       font-size:18px;
@@ -1193,7 +1539,7 @@ String ApiService::buildHomeHtml() const {
       font-size:13px;
     }
     .row.colors {
-      grid-template-columns:repeat(2, minmax(0, 1fr));
+      grid-template-columns:repeat(4, minmax(0, 1fr));
     }
     label {
       display:grid;
@@ -1258,62 +1604,90 @@ String ApiService::buildHomeHtml() const {
       margin:10px 0 0 0;
       min-height:160px;
       white-space:pre-wrap;
-      border:1px solid var(--line);
+      border:1px solid #314b53;
       border-radius:12px;
-      background:#fffaf2;
-      padding:12px;
+      background:
+        linear-gradient(180deg, rgba(255,255,255,.03) 0%, rgba(255,255,255,0) 100%),
+        #13252b;
+      color:#d9edf0;
+      padding:14px;
       overflow:auto;
-      font-family:Consolas, monospace;
+      box-shadow:inset 0 1px 0 rgba(255,255,255,.04);
+      font-family:Consolas, Courier New, monospace;
       font-size:12px;
+      line-height:1.45;
     }
     .item {
-      display:block;
+      display:grid;
+      gap:4px;
       text-decoration:none;
       color:var(--text);
       background:#fff;
-      border:1px solid var(--line);
-      border-left:6px solid var(--primary);
+      border:1px solid rgba(15,106,122,.18);
       border-radius:12px;
-      padding:12px;
+      padding:14px 16px;
       transition:transform .14s ease, box-shadow .14s ease;
+      box-shadow:0 8px 16px rgba(31,22,14,.05);
     }
-    .item.version { border-left-color:var(--accent); }
+    .item.version {
+      border-color:rgba(157,61,31,.22);
+    }
     .item:hover { transform:translateY(-2px); box-shadow:0 10px 20px rgba(0,0,0,.08); }
-    .item h2 { margin:0 0 6px 0; font-size:18px; }
-    .item span { color:var(--muted); font-size:13px; }
+    .item h2 { margin:0; font-size:16px; }
+    .item span { color:var(--muted); font-size:12px; }
     @media (max-width: 760px) {
-      .panel, .control-sections, .row, .row.colors { grid-template-columns:1fr; }
+      .menu, .controls-top, .controls-bottom, .control-sections, .row, .row.colors { grid-template-columns:1fr; }
+      .runtime-head {
+        flex-direction:column;
+        align-items:stretch;
+      }
+      .toggle-btn {
+        width:100%;
+      }
     }
   </style>
 </head>
 <body>
   <main>
     <section class='hero'>
-      <h1>DUXMAN-LED-NEXT __FW_VERSION__</h1>
+      <div>
+      <div class='hero-title'>
+        <h1>DUXMAN-LED-NEXT __FW_VERSION__</h1>
+        <span class='boot-at'>__BOOTED_AT__</span>
+      </div>
       <p>Control rapido de efectos fijos y navegacion principal.</p>
+      </div>
+
+      <div class='menu'>
+        <a class='item' href='/config'>
+          <h2>Configuracion</h2>
+          <span>Acceso a secciones configurables del dispositivo.</span>
+        </a>
+        <a class='item' href='/api'>
+          <h2>API</h2>
+          <span>Documentacion y tester HTTP/Serial.</span>
+        </a>
+        <a class='item version' href='/version'>
+          <h2>Version</h2>
+          <span>Informacion de release y metadatos del firmware.</span>
+        </a>
+      </div>
+
       <div class='panel'>
         <section class='controls'>
-          <div>
-            <div class='switch'>
-              <input id='power' type='checkbox'>
-              <span>Salida activa</span>
-            </div>
-            <span class='badge' id='status'>Cargando estado...</span>
-          </div>
-
-          <div class='control-sections'>
-            <section class='control-card'>
+          <div class='controls-top'>
+            <section class='control-card colors'>
               <div>
                 <h2>Seleccion de colores</h2>
-                <p>Define los tres colores de primer plano y el color de fondo.</p>
+                <p>Define el color de fondo y los tres colores de primer plano del efecto.</p>
               </div>
 
-              <label>
-                Color de fondo / off
-                <input id='backgroundColor' type='color' value='#000000'>
-              </label>
-
               <div class='row colors'>
+                <label>
+                  Fondo / off
+                  <input id='backgroundColor' type='color' value='#000000'>
+                </label>
+
                 <label>
                   Color 1
                   <input id='color0' type='color' value='#ff4d00'>
@@ -1332,62 +1706,121 @@ String ApiService::buildHomeHtml() const {
             <section class='control-card effect'>
               <div>
                 <h2>Seleccion de efecto</h2>
-                <p>Elige el tipo de render, brillo y numero de secciones.</p>
+                <p>Elige el render principal, numero de secciones, velocidad y brillo global.</p>
               </div>
 
-              <label>
-                Efecto
-                <select id='effect'>
-                  __EFFECT_OPTIONS__
-                </select>
-              </label>
+              <div class='control-sections'>
+                <div class='row'>
+                  <label>
+                    Efecto
+                    <select id='effect'>
+                      __EFFECT_OPTIONS__
+                    </select>
+                  </label>
 
-              <label>
-                Numero de secciones
-                <input id='sectionCount' type='number' min='1' max='255' value='3'>
-              </label>
+                  <label>
+                    Numero de secciones
+                    <input id='sectionCount' type='range' min='1' max='10' value='3'>
+                    <span id='sectionCountValue'>3</span>
+                  </label>
+                </div>
 
-              <label id='speedControl'>
-                Rapidez del efecto
-                <input id='effectSpeed' type='range' min='1' max='100' value='10'>
-                <span id='effectSpeedValue'>10</span>
-                <span id='effectSpeedHint'>Solo se usa en efectos animados.</span>
-              </label>
+                <label id='speedControl'>
+                  Rapidez del efecto
+                  <input id='effectSpeed' type='range' min='1' max='100' value='10'>
+                  <span id='effectSpeedValue'>10</span>
+                  <span id='effectSpeedHint'>Solo se usa en efectos animados.</span>
+                </label>
 
-              <label>
-                Brillo global
-                <input id='brightness' type='range' min='0' max='255' value='128'>
-                <span id='brightnessValue'>128</span>
-              </label>
+                <label>
+                  Nivel del efecto
+                  <input id='effectLevel' type='range' min='1' max='10' value='5'>
+                  <span id='effectLevelValue'>5</span>
+                </label>
+
+                <label>
+                  Brillo global
+                  <input id='brightness' type='range' min='0' max='255' value='128'>
+                  <span id='brightnessValue'>128</span>
+                </label>
+              </div>
             </section>
           </div>
 
-          <div class='actions'>
-            <button onclick='applyState()'>Aplicar</button>
-            <button class='alt' onclick='loadState()'>Recargar</button>
+          <div class='controls-bottom'>
+            <section class='power-card'>
+              <div class='power-copy'>
+                <h2>Estado y acciones</h2>
+                <p>Activa la salida, revisa el estado cargado y aplica cambios rapidamente.</p>
+              </div>
+
+              <div>
+                <div class='switch'>
+                  <input id='power' type='checkbox'>
+                  <span>Salida activa</span>
+                </div>
+                <span class='badge' id='status'>Cargando estado...</span>
+              </div>
+
+              <div class='power-actions'>
+                <div class='actions'>
+                  <button onclick='applyState()'>Aplicar</button>
+                  <button class='alt' onclick='loadState()'>Recargar</button>
+                  <button class='alt' onclick='saveStartupEffect()'>Guardar arranque</button>
+                  <button class='alt' onclick='restartBoard()'>Reiniciar placa</button>
+                </div>
+
+                <div class='sequence-tools'>
+                  <label>
+                    Duracion para nueva entrada
+                    <input id='effectDurationSec' type='range' min='1' max='600' value='30'>
+                    <span id='effectDurationSecValue' class='slider-readout'>30 s</span>
+                  </label>
+
+                  <div class='actions'>
+                    <button class='alt' onclick='addCurrentEffectToSequence()'>Anadir a lista</button>
+                    <button class='alt' onclick='loadEffectsPersistence()'>Recargar lista</button>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section class='saved-effects-card'>
+              <div class='saved-effects-copy'>
+                <h2>Persistencia de efectos</h2>
+                <p>Guarda el efecto de arranque y prepara la secuencia futura con duracion por entrada.</p>
+              </div>
+
+              <div>
+                <span id='effectsStatus' class='effects-status'>Leyendo persistencia...</span>
+              </div>
+
+              <div>
+                <strong id='startupEffectSummary'>Sin efecto de arranque guardado.</strong>
+              </div>
+
+              <div id='sequenceList' class='sequence-list'>
+                <div class='empty-note'>No hay efectos guardados en la secuencia.</div>
+              </div>
+
+              <pre id='effectsOut'>Sin datos aun.</pre>
+            </section>
           </div>
         </section>
+      </div>
 
-        <aside class='stats'>
-          <h2>Estado runtime</h2>
-          <p>El efecto se guarda en LittleFS al aplicar cambios.</p>
+      <section class='runtime-card'>
+        <div class='runtime-head'>
+          <div class='runtime-copy'>
+            <h2>Estado runtime <span class='runtime-pill'>live json</span></h2>
+            <p>El efecto se guarda en LittleFS al aplicar cambios.</p>
+          </div>
+          <button id='toggleRuntime' class='toggle-btn' type='button' aria-expanded='false'>Mostrar runtime</button>
+        </div>
+        <div id='runtimeBody' class='runtime-body hidden'>
           <pre id='stateOut'>Sin datos aun.</pre>
-        </aside>
-      </div>
-      <div class='menu'>
-        <a class='item' href='/config'>
-          <h2>Configuracion</h2>
-          <span>Acceso a secciones configurables del dispositivo.</span>
-        </a>
-        <a class='item' href='/api'>
-          <h2>API</h2>
-          <span>Documentacion y tester HTTP/Serial.</span>
-        </a>
-        <a class='item version' href='/version'>
-          <h2>Version</h2>
-          <span>Informacion de release y metadatos del firmware.</span>
-        </a>
-      </div>
+        </div>
+      </section>
     </section>
   </main>
   <script>
@@ -1395,16 +1828,49 @@ String ApiService::buildHomeHtml() const {
     const status = document.getElementById('status');
     const brightness = document.getElementById('brightness');
     const brightnessValue = document.getElementById('brightnessValue');
+    const sectionCount = document.getElementById('sectionCount');
+    const sectionCountValue = document.getElementById('sectionCountValue');
     const effect = document.getElementById('effect');
     const effectSpeed = document.getElementById('effectSpeed');
     const effectSpeedValue = document.getElementById('effectSpeedValue');
     const effectSpeedHint = document.getElementById('effectSpeedHint');
+    const effectLevel = document.getElementById('effectLevel');
+    const effectLevelValue = document.getElementById('effectLevelValue');
     const speedControl = document.getElementById('speedControl');
+    const runtimeBody = document.getElementById('runtimeBody');
+    const toggleRuntime = document.getElementById('toggleRuntime');
+    const effectDurationSec = document.getElementById('effectDurationSec');
+    const effectDurationSecValue = document.getElementById('effectDurationSecValue');
+    const effectsStatus = document.getElementById('effectsStatus');
+    const startupEffectSummary = document.getElementById('startupEffectSummary');
+    const sequenceList = document.getElementById('sequenceList');
+    const effectsOut = document.getElementById('effectsOut');
+    let effectsState = null;
+
+    function setRuntimeVisible(visible) {
+      runtimeBody.classList.toggle('hidden', !visible);
+      toggleRuntime.textContent = visible ? 'Ocultar runtime' : 'Mostrar runtime';
+      toggleRuntime.setAttribute('aria-expanded', visible ? 'true' : 'false');
+    }
+
+    toggleRuntime.addEventListener('click', () => {
+      setRuntimeVisible(runtimeBody.classList.contains('hidden'));
+    });
+
     brightness.addEventListener('input', () => {
       brightnessValue.textContent = brightness.value;
     });
+    sectionCount.addEventListener('input', () => {
+      sectionCountValue.textContent = sectionCount.value;
+    });
     effectSpeed.addEventListener('input', () => {
       effectSpeedValue.textContent = effectSpeed.value;
+    });
+    effectLevel.addEventListener('input', () => {
+      effectLevelValue.textContent = effectLevel.value;
+    });
+    effectDurationSec.addEventListener('input', () => {
+      effectDurationSecValue.textContent = effectDurationSec.value + ' s';
     });
 
     function effectUsesSpeed(effectKey) {
@@ -1428,8 +1894,11 @@ String ApiService::buildHomeHtml() const {
       document.getElementById('brightness').value = state.brightness ?? 128;
       brightnessValue.textContent = document.getElementById('brightness').value;
       document.getElementById('sectionCount').value = state.sectionCount ?? 3;
+      sectionCountValue.textContent = document.getElementById('sectionCount').value;
       document.getElementById('effectSpeed').value = state.effectSpeed ?? 10;
       effectSpeedValue.textContent = document.getElementById('effectSpeed').value;
+      document.getElementById('effectLevel').value = state.effectLevel ?? 5;
+      effectLevelValue.textContent = document.getElementById('effectLevel').value;
       const colors = Array.isArray(state.primaryColors) ? state.primaryColors : ['#ff4d00','#ffd400','#00b8d9'];
       document.getElementById('color0').value = colors[0] || '#ff4d00';
       document.getElementById('color1').value = colors[1] || '#ffd400';
@@ -1438,6 +1907,132 @@ String ApiService::buildHomeHtml() const {
       updateSpeedControl();
       out.textContent = JSON.stringify(state, null, 2);
       status.textContent = 'Estado cargado';
+    }
+
+    function normalizeEffectsPayload(data) {
+      if (data && data.effects && data.effects.effects) {
+        return data.effects.effects;
+      }
+      if (data && data.effects) {
+        return data.effects;
+      }
+      return data;
+    }
+
+    function createColorSwatch(color) {
+      return "<span class='sequence-color' style='background:" + color + "' title='" + color + "'></span>";
+    }
+
+    function describeConfig(config) {
+      if (!config) {
+        return 'Configuracion no disponible';
+      }
+      const effectName = config.effectLabel || config.effect || ('ID ' + (config.effectId ?? '?'));
+      return effectName + ' | secciones ' + (config.sectionCount ?? '?') + ' | velocidad ' + (config.effectSpeed ?? '?') + ' | nivel ' + (config.effectLevel ?? '?') + ' | brillo ' + (config.brightness ?? '?');
+    }
+
+    function renderEffectsState(data) {
+      effectsState = normalizeEffectsPayload(data) || {};
+      effectsOut.textContent = JSON.stringify(effectsState, null, 2);
+
+      if (effectsState.hasStartupEffect && effectsState.startupEffect) {
+        startupEffectSummary.textContent = 'Arranque: ' + describeConfig(effectsState.startupEffect);
+      } else {
+        startupEffectSummary.textContent = 'Sin efecto de arranque guardado.';
+      }
+
+      const sequence = Array.isArray(effectsState.sequence) ? effectsState.sequence : [];
+      if (!sequence.length) {
+        sequenceList.innerHTML = "<div class='empty-note'>No hay efectos guardados en la secuencia.</div>";
+      } else {
+        sequenceList.innerHTML = sequence.map((entry) => {
+          const config = entry.config || {};
+          const colors = Array.isArray(config.primaryColors) ? config.primaryColors : [];
+          return "<article class='sequence-item'>"
+            + "<div class='sequence-head'>"
+            + "<div class='sequence-title'>"
+            + "<strong>#" + entry.id + " · " + (config.effectLabel || config.effect || 'Efecto') + "</strong>"
+            + "<span class='sequence-meta'>Duracion " + (entry.durationSec ?? 0) + " s · " + describeConfig(config) + "</span>"
+            + "</div>"
+            + "<button class='delete-btn' type='button' onclick='deleteSequenceEntry(" + entry.id + ")'>Eliminar</button>"
+            + "</div>"
+            + "<div class='sequence-colors'>"
+            + colors.map(createColorSwatch).join('')
+            + createColorSwatch(config.backgroundColor || '#000000')
+            + "</div>"
+            + "</article>";
+        }).join('');
+      }
+
+      effectsStatus.textContent = 'Persistencia cargada';
+    }
+
+    async function loadEffectsPersistence() {
+      effectsStatus.textContent = 'Leyendo persistencia...';
+      const res = await fetch('/api/v1/effects');
+      const data = await res.json();
+      renderEffectsState(data);
+    }
+
+    async function saveStartupEffect() {
+      effectsStatus.textContent = 'Guardando arranque...';
+      const res = await fetch('/api/v1/effects/startup/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: '{}'
+      });
+      const data = await res.json();
+      renderEffectsState(data);
+      effectsStatus.textContent = data && data.saved ? 'Efecto de arranque guardado' : 'No se pudo guardar arranque';
+    }
+
+    async function addCurrentEffectToSequence() {
+      effectsStatus.textContent = 'Guardando efecto en la lista...';
+      const res = await fetch('/api/v1/effects/sequence/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ durationSec: Number(effectDurationSec.value) })
+      });
+      const data = await res.json();
+      renderEffectsState(data);
+      effectsStatus.textContent = data && data.added ? 'Entrada anadida a la secuencia' : 'No se pudo anadir la entrada';
+    }
+
+    async function deleteSequenceEntry(id) {
+      effectsStatus.textContent = 'Eliminando entrada...';
+      const res = await fetch('/api/v1/effects/sequence/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id })
+      });
+      const data = await res.json();
+      renderEffectsState(data);
+      effectsStatus.textContent = data && data.deleted ? 'Entrada eliminada' : 'No se pudo eliminar la entrada';
+    }
+
+    async function restartBoard() {
+      const confirmed = window.confirm('Se reiniciara la placa inmediatamente. Continuar?');
+      if (!confirmed) {
+        return;
+      }
+
+      status.textContent = 'Enviando reinicio...';
+      try {
+        await fetch('/api/v1/system/restart', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: '{}'
+        });
+        status.textContent = 'Reinicio enviado. Esperando reconexion...';
+      } catch (_) {
+        status.textContent = 'La placa se esta reiniciando...';
+      }
+
+      setTimeout(() => {
+        loadState().catch(() => {
+          status.textContent = 'Esperando a que la placa vuelva a responder...';
+        });
+      }, 4000);
     }
 
     async function loadState() {
@@ -1455,6 +2050,7 @@ String ApiService::buildHomeHtml() const {
         effect: document.getElementById('effect').value,
         sectionCount: Number(document.getElementById('sectionCount').value),
         effectSpeed: Number(document.getElementById('effectSpeed').value),
+        effectLevel: Number(document.getElementById('effectLevel').value),
         primaryColors: [
           document.getElementById('color0').value,
           document.getElementById('color1').value,
@@ -1478,13 +2074,16 @@ String ApiService::buildHomeHtml() const {
       status.textContent = 'Cambios aplicados';
     }
 
-    loadState();
+    setRuntimeVisible(window.matchMedia('(min-width: 761px)').matches);
+    Promise.all([loadState(), loadEffectsPersistence()]);
   </script>
 </body>
 </html>
 )HTML";
   const String versionLabel = String(BuildProfile::kFwVersion);
+  const String bootedAtLabel = buildBootedAtLabel();
   html.replace("__FW_VERSION__", versionLabel);
+  html.replace("__BOOTED_AT__", bootedAtLabel);
   html.replace("__EFFECT_OPTIONS__", EffectRegistry::buildHtmlOptions(state_.effectId));
   return html;
 }
@@ -1740,7 +2339,7 @@ String ApiService::buildApiConfigNetworkHtml() const {
       <h1>API Config Network</h1>
       <button onclick='getCfg()'>GET /api/v1/config/network</button>
       <button onclick='patchCfg()'>PATCH /api/v1/config/network</button>
-      <textarea id='payload'>{"network":{"wifi":{"mode":"ap_sta","apAvailability":"always"},"dns":{"hostname":"duxman-led-1"}}}</textarea>
+      <textarea id='payload'>{"network":{"wifi":{"mode":"ap_sta","apAvailability":"always","connection":{"ssid":"MiWiFi","password":"secreto"}},"ip":{"sta":{"mode":"dhcp","primaryDns":"8.8.8.8","secondaryDns":"1.1.1.1"}},"dns":{"hostname":"duxman-led-1"},"time":{"syncOnBoot":true,"ntpServer":"europe.pool.ntp.org"}}}</textarea>
     </div>
     <div class='card'><pre id='out'>Sin llamadas aun.</pre></div>
   </main>
@@ -1950,6 +2549,24 @@ String ApiService::buildNetworkConfigHtml() const {
     </div>
 
     <div class='card'>
+      <h2>Tiempo / NTP</h2>
+      <p class='hint'>Al arrancar y al conectar STA, el equipo intentara sincronizar la hora con el servidor NTP configurado.</p>
+      <div class='row'>
+        <div class='col field'>
+          <label for='ntpSyncOnBoot'>Sincronizar en arranque</label>
+          <select id='ntpSyncOnBoot'>
+            <option value='true'>true</option>
+            <option value='false'>false</option>
+          </select>
+        </div>
+        <div class='col field'>
+          <label for='ntpServer'>Servidor NTP</label>
+          <input id='ntpServer' type='text' placeholder='europe.pool.ntp.org'>
+        </div>
+      </div>
+    </div>
+
+    <div class='card'>
       <h2>IP AP</h2>
       <div class='row'>
         <div class='col field'>
@@ -2043,12 +2660,15 @@ String ApiService::buildNetworkConfigHtml() const {
       const ap = ip.ap || {};
       const sta = ip.sta || {};
       const dns = network.dns || {};
+      const time = network.time || {};
 
       setValue('wifiMode', wifi.mode || 'ap');
       setValue('apAvailability', wifi.apAvailability || 'always');
       setValue('ssid', conn.ssid || '');
       setValue('password', conn.password || '');
       setValue('hostname', dns.hostname || 'duxman-led');
+      setValue('ntpSyncOnBoot', String(time.syncOnBoot !== false));
+      setValue('ntpServer', time.ntpServer || 'europe.pool.ntp.org');
 
       setValue('apMode', ap.mode || 'static');
       setValue('apAddress', ap.address || '');
@@ -2092,6 +2712,10 @@ String ApiService::buildNetworkConfigHtml() const {
           },
           dns: {
             hostname: byId('hostname').value
+          },
+          time: {
+            syncOnBoot: byId('ntpSyncOnBoot').value === 'true',
+            ntpServer: byId('ntpServer').value
           }
         }
       };
@@ -2806,7 +3430,7 @@ String ApiService::buildProfilesConfigHtml() const {
   <main>
     <div class='card'>
       <h1>Perfiles GPIO</h1>
-      <p class='hint'>Gestiona presets integrados y perfiles guardados de usuario.</p>
+      <p class='hint'>Gestiona presets integrados y perfiles guardados de usuario. La configuracion GPIO activa siempre se refleja en el profile DEFAULT. El borrado esta abierto temporalmente para limpieza, salvo DEFAULT.</p>
       <div class='actions'>
         <a href='/' class='btn ghost'>Inicio</a>
         <a href='/config' class='btn ghost'>Config</a>
@@ -2814,8 +3438,8 @@ String ApiService::buildProfilesConfigHtml() const {
         <a href='/api/profiles/gpio' class='btn ghost'>API Profiles</a>
         <button class='btn alt' onclick='loadProfiles()'>Recargar</button>
         <button class='btn' onclick='saveProfile()'>Guardar perfil</button>
-        <button class='btn alt' onclick='applySelected(false)'>Aplicar</button>
-        <button class='btn alt' onclick='applySelected(true)'>Aplicar + Default</button>
+        <button class='btn alt' onclick='applySelected()'>Aplicar</button>
+        <button class='btn alt' onclick='applyAsDefault()'>Copiar a DEFAULT</button>
         <button class='btn danger' onclick='deleteSelected()'>Borrar</button>
       </div>
       <p id='status' class='hint'>Cargando...</p>
@@ -2838,7 +3462,7 @@ String ApiService::buildProfilesConfigHtml() const {
       <div class='field'><label for='profileDescription'>Descripcion</label><input id='profileDescription' type='text' placeholder='Perfil de instalacion'></div>
       <div class='row'>
         <div class='field'><label><input id='applyNow' type='checkbox'> Aplicar al guardar</label></div>
-        <div class='field'><label><input id='autoApplyOnBoot' type='checkbox'> Guardar como perfil por defecto</label></div>
+        <div class='field'><label><input id='autoApplyOnBoot' type='checkbox'> Activar al guardar y copiar en DEFAULT</label></div>
       </div>
       <div class='field'><label for='profilePayload'>GPIO JSON</label><textarea id='profilePayload'>{"outputs":[{"pin":5,"ledCount":60,"ledType":"ws2812b","colorOrder":"GRB"}]}</textarea></div>
     </div>
@@ -2883,7 +3507,7 @@ String ApiService::buildProfilesConfigHtml() const {
       byId('profileName').value = item.name || '';
       byId('profileDescription').value = item.description || '';
       byId('profilePayload').value = JSON.stringify(item.gpio || { outputs: [] }, null, 2);
-      byId('autoApplyOnBoot').checked = !!item.isDefault;
+      byId('autoApplyOnBoot').checked = false;
       byId('applyNow').checked = false;
     }
     async function loadProfiles() {
@@ -2918,10 +3542,16 @@ String ApiService::buildProfilesConfigHtml() const {
       await callJson('/api/v1/profiles/gpio/save', payload, 'Guardando perfil...');
       await loadProfiles();
     }
-    async function applySelected(setDefault) {
+    async function applySelected() {
       const id = selectedProfileId || byId('profileId').value.trim();
       if (!id) { setStatus('Selecciona un perfil.', true); return; }
-      await callJson('/api/v1/profiles/gpio/apply', { profile: { id: id, setDefault: setDefault } }, 'Aplicando perfil...');
+      await callJson('/api/v1/profiles/gpio/apply', { profile: { id: id } }, 'Aplicando perfil y copiando en DEFAULT...');
+      await loadProfiles();
+    }
+    async function applyAsDefault() {
+      const id = selectedProfileId || byId('profileId').value.trim();
+      if (!id) { setStatus('Selecciona un perfil.', true); return; }
+      await callJson('/api/v1/profiles/gpio/default', { profile: { id: id } }, 'Copiando perfil en DEFAULT...');
       await loadProfiles();
     }
     async function deleteSelected() {
@@ -2976,12 +3606,13 @@ String ApiService::buildApiProfilesHtml() const {
     <div class='nav'><a href='/'>Inicio</a><a href='/api'>API</a><a href='/config/profiles'>Config Profiles</a><a href='/api/hardware'>Hardware</a><a href='/api/release'>Release</a></div>
     <div class='card'>
       <h1>API Profiles GPIO</h1>
+      <p>Aplicar un profile y copiarlo en DEFAULT es ahora el comportamiento normal.</p>
       <button onclick='callApi("GET","/api/v1/profiles/gpio")'>GET /api/v1/profiles/gpio</button>
       <button onclick='callApi("POST","/api/v1/profiles/gpio/save")'>POST /api/v1/profiles/gpio/save</button>
       <button onclick='callApi("POST","/api/v1/profiles/gpio/apply")'>POST /api/v1/profiles/gpio/apply</button>
       <button onclick='callApi("POST","/api/v1/profiles/gpio/default")'>POST /api/v1/profiles/gpio/default</button>
       <button onclick='callApi("POST","/api/v1/profiles/gpio/delete")'>POST /api/v1/profiles/gpio/delete</button>
-      <textarea id='payload'>{"profile":{"id":"mi_perfil","name":"Mi perfil","gpio":{"outputs":[{"pin":5,"ledCount":60,"ledType":"ws2812b","colorOrder":"GRB"}]},"autoApplyOnBoot":false}}</textarea>
+      <textarea id='payload'>{"profile":{"id":"mi_perfil","name":"Mi perfil","gpio":{"outputs":[{"pin":5,"ledCount":60,"ledType":"ws2812b","colorOrder":"GRB"}]},"applyNow":true}}</textarea>
     </div>
     <div class='card'><pre id='out'>Sin llamadas aun.</pre></div>
   </main>

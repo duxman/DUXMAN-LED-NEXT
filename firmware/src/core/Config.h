@@ -22,6 +22,11 @@ struct NetworkDnsConfig {
   String hostname = "duxman-led";
 };
 
+struct NetworkTimeConfig {
+  bool syncOnBoot = true;
+  String ntpServer = "europe.pool.ntp.org";
+};
+
 struct DebugConfig {
   bool enabled = false;
   uint32_t heartbeatMs = 5000;
@@ -65,6 +70,7 @@ struct NetworkConfig {
   NetworkIpConfig ap;
   NetworkIpConfig sta;
   NetworkDnsConfig dns;
+  NetworkTimeConfig time;
   DebugConfig debug;
 
   static NetworkConfig defaults();
