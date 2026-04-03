@@ -27,7 +27,10 @@ protected:
     return driver_;
   }
 
-  static uint32_t scaleColor(uint32_t color, uint8_t brightness);
+  float reactiveAudio01() const;
+  float reactiveGain(float minGain = 0.30f, float maxGain = 1.30f) const;
+
+  uint32_t scaleColor(uint32_t color, uint8_t brightness) const;
   static uint32_t gradientColor(uint32_t colorA, uint32_t colorB, uint32_t colorC,
                                 uint16_t pixelIndex, uint16_t pixelCount);
   static uint16_t resolveSectionSize(uint16_t ledCount, uint8_t sectionCount);
@@ -42,7 +45,7 @@ protected:
   static float smoothstep(float edge0, float edge1, float x);
   static uint32_t lerpColor(uint32_t colorA, uint32_t colorB, float t);
   static uint32_t addColor(uint32_t colorA, uint32_t colorB);
-  static uint32_t scaleColorFloat(uint32_t color, float gain);
+  uint32_t scaleColorFloat(uint32_t color, float gain) const;
   static uint32_t applyGamma(uint32_t color);
 
 private:

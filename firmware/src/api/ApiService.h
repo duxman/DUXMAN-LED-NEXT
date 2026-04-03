@@ -42,6 +42,7 @@ private:
   void setupHttpRoutes();
   void handleHttpStateRoute();
   void handleHttpNetworkRoute();
+  void handleHttpMicrophoneRoute();
   void handleHttpGpioRoute();
   void handleHttpDebugRoute();
   void handleHttpDiagRoute();
@@ -64,6 +65,7 @@ private:
   String buildDocsHtml() const;
   String buildApiStateHtml() const;
   String buildApiConfigNetworkHtml() const;
+  String buildApiConfigMicrophoneHtml() const;
   String buildApiConfigGpioHtml() const;
   String buildApiConfigDebugHtml() const;
   String buildApiConfigAllHtml() const;
@@ -72,6 +74,7 @@ private:
   String buildApiReleaseHtml() const;
   String buildVersionHtml() const;
   String buildNetworkConfigHtml() const;
+  String buildMicrophoneConfigHtml() const;
   String buildGpioConfigHtml() const;
   String buildProfilesConfigHtml() const;
   String buildDebugConfigHtml() const;

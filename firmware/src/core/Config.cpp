@@ -15,6 +15,17 @@ constexpr const char *kIpDhcp = "dhcp";
 constexpr const char *kIpStatic = "static";
 constexpr uint32_t kHeartbeatMinMs = 0;
 constexpr uint32_t kHeartbeatMaxMs = 600000;
+constexpr uint16_t kMicSampleRateMin = 8000;
+constexpr uint16_t kMicSampleRateMax = 48000;
+constexpr uint8_t kMicGainMin = 1;
+constexpr uint8_t kMicGainMax = 200;
+constexpr uint8_t kMicNoiseFloorMax = 100;
+constexpr const char *kMicSourceGeneric = "generic_i2c";
+constexpr const char *kMicSourceLegacyI2s = "i2s";
+constexpr const char *kMicProfileGledopto = "gledopto_gl_c_017wl_d";
+constexpr int8_t kMicGledoptoSckPin = 21;
+constexpr int8_t kMicGledoptoWsPin = 5;
+constexpr int8_t kMicGledoptoSdPin = 26;
 
 bool isOneOf(const String &value, const char *a, const char *b, const char *c = nullptr) {
   if (value == a || value == b) {
@@ -120,6 +131,20 @@ void setUIntIfPresent(const JsonObjectConst &source, const char *key, uint32_t &
   }
 }
 
+void setUInt8IfPresent(const JsonObjectConst &source, const char *key, uint8_t &target) {
+  JsonVariantConst value = source[key];
+  if (value.isNull()) {
+    return;
+  }
+
+  if (value.is<unsigned int>() || value.is<int>()) {
+    const int parsed = value.as<int>();
+    if (parsed >= 0 && parsed <= 255) {
+      target = static_cast<uint8_t>(parsed);
+    }
+  }
+}
+
 void patchIpConfig(const JsonObjectConst &source, NetworkIpConfig &target) {
   setIfPresent(source, "mode", target.mode);
   setIfPresent(source, "address", target.address);
@@ -184,7 +209,219 @@ bool isValidColorOrder(const String &order) {
 bool isInputOnlyGpio(int8_t pin) {
   return pin == 34 || pin == 35 || pin == 36 || pin == 39;
 }
+
+bool isValidMicFftSize(uint16_t size) {
+  return size == 256 || size == 512 || size == 1024 || size == 2048;
+}
+
+bool isValidMicProfileId(const String &profileId) {
+  return profileId == "DEFAULT" || profileId == kMicProfileGledopto;
+}
+
+bool areDistinctPins(int8_t a, int8_t b, int8_t c) {
+  if (a >= 0 && b >= 0 && a == b) {
+    return false;
+  }
+  if (a >= 0 && c >= 0 && a == c) {
+    return false;
+  }
+  if (b >= 0 && c >= 0 && b == c) {
+    return false;
+  }
+  return true;
+}
+
+bool isGledoptoReservedMicPin(int8_t pin) {
+  return pin == 1 || pin == 2 || pin == 4 || pin == 16;
+}
+
+void applyGledoptoMicDefaults(MicrophoneConfig &cfg) {
+  cfg.source = kMicSourceGeneric;
+  cfg.profileId = kMicProfileGledopto;
+  cfg.pins.bclk = kMicGledoptoSckPin;
+  cfg.pins.ws = kMicGledoptoWsPin;
+  cfg.pins.din = kMicGledoptoSdPin;
+}
 } // namespace
+
+// ── MicrophoneConfig ───────────────────────────────────────────
+
+MicrophoneConfig MicrophoneConfig::defaults() {
+  MicrophoneConfig config;
+  config.enabled = false;
+  config.source = kMicSourceGeneric;
+  config.profileId = kMicProfileGledopto;
+  config.sampleRate = 16000;
+  config.fftSize = 512;
+  config.gainPercent = 100;
+  config.noiseFloorPercent = 8;
+  config.pins.bclk = kMicGledoptoSckPin;
+  config.pins.ws = kMicGledoptoWsPin;
+  config.pins.din = kMicGledoptoSdPin;
+  return config;
+}
+
+String MicrophoneConfig::toJson() const {
+  JsonDocument doc;
+  JsonObject mic = doc["microphone"].to<JsonObject>();
+  mic["enabled"] = enabled;
+  mic["source"] = source;
+  mic["profileId"] = profileId;
+  mic["sampleRate"] = sampleRate;
+  mic["fftSize"] = fftSize;
+  mic["gainPercent"] = gainPercent;
+  mic["noiseFloorPercent"] = noiseFloorPercent;
+
+  JsonObject pins = mic["pins"].to<JsonObject>();
+  pins["bclk"] = this->pins.bclk;
+  pins["ws"] = this->pins.ws;
+  pins["din"] = this->pins.din;
+
+  String out;
+  serializeJson(doc, out);
+  return out;
+}
+
+bool MicrophoneConfig::validate(String *error) const {
+  if (source != kMicSourceGeneric && source != kMicSourceLegacyI2s) {
+    if (error != nullptr) {
+      *error = "invalid_microphone_source";
+    }
+    return false;
+  }
+
+  if (!isValidMicProfileId(profileId)) {
+    if (error != nullptr) {
+      *error = "invalid_microphone_profile_id";
+    }
+    return false;
+  }
+
+  if (sampleRate < kMicSampleRateMin || sampleRate > kMicSampleRateMax) {
+    if (error != nullptr) {
+      *error = "invalid_microphone_sample_rate";
+    }
+    return false;
+  }
+
+  if (!isValidMicFftSize(fftSize)) {
+    if (error != nullptr) {
+      *error = "invalid_microphone_fft_size";
+    }
+    return false;
+  }
+
+  if (gainPercent < kMicGainMin || gainPercent > kMicGainMax) {
+    if (error != nullptr) {
+      *error = "invalid_microphone_gain";
+    }
+    return false;
+  }
+
+  if (noiseFloorPercent > kMicNoiseFloorMax) {
+    if (error != nullptr) {
+      *error = "invalid_microphone_noise_floor";
+    }
+    return false;
+  }
+
+  if (pins.bclk < kGpioPinMin || pins.bclk > kGpioPinMax ||
+      pins.ws < kGpioPinMin || pins.ws > kGpioPinMax ||
+      pins.din < kGpioPinMin || pins.din > kGpioPinMax) {
+    if (error != nullptr) {
+      *error = "invalid_microphone_pin_range";
+    }
+    return false;
+  }
+
+  if (!areDistinctPins(pins.bclk, pins.ws, pins.din)) {
+    if (error != nullptr) {
+      *error = "duplicate_microphone_pins";
+    }
+    return false;
+  }
+
+  if (enabled) {
+    if (pins.bclk < 0 || pins.ws < 0 || pins.din < 0) {
+      if (error != nullptr) {
+        *error = "missing_microphone_pins";
+      }
+      return false;
+    }
+
+    if (isInputOnlyGpio(pins.bclk) || isInputOnlyGpio(pins.ws)) {
+      if (error != nullptr) {
+        *error = "invalid_microphone_clock_pin";
+      }
+      return false;
+    }
+  }
+
+  if (profileId == kMicProfileGledopto) {
+    if (isGledoptoReservedMicPin(pins.bclk) || isGledoptoReservedMicPin(pins.ws) || isGledoptoReservedMicPin(pins.din)) {
+      if (error != nullptr) {
+        *error = "microphone_pin_reserved_by_profile";
+      }
+      return false;
+    }
+  }
+
+  return true;
+}
+
+bool MicrophoneConfig::applyPatchJson(const String &payload, String *error) {
+  JsonDocument doc;
+  const DeserializationError parseResult = deserializeJson(doc, payload);
+  if (parseResult) {
+    if (error != nullptr) {
+      *error = "invalid_json";
+    }
+    return false;
+  }
+
+  JsonObjectConst root = doc.as<JsonObjectConst>();
+  JsonObjectConst micObj = root["microphone"].isNull() ? root : root["microphone"].as<JsonObjectConst>();
+
+  MicrophoneConfig candidate = *this;
+
+  setBoolIfPresent(micObj, "enabled", candidate.enabled);
+  setIfPresent(micObj, "source", candidate.source);
+  setIfPresent(micObj, "profileId", candidate.profileId);
+  setUInt16IfPresent(micObj, "sampleRate", candidate.sampleRate);
+  setUInt16IfPresent(micObj, "fftSize", candidate.fftSize);
+  setUInt8IfPresent(micObj, "gainPercent", candidate.gainPercent);
+  setUInt8IfPresent(micObj, "noiseFloorPercent", candidate.noiseFloorPercent);
+
+  JsonObjectConst pinsObj = micObj["pins"].as<JsonObjectConst>();
+  if (!pinsObj.isNull()) {
+    setInt8IfPresent(pinsObj, "bclk", candidate.pins.bclk);
+    setInt8IfPresent(pinsObj, "ws", candidate.pins.ws);
+    setInt8IfPresent(pinsObj, "din", candidate.pins.din);
+  }
+
+  if (candidate.source == kMicSourceLegacyI2s) {
+    candidate.source = kMicSourceGeneric;
+  }
+
+  if (candidate.profileId == kMicProfileGledopto) {
+    applyGledoptoMicDefaults(candidate);
+  }
+
+  String validationError;
+  if (!candidate.validate(&validationError)) {
+    if (error != nullptr) {
+      *error = validationError;
+    }
+    return false;
+  }
+
+  const bool changed = (candidate.toJson() != this->toJson());
+  *this = candidate;
+  if (error != nullptr) {
+    error->clear();
+  }
+  return changed;
+}
 
 // ── GpioConfig ──────────────────────────────────────────────────
 
@@ -343,6 +580,7 @@ NetworkConfig NetworkConfig::defaults() {
   config.time.ntpServer = "europe.pool.ntp.org";
   config.debug.enabled = false;
   config.debug.heartbeatMs = 5000;
+  config.microphone = MicrophoneConfig::defaults();
   return config;
 }
 
@@ -383,6 +621,20 @@ String NetworkConfig::toJson() const {
   JsonObject debug = doc["debug"].to<JsonObject>();
   debug["enabled"] = this->debug.enabled;
   debug["heartbeatMs"] = this->debug.heartbeatMs;
+
+  JsonObject microphone = doc["microphone"].to<JsonObject>();
+  microphone["enabled"] = this->microphone.enabled;
+  microphone["source"] = this->microphone.source;
+  microphone["profileId"] = this->microphone.profileId;
+  microphone["sampleRate"] = this->microphone.sampleRate;
+  microphone["fftSize"] = this->microphone.fftSize;
+  microphone["gainPercent"] = this->microphone.gainPercent;
+  microphone["noiseFloorPercent"] = this->microphone.noiseFloorPercent;
+
+  JsonObject micPins = microphone["pins"].to<JsonObject>();
+  micPins["bclk"] = this->microphone.pins.bclk;
+  micPins["ws"] = this->microphone.pins.ws;
+  micPins["din"] = this->microphone.pins.din;
 
   String out;
   serializeJson(doc, out);
@@ -471,6 +723,10 @@ bool NetworkConfig::validate(String *error) const {
     return false;
   }
 
+  if (!microphone.validate(error)) {
+    return false;
+  }
+
   return true;
 }
 
@@ -529,6 +785,24 @@ bool NetworkConfig::applyPatchJson(const String &payload, String *error) {
   if (!debugObj.isNull()) {
     setBoolIfPresent(debugObj, "enabled", candidate.debug.enabled);
     setUIntIfPresent(debugObj, "heartbeatMs", candidate.debug.heartbeatMs);
+  }
+
+  JsonObjectConst microphoneObj = root["microphone"].as<JsonObjectConst>();
+  if (!microphoneObj.isNull()) {
+    String micPatch;
+    {
+      JsonDocument micDoc;
+      micDoc["microphone"] = microphoneObj;
+      serializeJson(micDoc, micPatch);
+    }
+    String micError;
+    candidate.microphone.applyPatchJson(micPatch, &micError);
+    if (!micError.isEmpty()) {
+      if (error != nullptr) {
+        *error = micError;
+      }
+      return false;
+    }
   }
 
   String validationError;

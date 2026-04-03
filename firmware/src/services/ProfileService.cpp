@@ -13,7 +13,7 @@ constexpr const char *kDefaultProfileDescription =
 constexpr const char *kGledoptoProfileId = "gledopto_gl_c_017wl_d";
 constexpr const char *kGledoptoProfileName = "Gledopto GL-C-017WL-D";
 constexpr const char *kGledoptoProfileDescription =
-    "Preset LED para este controlador. Incluye GPIO 16, 4 y 2. GPIO 1 queda fuera por ser TX y no se activa por defecto.";
+  "Preset LED para este controlador. Incluye GPIO 16, 4 y 2. GPIO 1 queda fuera por ser TX y no se activa por defecto. Microfono generic_i2c recomendado: SD=26, WS=5, SCK=21.";
 
 bool jsonBoolOrDefault(JsonVariantConst value, bool fallback = false) {
   if (value.isNull()) {
@@ -51,10 +51,12 @@ String normalizeGpioPayload(const JsonObjectConst &source) {
 } // namespace
 
 ProfileService::ProfileService(GpioConfig &gpioConfig,
+                               NetworkConfig &networkConfig,
                                StorageService &storageService,
                                PersistenceSchedulerService &persistenceSchedulerService,
                                LedDriver &ledDriver)
-  : gpioConfig_(gpioConfig), storageService_(storageService),
+  : gpioConfig_(gpioConfig), networkConfig_(networkConfig),
+    storageService_(storageService),
     persistenceSchedulerService_(persistenceSchedulerService),
     ledDriver_(ledDriver) {}
 
@@ -112,6 +114,21 @@ bool ProfileService::applyStartupProfile(String *appliedId, String *error) {
 
   const bool changed = gpioConfig_.toJson() != profile->gpio.toJson();
   gpioConfig_ = profile->gpio;
+
+  // Si es el perfil GLEDOPTO, también aplicar configuración de micrófono
+  if (defaultProfileId_ == kGledoptoProfileId) {
+    networkConfig_.microphone.enabled = true;
+    networkConfig_.microphone.source = "generic_i2c";
+    networkConfig_.microphone.profileId = kGledoptoProfileId;
+    networkConfig_.microphone.pins.bclk = 21;
+    networkConfig_.microphone.pins.ws = 5;
+    networkConfig_.microphone.pins.din = 26;
+    networkConfig_.microphone.sampleRate = 16000;
+    networkConfig_.microphone.fftSize = 512;
+    networkConfig_.microphone.gainPercent = 100;
+    networkConfig_.microphone.noiseFloorPercent = 8;
+    persistenceSchedulerService_.requestSaveNetwork();
+  }
 
   persistenceSchedulerService_.requestSaveGpio();
 
@@ -228,8 +245,13 @@ bool ProfileService::saveProfileFromJson(const String &payload, String *response
   if (activateAsCurrent) {
     gpioConfig_ = candidate;
     persistenceSchedulerService_.requestSaveGpio();
-    if (!syncDefaultProfileFromActiveConfig(error)) {
-      return false;
+    refreshDefaultProfile();
+    if (setDefault) {
+      defaultProfileId_ = id;
+      requestSaveDefaultProfileId();
+    } else {
+      defaultProfileId_ = kDefaultProfileId;
+      requestSaveDefaultProfileId();
     }
     applyActiveConfig();
     applied = true;
@@ -533,10 +555,16 @@ bool ProfileService::loadDefaultProfileId() {
   const String id = doc["defaultProfileId"].isNull()
                       ? ""
                       : doc["defaultProfileId"].as<String>();
-  if (id != kDefaultProfileId) {
+  if (id.isEmpty()) {
+    return saveDefaultProfileId();
+  }
+
+  if (findProfileById(id) == nullptr) {
     defaultProfileId_ = kDefaultProfileId;
     return saveDefaultProfileId();
   }
+
+  defaultProfileId_ = id;
 
   return true;
 }
@@ -598,6 +626,13 @@ int ProfileService::findDeletedBuiltInProfileIndexById(const String &id) const {
 
 String ProfileService::detectActiveProfileId() const {
   const String activeJson = gpioConfig_.toJson();
+
+  // Si el perfil por defecto coincide con la configuracion activa, priorizarlo.
+  const GpioProfile *defaultProfile = findProfileById(defaultProfileId_);
+  if (defaultProfile != nullptr && defaultProfile->gpio.toJson() == activeJson) {
+    return defaultProfileId_;
+  }
+
   for (uint8_t i = 0; i < builtInProfileCount_; ++i) {
     if (builtInProfiles_[i].gpio.toJson() == activeJson) {
       return builtInProfiles_[i].id;
@@ -686,7 +721,6 @@ bool ProfileService::setDefaultProfileId(const String &id, String *error) {
 
 bool ProfileService::applyProfileById(const String &id, bool setAsDefault,
                                       String *response, String *error) {
-  (void)setAsDefault;
   const GpioProfile *profile = findProfileById(id);
   if (profile == nullptr) {
     if (error != nullptr) {
@@ -698,8 +732,33 @@ bool ProfileService::applyProfileById(const String &id, bool setAsDefault,
   gpioConfig_ = profile->gpio;
   persistenceSchedulerService_.requestSaveGpio();
 
-  if (!syncDefaultProfileFromActiveConfig(error)) {
-    return false;
+  // Si es el perfil GLEDOPTO, también aplicar configuración de micrófono
+  if (id == kGledoptoProfileId) {
+    if (networkConfig_.microphone.profileId != kGledoptoProfileId ||
+        networkConfig_.microphone.pins.bclk != 21 ||
+        networkConfig_.microphone.pins.ws != 5 ||
+        networkConfig_.microphone.pins.din != 26) {
+      networkConfig_.microphone.enabled = true;
+      networkConfig_.microphone.source = "generic_i2c";
+      networkConfig_.microphone.profileId = kGledoptoProfileId;
+      networkConfig_.microphone.pins.bclk = 21;
+      networkConfig_.microphone.pins.ws = 5;
+      networkConfig_.microphone.pins.din = 26;
+      networkConfig_.microphone.sampleRate = 16000;
+      networkConfig_.microphone.fftSize = 512;
+      networkConfig_.microphone.gainPercent = 100;
+      networkConfig_.microphone.noiseFloorPercent = 8;
+      persistenceSchedulerService_.requestSaveNetwork();
+    }
+  }
+
+  refreshDefaultProfile();
+  if (setAsDefault) {
+    defaultProfileId_ = id;
+    requestSaveDefaultProfileId();
+  } else {
+    defaultProfileId_ = kDefaultProfileId;
+    requestSaveDefaultProfileId();
   }
 
   applyActiveConfig();
@@ -707,8 +766,8 @@ bool ProfileService::applyProfileById(const String &id, bool setAsDefault,
   if (response != nullptr) {
     JsonDocument responseDoc;
     responseDoc["applied"] = true;
-    responseDoc["defaultUpdated"] = true;
-    responseDoc["defaultProfileId"] = kDefaultProfileId;
+    responseDoc["defaultUpdated"] = setAsDefault;
+    responseDoc["defaultProfileId"] = defaultProfileId_;
     JsonObject profileJson = responseDoc["profile"].to<JsonObject>();
     serializeProfile(profileJson, *profile);
     String out;
@@ -749,6 +808,25 @@ void ProfileService::serializeProfile(JsonObject target,
   JsonDocument gpioDoc;
   deserializeJson(gpioDoc, profile.gpio.toJson());
   target["gpio"] = gpioDoc["gpio"];
+
+  JsonObject microphone = target["microphone"].to<JsonObject>();
+  if (profile.id == kGledoptoProfileId) {
+    microphone["enabled"] = true;
+    microphone["source"] = "generic_i2c";
+    microphone["profileId"] = kGledoptoProfileId;
+    microphone["sampleRate"] = 16000;
+    microphone["fftSize"] = 512;
+    microphone["gainPercent"] = 100;
+    microphone["noiseFloorPercent"] = 8;
+    JsonObject pins = microphone["pins"].to<JsonObject>();
+    pins["bclk"] = 21;
+    pins["ws"] = 5;
+    pins["din"] = 26;
+  } else if (profile.id == kDefaultProfileId) {
+    JsonDocument micDoc;
+    deserializeJson(micDoc, networkConfig_.microphone.toJson());
+    microphone.set(micDoc["microphone"]);
+  }
 }
 
 GpioConfig ProfileService::createGledoptoProfileConfig() {

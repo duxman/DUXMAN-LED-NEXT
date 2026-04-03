@@ -9,6 +9,7 @@
 #include "core/Config.h"
 #include "drivers/CurrentLedDriver.h"
 #include "effects/EffectManager.h"
+#include "services/AudioService.h"
 #include "services/EffectPersistenceService.h"
 #include "services/PersistenceSchedulerService.h"
 #include "services/ProfileService.h"
@@ -25,9 +26,10 @@ EffectManager effectManager(state, ledDriver);
 StorageService storageService(state, networkConfig, gpioConfig);
 PersistenceSchedulerService persistenceSchedulerService(storageService);
 EffectPersistenceService effectPersistenceService(state);
-ProfileService profileService(gpioConfig, storageService, persistenceSchedulerService, ledDriver);
+ProfileService profileService(gpioConfig, networkConfig, storageService, persistenceSchedulerService, ledDriver);
 WifiService wifiService(networkConfig);
 WatchdogService watchdogService;
+AudioService audioService(networkConfig, state);
 ApiService apiService(state, networkConfig, gpioConfig, storageService, wifiService,
                       persistenceSchedulerService,
                       effectPersistenceService, profileService, watchdogService);
@@ -59,6 +61,7 @@ void controlTask(void *parameter) {
     watchdogService.feed();  // Reset watchdog timer
     apiService.handle();
     wifiService.handle();
+    audioService.handle(millis());
     profileService.processPendingPersistence();
     persistenceSchedulerService.processPending();
 
@@ -104,6 +107,7 @@ void setup() {
   const bool startupEffectApplied = effectPersistenceService.applyStartupEffect();
   ledDriver.configure(gpioConfig);
   wifiService.begin();
+  audioService.begin();
   effectManager.begin();
   apiService.begin();
 

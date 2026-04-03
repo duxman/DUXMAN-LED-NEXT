@@ -23,6 +23,18 @@ String buildBootedAtLabel() {
   strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S UTC", &timeInfo);
   return String("Arranque: ") + buffer;
 }
+
+String buildMicrophoneJson(const NetworkConfig &networkConfig) {
+  JsonDocument source;
+  deserializeJson(source, networkConfig.toJson());
+
+  JsonDocument outDoc;
+  outDoc["microphone"] = source["microphone"];
+
+  String out;
+  serializeJson(outDoc, out);
+  return out;
+}
 } // namespace
 
 ApiService::ApiService(CoreState &state, NetworkConfig &networkConfig, GpioConfig &gpioConfig,
@@ -42,6 +54,7 @@ void ApiService::begin() {
 
   Serial.println("[api] ready: GET /api/v1/state | PATCH /api/v1/state {json}");
   Serial.println("[api] ready: GET /api/v1/config/network | PATCH /api/v1/config/network {json}");
+  Serial.println("[api] ready: GET /api/v1/config/microphone | PATCH /api/v1/config/microphone {json}");
   Serial.println("[api] ready: GET /api/v1/config/gpio | PATCH /api/v1/config/gpio {json}");
   Serial.println("[api] ready: GET /api/v1/profiles/gpio | POST /api/v1/profiles/gpio/save|apply|default|delete {json}");
   Serial.println("[api] ready: GET /api/v1/config/debug | PATCH /api/v1/config/debug {json}");
@@ -50,7 +63,7 @@ void ApiService::begin() {
   Serial.println("[api] ready: POST /api/v1/system/restart");
   Serial.println("[api] ready: GET /api/v1/hardware");
   Serial.println("[api] ready: GET /api/v1/release");
-  Serial.println("[api] ui: GET / | GET /config | GET /config/network | GET /config/gpio | GET /config/debug | GET /config/manual | GET /api | GET /version");
+  Serial.println("[api] ui: GET / | GET /config | GET /config/network | GET /config/microphone | GET /config/gpio | GET /config/debug | GET /config/manual | GET /api | GET /version");
 }
 
 void ApiService::handle() {
@@ -97,6 +110,11 @@ void ApiService::processCommand(const String &command) {
 
   if (command == "GET /api/v1/config/network") {
     Serial.println(networkConfig_.toJson());
+    return;
+  }
+
+  if (command == "GET /api/v1/config/microphone") {
+    Serial.println(buildMicrophoneJson(networkConfig_));
     return;
   }
 
@@ -162,6 +180,58 @@ void ApiService::processCommand(const String &command) {
     Serial.print(changed ? "true" : "false");
     Serial.print(",\"network\":");
     Serial.print(networkConfig_.toJson());
+    Serial.println("}");
+    return;
+  }
+
+  if (command.startsWith("PATCH /api/v1/config/microphone ")) {
+    const int payloadPos = command.indexOf('{');
+    if (payloadPos < 0) {
+      Serial.println("{\"error\":\"invalid_payload\"}");
+      return;
+    }
+
+    const String rawPayload = command.substring(payloadPos);
+    JsonDocument parsed;
+    const DeserializationError parseResult = deserializeJson(parsed, rawPayload);
+    if (parseResult) {
+      Serial.println("{\"error\":\"invalid_json\"}");
+      return;
+    }
+
+    JsonObjectConst incoming = parsed.as<JsonObjectConst>();
+    JsonDocument patchDoc;
+    JsonObject patchRoot = patchDoc.to<JsonObject>();
+    if (!incoming["microphone"].isNull()) {
+      patchRoot["microphone"] = incoming["microphone"];
+    } else {
+      patchRoot["microphone"] = incoming;
+    }
+
+    String normalizedPayload;
+    serializeJson(patchDoc, normalizedPayload);
+
+    String error;
+    const bool changed = networkConfig_.applyPatchJson(normalizedPayload, &error);
+    if (!error.isEmpty()) {
+      Serial.print("{\"error\":\"");
+      Serial.print(error);
+      Serial.println("\"}");
+      return;
+    }
+
+    if (changed) {
+      persistenceSchedulerService_.requestSaveNetwork();
+    }
+
+    Serial.print("{\"updated\":");
+    Serial.print(changed ? "true" : "false");
+    Serial.print(",\"microphone\":");
+    JsonDocument current;
+    deserializeJson(current, networkConfig_.toJson());
+    String mic;
+    serializeJson(current["microphone"], mic);
+    Serial.print(mic);
     Serial.println("}");
     return;
   }
@@ -376,7 +446,7 @@ void ApiService::processCommand(const String &command) {
     GpioConfig gpioCandidate = gpioConfig_;
 
     String netPayload;
-    { JsonDocument d; d["network"] = root["network"]; d["debug"] = root["debug"]; serializeJson(d, netPayload); }
+    { JsonDocument d; d["network"] = root["network"]; d["debug"] = root["debug"]; d["microphone"] = root["microphone"]; serializeJson(d, netPayload); }
     String error;
     netCandidate.applyPatchJson(netPayload, &error);
     if (!error.isEmpty()) {
@@ -421,6 +491,10 @@ void ApiService::setupHttpRoutes() {
     httpServer_.send(200, "text/html", buildNetworkConfigHtml());
   });
 
+  httpServer_.on("/config/microphone", HTTP_GET, [this]() {
+    httpServer_.send(200, "text/html", buildMicrophoneConfigHtml());
+  });
+
   httpServer_.on("/config/debug", HTTP_GET, [this]() {
     httpServer_.send(200, "text/html", buildDebugConfigHtml());
   });
@@ -443,6 +517,10 @@ void ApiService::setupHttpRoutes() {
 
   httpServer_.on("/api/config/network", HTTP_GET, [this]() {
     httpServer_.send(200, "text/html", buildApiConfigNetworkHtml());
+  });
+
+  httpServer_.on("/api/config/microphone", HTTP_GET, [this]() {
+    httpServer_.send(200, "text/html", buildApiConfigMicrophoneHtml());
   });
 
   httpServer_.on("/api/config/debug", HTTP_GET, [this]() {
@@ -479,6 +557,10 @@ void ApiService::setupHttpRoutes() {
 
   httpServer_.on("/api/v1/config/network", HTTP_ANY, [this]() {
     handleHttpNetworkRoute();
+  });
+
+  httpServer_.on("/api/v1/config/microphone", HTTP_ANY, [this]() {
+    handleHttpMicrophoneRoute();
   });
 
   httpServer_.on("/api/v1/config/gpio", HTTP_ANY, [this]() {
@@ -633,6 +715,69 @@ void ApiService::handleHttpNetworkRoute() {
     response += ",\"network\":";
     response += networkConfig_.toJson();
     response += "}";
+    httpServer_.send(200, "application/json", response);
+    return;
+  }
+
+  httpServer_.send(405, "application/json", "{\"error\":\"method_not_allowed\"}");
+}
+
+void ApiService::handleHttpMicrophoneRoute() {
+  const HTTPMethod method = httpServer_.method();
+
+  if (method == HTTP_GET) {
+    httpServer_.send(200, "application/json", buildMicrophoneJson(networkConfig_));
+    return;
+  }
+
+  if (method == HTTP_PATCH || method == HTTP_POST) {
+    const String payload = httpServer_.arg("plain");
+    if (payload.isEmpty()) {
+      httpServer_.send(400, "application/json", "{\"error\":\"invalid_payload\"}");
+      return;
+    }
+
+    JsonDocument parsed;
+    const DeserializationError parseResult = deserializeJson(parsed, payload);
+    if (parseResult) {
+      httpServer_.send(400, "application/json", "{\"error\":\"invalid_json\"}");
+      return;
+    }
+
+    JsonObjectConst incoming = parsed.as<JsonObjectConst>();
+    JsonDocument patchDoc;
+    JsonObject patchRoot = patchDoc.to<JsonObject>();
+    if (!incoming["microphone"].isNull()) {
+      patchRoot["microphone"] = incoming["microphone"];
+    } else {
+      patchRoot["microphone"] = incoming;
+    }
+
+    String normalizedPayload;
+    serializeJson(patchDoc, normalizedPayload);
+
+    String error;
+    const bool changed = networkConfig_.applyPatchJson(normalizedPayload, &error);
+    if (!error.isEmpty()) {
+      String response = "{\"error\":\"";
+      response += error;
+      response += "\"}";
+      httpServer_.send(400, "application/json", response);
+      return;
+    }
+
+    if (changed) {
+      persistenceSchedulerService_.requestSaveNetwork();
+    }
+
+    JsonDocument current;
+    deserializeJson(current, networkConfig_.toJson());
+
+    JsonDocument responseDoc;
+    responseDoc["updated"] = changed;
+    responseDoc["microphone"] = current["microphone"];
+    String response;
+    serializeJson(responseDoc, response);
     httpServer_.send(200, "application/json", response);
     return;
   }
@@ -1035,6 +1180,7 @@ String ApiService::buildFullConfigJson() const {
   deserializeJson(netDoc, networkConfig_.toJson());
   doc["network"] = netDoc["network"];
   doc["debug"] = netDoc["debug"];
+  doc["microphone"] = netDoc["microphone"];
 
   // Merge gpioConfig
   JsonDocument gpioDoc;
@@ -1074,7 +1220,7 @@ void ApiService::handleHttpConfigAllRoute() {
     GpioConfig gpioCandidate = gpioConfig_;
 
     String netPayload;
-    { JsonDocument d; d["network"] = root["network"]; d["debug"] = root["debug"]; serializeJson(d, netPayload); }
+    { JsonDocument d; d["network"] = root["network"]; d["debug"] = root["debug"]; d["microphone"] = root["microphone"]; serializeJson(d, netPayload); }
     String error;
     netCandidate.applyPatchJson(netPayload, &error);
     if (!error.isEmpty()) {
@@ -1156,6 +1302,11 @@ String ApiService::buildOpenApiJson() const {
   netPath["patch"]["summary"] = "Actualizar configuracion de red, DNS STA y NTP con JSON parcial";
   netPath["post"]["summary"] = "Alias de PATCH para clientes limitados";
 
+  JsonObject micPath = paths["/api/v1/config/microphone"].to<JsonObject>();
+  micPath["get"]["summary"] = "Obtener configuracion de microfono (I2S)";
+  micPath["patch"]["summary"] = "Actualizar configuracion de microfono con JSON parcial";
+  micPath["post"]["summary"] = "Alias de PATCH para clientes limitados";
+
   JsonObject debugPath = paths["/api/v1/config/debug"].to<JsonObject>();
   debugPath["get"]["summary"] = "Obtener configuracion de debug";
   debugPath["patch"]["summary"] = "Actualizar debug (enabled y heartbeatMs)";
@@ -1204,6 +1355,9 @@ String ApiService::buildOpenApiJson() const {
   JsonObject configUiPath = paths["/config/network"].to<JsonObject>();
   configUiPath["get"]["summary"] = "UI de configuracion de red";
 
+  JsonObject configMicUiPath = paths["/config/microphone"].to<JsonObject>();
+  configMicUiPath["get"]["summary"] = "UI de configuracion de microfono";
+
   JsonObject configDebugUiPath = paths["/config/debug"].to<JsonObject>();
   configDebugUiPath["get"]["summary"] = "UI de configuracion debug";
 
@@ -1221,6 +1375,9 @@ String ApiService::buildOpenApiJson() const {
 
   JsonObject apiConfigUiPath = paths["/api/config/network"].to<JsonObject>();
   apiConfigUiPath["get"]["summary"] = "UI API para configuracion de red";
+
+  JsonObject apiConfigMicUiPath = paths["/api/config/microphone"].to<JsonObject>();
+  apiConfigMicUiPath["get"]["summary"] = "UI API para configuracion de microfono";
 
   JsonObject apiConfigDebugUiPath = paths["/api/config/debug"].to<JsonObject>();
   apiConfigDebugUiPath["get"]["summary"] = "UI API para configuracion debug";
@@ -1258,6 +1415,8 @@ String ApiService::buildOpenApiJson() const {
   serialCommands.add("PATCH /api/v1/state {json}");
   serialCommands.add("GET /api/v1/config/network");
   serialCommands.add("PATCH /api/v1/config/network {\"network\":{\"wifi\":{\"mode\":\"sta\",\"connection\":{\"ssid\":\"MiWiFi\",\"password\":\"secreto\"}},\"ip\":{\"sta\":{\"mode\":\"dhcp\",\"primaryDns\":\"8.8.8.8\",\"secondaryDns\":\"1.1.1.1\"}},\"dns\":{\"hostname\":\"duxman-led\"},\"time\":{\"syncOnBoot\":true,\"ntpServer\":\"europe.pool.ntp.org\"}}}");
+  serialCommands.add("GET /api/v1/config/microphone");
+  serialCommands.add("PATCH /api/v1/config/microphone {\"microphone\":{\"enabled\":false,\"source\":\"generic_i2c\",\"profileId\":\"gledopto_gl_c_017wl_d\",\"sampleRate\":16000,\"fftSize\":512,\"gainPercent\":100,\"noiseFloorPercent\":8,\"pins\":{\"bclk\":21,\"ws\":5,\"din\":26}}}");
   serialCommands.add("GET /api/v1/config/debug");
   serialCommands.add("PATCH /api/v1/config/debug {\"debug\":{\"enabled\":true,\"heartbeatMs\":5000}}");
   serialCommands.add("GET /api/v1/config/gpio");
@@ -1769,6 +1928,11 @@ String ApiService::buildHomeHtml() const {
                   <span id='effectLevelValue'>5</span>
                 </label>
 
+                <label style='display:flex; align-items:center; gap:10px;'>
+                  <input id='reactiveToAudio' type='checkbox' style='width:auto; flex-shrink:0;'>
+                  <span>Efecto reactivo al micrófono</span>
+                </label>
+
                 <label>
                   Brillo global
                   <input id='brightness' type='range' min='0' max='255' value='128'>
@@ -1929,6 +2093,7 @@ String ApiService::buildHomeHtml() const {
       effectSpeedValue.textContent = document.getElementById('effectSpeed').value;
       document.getElementById('effectLevel').value = state.effectLevel ?? 5;
       effectLevelValue.textContent = document.getElementById('effectLevel').value;
+      document.getElementById('reactiveToAudio').checked = !!state.reactiveToAudio;
       const colors = Array.isArray(state.primaryColors) ? state.primaryColors : ['#ff4d00','#ffd400','#00b8d9'];
       document.getElementById('color0').value = colors[0] || '#ff4d00';
       document.getElementById('color1').value = colors[1] || '#ffd400';
@@ -2113,6 +2278,7 @@ String ApiService::buildHomeHtml() const {
         sectionCount: Number(document.getElementById('sectionCount').value),
         effectSpeed: Number(document.getElementById('effectSpeed').value),
         effectLevel: Number(document.getElementById('effectLevel').value),
+        reactiveToAudio: document.getElementById('reactiveToAudio').checked,
         primaryColors: [
           document.getElementById('color0').value,
           document.getElementById('color1').value,
@@ -2225,6 +2391,10 @@ String ApiService::buildConfigIndexHtml() const {
           <h2>Network</h2>
           <p>WiFi, AP/STA, hostname, IP y DNS.</p>
         </a>
+        <a class='box' href='/config/microphone'>
+          <h2>Microfono</h2>
+          <p>Configurar microfono generic_i2c (SD/WS/SCK) y perfil.</p>
+        </a>
         <a class='box' href='/config/gpio'>
           <h2>GPIO</h2>
           <p>Pin LED, cantidad, tipo de LED y orden de color.</p>
@@ -2291,6 +2461,10 @@ String ApiService::buildDocsHtml() const {
         <a class='box' href='/api/config/network'>
           <h2>Config Network</h2>
           <p>GET/PATCH de /api/v1/config/network.</p>
+        </a>
+        <a class='box' href='/api/config/microphone'>
+          <h2>Config Microphone</h2>
+          <p>GET/PATCH de /api/v1/config/microphone.</p>
         </a>
         <a class='box' href='/api/config/gpio'>
           <h2>Config GPIO</h2>
@@ -2834,6 +3008,231 @@ String ApiService::buildNetworkConfigHtml() const {
   return html;
 }
 
+String ApiService::buildMicrophoneConfigHtml() const {
+  String html = R"HTML(
+<!doctype html>
+<html>
+<head>
+  <meta charset='utf-8'>
+  <meta name='viewport' content='width=device-width,initial-scale=1'>
+  <title>DUXMAN Microphone Config</title>
+  <style>
+    :root {
+      --bg:#f4f7f3;
+      --card:#ffffff;
+      --line:#d5dfd7;
+      --text:#203328;
+      --muted:#5f7366;
+      --primary:#2f7a5a;
+      --secondary:#2b5f86;
+    }
+    body { margin:0; min-height:100vh; background:var(--bg); color:var(--text); font-family:Trebuchet MS, Segoe UI, sans-serif; }
+    main { max-width:860px; margin:20px auto; padding:14px; }
+    .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px; margin-bottom:12px; }
+    .actions { display:flex; flex-wrap:wrap; gap:10px; }
+    .btn { border:0; border-radius:8px; padding:9px 12px; font-weight:600; cursor:pointer; color:#fff; background:var(--primary); }
+    .btn.alt { background:var(--secondary); }
+    .btn.ghost { background:#7d8b95; text-decoration:none; display:inline-block; }
+    .field { margin-bottom:10px; }
+    label { display:block; font-size:13px; color:var(--muted); margin-bottom:4px; }
+    input, select { width:100%; border:1px solid var(--line); border-radius:8px; padding:8px 10px; font-size:14px; box-sizing:border-box; }
+    .row { display:flex; flex-wrap:wrap; gap:10px; }
+    .col { flex:1 1 220px; }
+    pre { background:#eef5f0; border:1px solid var(--line); border-radius:8px; padding:10px; white-space:pre-wrap; overflow:auto; font-family:Consolas, monospace; }
+    .hint { color:var(--muted); font-size:13px; }
+    .ok { color:#1f6a39; }
+    .err { color:#9f1c1c; }
+  </style>
+</head>
+<body>
+  <main>
+    <div class='card'>
+      <h1>Configuracion de Microfono</h1>
+      <p class='hint'>Perfil actual soportado: <strong>generic_i2c</strong> con pines GLEDOPTO (SD=26, WS=5, SCK=21).</p>
+      <div class='actions'>
+        <a href='/' class='btn ghost'>Inicio</a>
+        <a href='/config' class='btn ghost'>Config</a>
+        <a href='/config/network' class='btn ghost'>Network</a>
+        <a href='/config/gpio' class='btn ghost'>GPIO</a>
+        <a href='/config/profiles' class='btn ghost'>Profiles</a>
+        <a href='/api/config/microphone' class='btn ghost'>API Microphone</a>
+        <button class='btn alt' onclick='loadConfig()'>Recargar</button>
+        <button class='btn' onclick='saveConfig()'>Guardar</button>
+      </div>
+      <p id='status' class='hint'>Cargando...</p>
+    </div>
+
+    <div class='card'>
+      <div class='field'>
+        <label><input id='enabled' type='checkbox'> Microfono habilitado</label>
+      </div>
+      <div class='row'>
+        <div class='col field'>
+          <label for='source'>Source</label>
+          <select id='source'>
+            <option value='generic_i2c'>generic_i2c</option>
+          </select>
+        </div>
+        <div class='col field'>
+          <label for='profileId'>Profile</label>
+          <select id='profileId'>
+            <option value='gledopto_gl_c_017wl_d'>gledopto_gl_c_017wl_d</option>
+            <option value='DEFAULT'>DEFAULT</option>
+          </select>
+        </div>
+      </div>
+      <div class='row'>
+        <div class='col field'>
+          <label for='sampleRate'>Sample Rate</label>
+          <input id='sampleRate' type='number' min='8000' max='48000' step='1000'>
+        </div>
+        <div class='col field'>
+          <label for='fftSize'>FFT Size</label>
+          <select id='fftSize'>
+            <option value='256'>256</option>
+            <option value='512'>512</option>
+            <option value='1024'>1024</option>
+            <option value='2048'>2048</option>
+          </select>
+        </div>
+      </div>
+      <div class='row'>
+        <div class='col field'>
+          <label for='gainPercent'>Gain %</label>
+          <input id='gainPercent' type='number' min='1' max='200'>
+        </div>
+        <div class='col field'>
+          <label for='noiseFloorPercent'>Noise floor %</label>
+          <input id='noiseFloorPercent' type='number' min='0' max='100'>
+        </div>
+      </div>
+    </div>
+
+    <div class='card'>
+      <h2>Pines</h2>
+      <p class='hint'>SD = DIN (datos), WS = LRCLK, SCK = BCLK.</p>
+      <div class='row'>
+        <div class='col field'>
+          <label for='din'>SD / DIN</label>
+          <input id='din' type='number' min='-1' max='48'>
+        </div>
+        <div class='col field'>
+          <label for='ws'>WS</label>
+          <input id='ws' type='number' min='-1' max='48'>
+        </div>
+        <div class='col field'>
+          <label for='bclk'>SCK / BCLK</label>
+          <input id='bclk' type='number' min='-1' max='48'>
+        </div>
+      </div>
+      <div class='actions'>
+        <button class='btn alt' onclick='applyGledoptoPins()'>Aplicar pines GLEDOPTO (26/5/21)</button>
+      </div>
+    </div>
+
+    <div class='card'>
+      <h3>Payload</h3>
+      <pre id='payloadOut'>{}</pre>
+      <h3>Respuesta</h3>
+      <pre id='resultOut'>Sin llamadas aun.</pre>
+    </div>
+  </main>
+
+  <script>
+    function byId(id) { return document.getElementById(id); }
+    function setStatus(message, isError) {
+      const el = byId('status');
+      el.textContent = message;
+      el.className = isError ? 'hint err' : 'hint ok';
+    }
+    function setValue(id, value) { byId(id).value = value == null ? '' : String(value); }
+
+    function applyGledoptoPins() {
+      setValue('din', 26);
+      setValue('ws', 5);
+      setValue('bclk', 21);
+      setValue('source', 'generic_i2c');
+      setValue('profileId', 'gledopto_gl_c_017wl_d');
+    }
+
+    function fillConfig(data) {
+      const m = data && data.microphone ? data.microphone : {};
+      const p = m.pins || {};
+      byId('enabled').checked = !!m.enabled;
+      setValue('source', m.source || 'generic_i2c');
+      setValue('profileId', m.profileId || 'gledopto_gl_c_017wl_d');
+      setValue('sampleRate', m.sampleRate == null ? 16000 : m.sampleRate);
+      setValue('fftSize', m.fftSize == null ? 512 : m.fftSize);
+      setValue('gainPercent', m.gainPercent == null ? 100 : m.gainPercent);
+      setValue('noiseFloorPercent', m.noiseFloorPercent == null ? 8 : m.noiseFloorPercent);
+      setValue('din', p.din == null ? 26 : p.din);
+      setValue('ws', p.ws == null ? 5 : p.ws);
+      setValue('bclk', p.bclk == null ? 21 : p.bclk);
+    }
+
+    function buildPayload() {
+      return {
+        microphone: {
+          enabled: byId('enabled').checked,
+          source: byId('source').value,
+          profileId: byId('profileId').value,
+          sampleRate: Number(byId('sampleRate').value || 16000),
+          fftSize: Number(byId('fftSize').value || 512),
+          gainPercent: Number(byId('gainPercent').value || 100),
+          noiseFloorPercent: Number(byId('noiseFloorPercent').value || 8),
+          pins: {
+            din: Number(byId('din').value || 26),
+            ws: Number(byId('ws').value || 5),
+            bclk: Number(byId('bclk').value || 21)
+          }
+        }
+      };
+    }
+
+    async function loadConfig() {
+      setStatus('Leyendo configuracion de microfono...', false);
+      try {
+        const res = await fetch('/api/v1/config/microphone');
+        const text = await res.text();
+        const parsed = JSON.parse(text);
+        fillConfig(parsed);
+        byId('resultOut').textContent = JSON.stringify(parsed, null, 2);
+        setStatus('Configuracion cargada (HTTP ' + res.status + ').', false);
+      } catch (error) {
+        byId('resultOut').textContent = String(error);
+        setStatus('Error leyendo configuracion.', true);
+      }
+    }
+
+    async function saveConfig() {
+      const payload = buildPayload();
+      byId('payloadOut').textContent = JSON.stringify(payload, null, 2);
+      setStatus('Guardando configuracion de microfono...', false);
+      try {
+        const res = await fetch('/api/v1/config/microphone', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const text = await res.text();
+        let pretty = text;
+        try { pretty = JSON.stringify(JSON.parse(text), null, 2); } catch (_) {}
+        byId('resultOut').textContent = pretty;
+        setStatus(res.ok ? 'Microfono guardado (HTTP ' + res.status + ').' : 'Error guardando (HTTP ' + res.status + ').', !res.ok);
+      } catch (error) {
+        byId('resultOut').textContent = String(error);
+        setStatus('Error de red guardando configuracion.', true);
+      }
+    }
+
+    loadConfig();
+  </script>
+</body>
+</html>
+)HTML";
+  return html;
+}
+
 String ApiService::buildDebugConfigHtml() const {
   String html = R"HTML(
 <!doctype html>
@@ -2958,6 +3357,56 @@ String ApiService::buildDebugConfigHtml() const {
     }
 
     loadDebug();
+  </script>
+</body>
+</html>
+)HTML";
+  return html;
+}
+
+String ApiService::buildApiConfigMicrophoneHtml() const {
+  String html = R"HTML(
+<!doctype html>
+<html>
+<head>
+  <meta charset='utf-8'>
+  <meta name='viewport' content='width=device-width,initial-scale=1'>
+  <title>DUXMAN API - Config Microphone</title>
+  <style>
+    :root { --bg:#f2f7f3; --card:#fff; --line:#d5e2d8; --text:#1f3025; --primary:#2c7a56; }
+    body { margin:0; padding:16px; background:var(--bg); color:var(--text); font-family:Trebuchet MS, Segoe UI, sans-serif; }
+    main { max-width:900px; margin:0 auto; }
+    .nav { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:10px; }
+    .nav a { color:#136347; text-decoration:none; font-weight:600; }
+    .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px; margin-bottom:12px; }
+    textarea, pre { width:100%; min-height:130px; border:1px solid var(--line); border-radius:8px; padding:8px; font-family:Consolas, monospace; white-space:pre-wrap; }
+    button { border:0; border-radius:8px; padding:8px 10px; color:#fff; background:var(--primary); cursor:pointer; margin-right:8px; }
+  </style>
+</head>
+<body>
+  <main>
+    <div class='nav'><a href='/'>Inicio</a><a href='/api'>API</a><a href='/api/state'>State</a><a href='/api/config/network'>Config Network</a><a href='/api/config/gpio'>Config GPIO</a><a href='/api/config/debug'>Config Debug</a><a href='/api/release'>Release</a></div>
+    <div class='card'>
+      <h1>API Config Microphone</h1>
+      <button onclick='getCfg()'>GET /api/v1/config/microphone</button>
+      <button onclick='patchCfg()'>PATCH /api/v1/config/microphone</button>
+      <textarea id='payload'>{"microphone":{"enabled":false,"source":"generic_i2c","profileId":"gledopto_gl_c_017wl_d","sampleRate":16000,"fftSize":512,"gainPercent":100,"noiseFloorPercent":8,"pins":{"din":26,"ws":5,"bclk":21}}}</textarea>
+    </div>
+    <div class='card'><pre id='out'>Sin llamadas aun.</pre></div>
+  </main>
+  <script>
+    async function callApi(method, body) {
+      const options = { method, headers: { 'Content-Type': 'application/json' } };
+      if (body) options.body = body;
+      const res = await fetch('/api/v1/config/microphone', options);
+      const text = await res.text();
+      let parsed = text;
+      try { parsed = JSON.stringify(JSON.parse(text), null, 2); } catch (_) {}
+      document.getElementById('out').textContent = method + ' /api/v1/config/microphone -> HTTP ' + res.status + '\n\n' + parsed;
+    }
+    function getCfg() { callApi('GET'); }
+    function patchCfg() { callApi('PATCH', document.getElementById('payload').value); }
+    getCfg();
   </script>
 </body>
 </html>
@@ -3528,6 +3977,7 @@ String ApiService::buildProfilesConfigHtml() const {
         <div class='field'><label><input id='autoApplyOnBoot' type='checkbox'> Activar al guardar y copiar en DEFAULT</label></div>
       </div>
       <div class='field'><label for='profilePayload'>GPIO JSON</label><textarea id='profilePayload'>{"outputs":[{"pin":5,"ledCount":60,"ledType":"ws2812b","colorOrder":"GRB"}]}</textarea></div>
+      <div class='field'><label for='microphonePayload'>Microphone JSON</label><textarea id='microphonePayload'>{"enabled":false,"source":"generic_i2c","profileId":"DEFAULT","sampleRate":16000,"fftSize":512,"gainPercent":100,"noiseFloorPercent":8,"pins":{"bclk":-1,"ws":-1,"din":-1}}</textarea></div>
     </div>
 
     <div class='card'>
@@ -3570,6 +4020,16 @@ String ApiService::buildProfilesConfigHtml() const {
       byId('profileName').value = item.name || '';
       byId('profileDescription').value = item.description || '';
       byId('profilePayload').value = JSON.stringify(item.gpio || { outputs: [] }, null, 2);
+      byId('microphonePayload').value = JSON.stringify(item.microphone || {
+        enabled: false,
+        source: 'generic_i2c',
+        profileId: 'DEFAULT',
+        sampleRate: 16000,
+        fftSize: 512,
+        gainPercent: 100,
+        noiseFloorPercent: 8,
+        pins: { bclk: -1, ws: -1, din: -1 }
+      }, null, 2);
       byId('autoApplyOnBoot').checked = false;
       byId('applyNow').checked = false;
     }
@@ -3594,6 +4054,17 @@ String ApiService::buildProfilesConfigHtml() const {
         byId('resultOut').textContent = String(err);
         return;
       }
+
+      let microphone = null;
+      const microphoneRaw = byId('microphonePayload').value.trim();
+      if (microphoneRaw.length > 0) {
+        try { microphone = JSON.parse(microphoneRaw); } catch (err) {
+          setStatus('Microphone JSON invalido.', true);
+          byId('resultOut').textContent = String(err);
+          return;
+        }
+      }
+
       const payload = { profile: {
         id: byId('profileId').value.trim(),
         name: byId('profileName').value.trim(),
@@ -3602,13 +4073,33 @@ String ApiService::buildProfilesConfigHtml() const {
         autoApplyOnBoot: byId('autoApplyOnBoot').checked,
         gpio: gpio
       }};
+
+      if (microphone) {
+        payload.profile.microphone = microphone;
+      }
+
       await callJson('/api/v1/profiles/gpio/save', payload, 'Guardando perfil...');
+
+      if (microphone && (payload.profile.applyNow || payload.profile.autoApplyOnBoot)) {
+        await callJson('/api/v1/config/microphone', { microphone: microphone }, 'Aplicando microfono del editor...');
+      }
+
       await loadProfiles();
     }
     async function applySelected() {
       const id = selectedProfileId || byId('profileId').value.trim();
       if (!id) { setStatus('Selecciona un perfil.', true); return; }
       await callJson('/api/v1/profiles/gpio/apply', { profile: { id: id } }, 'Aplicando perfil y copiando en DEFAULT...');
+
+      let microphone = null;
+      const microphoneRaw = byId('microphonePayload').value.trim();
+      if (microphoneRaw.length > 0) {
+        try { microphone = JSON.parse(microphoneRaw); } catch (_) { microphone = null; }
+      }
+      if (microphone) {
+        await callJson('/api/v1/config/microphone', { microphone: microphone }, 'Aplicando microfono del perfil...');
+      }
+
       await loadProfiles();
     }
     async function applyAsDefault() {

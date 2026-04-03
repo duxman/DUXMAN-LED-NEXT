@@ -32,6 +32,8 @@ struct CoreState {
   uint8_t effectLevel = 5;
   uint32_t primaryColors[3] = {0xFF4D00, 0xFFD400, 0x00B8D9};
   uint32_t backgroundColor = 0x000000;
+  bool reactiveToAudio = false;
+  uint8_t audioLevel = 0;
 
   static CoreState defaults();
   static void setMutex(SemaphoreHandle_t mutex);

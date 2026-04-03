@@ -23,7 +23,8 @@ struct GpioProfile {
 
 class ProfileService {
 public:
-  ProfileService(GpioConfig &gpioConfig, StorageService &storageService,
+  ProfileService(GpioConfig &gpioConfig, NetworkConfig &networkConfig,
+                 StorageService &storageService,
                  PersistenceSchedulerService &persistenceSchedulerService,
                  LedDriver &ledDriver);
 
@@ -45,6 +46,7 @@ public:
 
 private:
   GpioConfig &gpioConfig_;
+  NetworkConfig &networkConfig_;
   StorageService &storageService_;
   PersistenceSchedulerService &persistenceSchedulerService_;
   LedDriver &ledDriver_;

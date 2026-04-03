@@ -16,10 +16,31 @@ void EffectEngine::begin() {
   driver_.begin();
 }
 
-uint32_t EffectEngine::scaleColor(uint32_t color, uint8_t brightness) {
-  const uint32_t red = ((color >> 16) & 0xFF) * brightness / 255;
-  const uint32_t green = ((color >> 8) & 0xFF) * brightness / 255;
-  const uint32_t blue = (color & 0xFF) * brightness / 255;
+float EffectEngine::reactiveAudio01() const {
+  if (!state_.reactiveToAudio) {
+    return 1.0f;
+  }
+  return static_cast<float>(state_.audioLevel) / 255.0f;
+}
+
+float EffectEngine::reactiveGain(float minGain, float maxGain) const {
+  if (!state_.reactiveToAudio) {
+    return 1.0f;
+  }
+  const float audio = clamp01(reactiveAudio01());
+  // Curva agresiva: hace más visibles las variaciones en niveles bajos/medios.
+  const float shaped = powf(audio, 0.55f);
+  const float tunedMin = min(minGain, 0.20f);
+  const float tunedMax = max(maxGain, 2.40f);
+  return tunedMin + (tunedMax - tunedMin) * shaped;
+}
+
+uint32_t EffectEngine::scaleColor(uint32_t color, uint8_t brightness) const {
+  const float baseGain = static_cast<float>(brightness) / 255.0f;
+  const float gain = clamp01(baseGain * reactiveGain());
+  const uint32_t red = static_cast<uint32_t>(((color >> 16) & 0xFF) * gain);
+  const uint32_t green = static_cast<uint32_t>(((color >> 8) & 0xFF) * gain);
+  const uint32_t blue = static_cast<uint32_t>((color & 0xFF) * gain);
   return (red << 16) | (green << 8) | blue;
 }
 
@@ -108,8 +129,8 @@ uint32_t EffectEngine::addColor(uint32_t colorA, uint32_t colorB) {
   return (r << 16) | (g << 8) | b;
 }
 
-uint32_t EffectEngine::scaleColorFloat(uint32_t color, float gain) {
-  const float g = clamp01(gain);
+uint32_t EffectEngine::scaleColorFloat(uint32_t color, float gain) const {
+  const float g = clamp01(gain * reactiveGain());
   const uint8_t r = static_cast<uint8_t>(((color >> 16) & 0xFF) * g);
   const uint8_t gr = static_cast<uint8_t>(((color >> 8)  & 0xFF) * g);
   const uint8_t b = static_cast<uint8_t>((color & 0xFF)          * g);

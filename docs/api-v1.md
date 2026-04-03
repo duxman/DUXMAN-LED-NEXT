@@ -25,6 +25,9 @@ Documentación de la API real implementada actualmente en firmware.
 | `GET` | `/api/v1/config/network` | Obtener configuración de red |
 | `PATCH` | `/api/v1/config/network` | Actualizar configuración de red |
 | `POST` | `/api/v1/config/network` | Alias de `PATCH` |
+| `GET` | `/api/v1/config/microphone` | Obtener configuración de micrófono (`generic_i2c`) |
+| `PATCH` | `/api/v1/config/microphone` | Actualizar configuración de micrófono |
+| `POST` | `/api/v1/config/microphone` | Alias de `PATCH` |
 | `GET` | `/api/v1/config/gpio` | Obtener configuración de salidas LED |
 | `PATCH` | `/api/v1/config/gpio` | Actualizar configuración GPIO/LED |
 | `POST` | `/api/v1/config/gpio` | Alias de `PATCH` |
@@ -648,7 +651,7 @@ Ejemplo:
 
 ```json
 {
-	"version": "0.3.2-beta",
+	"version": "0.3.3-beta",
 	"releaseDate": "2026-04-03",
 	"branch": "main",
 	"board": "esp32c3supermini",
@@ -727,6 +730,8 @@ GET /api/v1/state
 PATCH /api/v1/state {"power":false}
 GET /api/v1/config/network
 PATCH /api/v1/config/network {"network":{"wifi":{"mode":"ap"}}}
+GET /api/v1/config/microphone
+PATCH /api/v1/config/microphone {"microphone":{"enabled":false,"source":"generic_i2c","profileId":"gledopto_gl_c_017wl_d","sampleRate":16000,"fftSize":512,"gainPercent":100,"noiseFloorPercent":8,"pins":{"din":26,"ws":5,"bclk":21}}}
 GET /api/v1/config/gpio
 PATCH /api/v1/config/gpio {"gpio":{"outputs":[{"id":0,"pin":8,"ledCount":60,"ledType":"ws2812b","colorOrder":"GRB"}]}}
 GET /api/v1/profiles/gpio
@@ -737,7 +742,7 @@ POST /api/v1/profiles/gpio/delete {"profile":{"id":"mi_perfil"}}
 GET /api/v1/config/debug
 PATCH /api/v1/config/debug {"debug":{"enabled":true,"heartbeatMs":1000}}
 GET /api/v1/config/all
-POST /api/v1/config/all {"network":{},"debug":{},"gpio":{}}
+POST /api/v1/config/all {"network":{},"debug":{},"microphone":{},"gpio":{}}
 GET /api/v1/hardware
 GET /api/v1/release
 ```
@@ -749,6 +754,7 @@ Además de la API JSON, el firmware expone páginas de ayuda y configuración:
 - `/`
 - `/config`
 - `/config/network`
+- `/config/microphone`
 - `/config/gpio`
 - `/config/profiles`
 - `/config/debug`
@@ -756,6 +762,7 @@ Además de la API JSON, el firmware expone páginas de ayuda y configuración:
 - `/api`
 - `/api/state`
 - `/api/config/network`
+- `/api/config/microphone`
 - `/api/config/gpio`
 - `/api/profiles/gpio`
 - `/api/config/debug`
@@ -766,4 +773,4 @@ Además de la API JSON, el firmware expone páginas de ayuda y configuración:
 
 ## Estado de esta documentación
 
-Este documento describe la implementación actual del firmware `v0.3.2-beta` (Fase 4A-4C + catalogo de efectos dinamicos + calibrado de speed/level). Debe actualizarse junto con `README.md` cuando se añadan o cambien endpoints, payloads o reglas de validación.
+Este documento describe la implementación actual del firmware `v0.3.3-beta` (Fase 4A-4C + catalogo de efectos dinamicos + audio reactivo I2S base + calibrado de speed/level). Debe actualizarse junto con `README.md` cuando se añadan o cambien endpoints, payloads o reglas de validación.

@@ -32,6 +32,28 @@ struct DebugConfig {
   uint32_t heartbeatMs = 5000;
 };
 
+struct MicrophoneI2sPins {
+  int8_t bclk = -1;
+  int8_t ws = -1;
+  int8_t din = -1;
+};
+
+struct MicrophoneConfig {
+  bool enabled = false;
+  String source = "i2s";
+  String profileId = "DEFAULT";
+  uint16_t sampleRate = 16000;
+  uint16_t fftSize = 512;
+  uint8_t gainPercent = 100;
+  uint8_t noiseFloorPercent = 8;
+  MicrophoneI2sPins pins;
+
+  static MicrophoneConfig defaults();
+  String toJson() const;
+  bool applyPatchJson(const String &payload, String *error = nullptr);
+  bool validate(String *error = nullptr) const;
+};
+
 // ── Tipos de LED soportados ─────────────────────────────────────
 // digital  — LED digital simple (no direccionable, on/off)
 // ws2812b  — WS2812B (3 cables, más común)
@@ -72,6 +94,7 @@ struct NetworkConfig {
   NetworkDnsConfig dns;
   NetworkTimeConfig time;
   DebugConfig debug;
+  MicrophoneConfig microphone;
 
   static NetworkConfig defaults();
   String toJson() const;

@@ -1,6 +1,6 @@
 {
-  "version": "0.3.2-beta",
-  "versionCode": 5,
+  "version": "0.3.3-beta",
+  "versionCode": 6,
   "buildDate": "2026-04-03",
   "branch": "main",
   "features": [
@@ -12,7 +12,9 @@
     "Unified speed/level slider calibration across effects",
     "Boot timestamp display in UI",
     "Mutex-protected CoreState for API-render synchronization",
-    "Snapshot pattern for lock-free reads in render loop"
+    "Snapshot pattern for lock-free reads in render loop",
+    "AudioService I2S stabilized in MASTER_RX mode with runtime telemetry",
+    "Audio-reactive pipeline unified across all effects"
   ],
   "hardwareSupported": [
     "ESP32-D0WD-V3 (esp32dev)",
@@ -33,7 +35,8 @@
       "Render loop stability (no blocking I/O)",
       "CoreState synchronization (mutex + snapshot pattern)",
       "RAM usage optimization (13.5% vs 15.8% in 0.2.2)",
-      "Effect slider semantics: speed and level now consistent and more predictable"
+      "Effect slider semantics: speed and level now consistent and more predictable",
+      "Audio diagnostics with periodic serial telemetry (level, peak, read bytes and read error)"
     ],
     "fixed": [
       "Potential CoreState corruption during concurrent API + render access",
@@ -46,5 +49,5 @@
     "No OTA support (huge_app partition layout)",
     "Single WiFi network configuration (no fallback networks)"
   ],
-  "nextPhase": "Fase 5: Audio reactivity with I2S + FFT"
+  "nextPhase": "Fase 5.1: FFT bands (bass/mid/treble) and per-effect audio mappings"
 }

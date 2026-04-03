@@ -1,6 +1,6 @@
 # DUXMAN-LED-NEXT
 
-Controlador LED modular para ESP32, inspirado en WLED. Firmware beta v0.3.2-beta (FreeRTOS + Watchdog + catalogo de efectos dinamicos).
+Controlador LED modular para ESP32, inspirado en WLED. Firmware beta v0.3.3-beta (FreeRTOS + Watchdog + catalogo de efectos dinamicos).
 
 ## Características implementadas
 
@@ -64,6 +64,8 @@ Interfaz dual: HTTP (puerto 80) + Serial (115200 baud) con los mismos comandos.
 | PATCH | `/api/v1/state` | Actualizar estado |
 | GET | `/api/v1/config/network` | Configuración WiFi + IP |
 | PATCH | `/api/v1/config/network` | Actualizar red |
+| GET | `/api/v1/config/microphone` | Configuración de micrófono (`generic_i2c`) |
+| PATCH | `/api/v1/config/microphone` | Actualizar configuración de micrófono |
 | GET | `/api/v1/config/gpio` | Configuración de salidas LED |
 | PATCH | `/api/v1/config/gpio` | Actualizar GPIO |
 | GET | `/api/v1/profiles/gpio` | Listar perfiles GPIO integrados y guardados |
@@ -112,6 +114,8 @@ GET /api/v1/state
 PATCH /api/v1/state {"power":true,"brightness":160,"effect":"gradient","sectionCount":6,"primaryColors":["#FF4D00","#FFD400","#00B8D9"],"backgroundColor":"#050505"}
 GET /api/v1/config/network
 PATCH /api/v1/config/network {"network":{"wifi":{"mode":"ap"}}}
+GET /api/v1/config/microphone
+PATCH /api/v1/config/microphone {"microphone":{"enabled":false,"source":"generic_i2c","profileId":"gledopto_gl_c_017wl_d","sampleRate":16000,"fftSize":512,"gainPercent":100,"noiseFloorPercent":8,"pins":{"bclk":21,"ws":5,"din":26}}}
 GET /api/v1/config/gpio
 PATCH /api/v1/config/gpio {"outputs":[...]}
 GET /api/v1/profiles/gpio
@@ -216,6 +220,12 @@ También hay VS Code Tasks predefinidas: `FW: Build C3`, `FW: Upload C3 (Auto Po
 | `network.wifi.apAvailability` | `always`, `untilStaConnected` |
 | `network.ip.ap.mode` / `sta.mode` | `dhcp`, `static` |
 | `network.dns.hostname` | 1-63 chars, `[a-zA-Z0-9-]`, sin guión al inicio/final |
+| `microphone.source` | `generic_i2c` |
+| `microphone.profileId` | `DEFAULT`, `gledopto_gl_c_017wl_d` |
+| `microphone.sampleRate` | `8000..48000` |
+| `microphone.fftSize` | `256`, `512`, `1024`, `2048` |
+| `microphone.gainPercent` | `1..200` |
+| `microphone.noiseFloorPercent` | `0..100` |
 | `debug.enabled` | `true`/`false` (acepta `1`/`0`) |
 
 Ejemplo de payload:
@@ -231,11 +241,21 @@ Ejemplo de payload:
     "ip": { "sta": { "mode": "dhcp" } },
     "dns": { "hostname": "duxman-led-c3" }
   },
+  "microphone": {
+    "enabled": false,
+    "source": "generic_i2c",
+    "profileId": "gledopto_gl_c_017wl_d",
+    "sampleRate": 16000,
+    "fftSize": 512,
+    "gainPercent": 100,
+    "noiseFloorPercent": 8,
+    "pins": { "bclk": 21, "ws": 5, "din": 26 }
+  },
   "debug": { "enabled": true }
 }
 ```
 
-## Uso de Flash (v0.3.2-beta)
+## Uso de Flash (v0.3.3-beta)
 
 | Recurso | Uso | Disponible |
 |---|---|---|
@@ -243,7 +263,7 @@ Ejemplo de payload:
 | Flash (app) | 31.3% | 3072 KB |
 | LittleFS | Configs | 960 KB |
 
-## Catalogo de efectos dinamicos (v0.3.2-beta)
+## Catalogo de efectos dinamicos (v0.3.3-beta)
 
 Disponibles actualmente en runtime:
 
@@ -279,7 +299,7 @@ Nota importante:
 - [ ] **OTA** — Actualmente `huge_app` sin OTA dual. Evaluar: OTA con partición reducida, OTA desde LittleFS, o HTTP OTA con rollback manual.
 - [ ] **LedDriver avanzado** — Completar soporte de reconfiguración en caliente y cerrar la brecha de `FastLED` para escenarios multi-salida con pines variables.
 - [ ] **Efectos (afinado)** — Ajustar presets visuales por hardware, curvas no lineales de `effectLevel` y perfiles por tipo de tira LED.
-- [ ] **Audio reactivo** — Integrar micrófono I2S y FFT para mapear bajos, medios y agudos a parámetros del motor de efectos.
+- [ ] **Audio reactivo (FFT)** — Captura I2S y reactividad global ya integradas; pendiente mapear bajos, medios y agudos (FFT) a parámetros por efecto.
 - [ ] **Web UI (SPA)** — Interfaz web moderna en `web/` que reemplace los HTML embebidos.
 - [ ] **Seguridad** — Autenticación básica o token para la API.
 - [ ] **Tests** — Unit tests con PlatformIO Test Runner (`firmware/test/`).
