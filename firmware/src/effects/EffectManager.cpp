@@ -18,6 +18,10 @@ void EffectManager::begin() {
 }
 
 void EffectManager::renderFrame() {
+  if (!state_.lock()) {
+    return;
+  }
+
   if (!driver_.isInitialized()) {
     driver_.begin();
   }
@@ -25,11 +29,13 @@ void EffectManager::renderFrame() {
   if (!state_.power) {
     driver_.clear();
     driver_.show();
+    state_.unlock();
     return;
   }
 
   EffectEngine &activeEffect = resolveActiveEffect();
   activeEffect.renderFrame();
+  state_.unlock();
 }
 
 EffectEngine &EffectManager::resolveActiveEffect() {

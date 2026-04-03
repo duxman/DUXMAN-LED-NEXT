@@ -5,6 +5,7 @@
 
 #include "core/Config.h"
 #include "drivers/LedDriver.h"
+#include "services/PersistenceSchedulerService.h"
 #include "services/StorageService.h"
 
 constexpr uint8_t kMaxUserGpioProfiles = 8;
@@ -23,9 +24,11 @@ struct GpioProfile {
 class ProfileService {
 public:
   ProfileService(GpioConfig &gpioConfig, StorageService &storageService,
+                 PersistenceSchedulerService &persistenceSchedulerService,
                  LedDriver &ledDriver);
 
   void begin();
+  void processPendingPersistence();
   bool applyStartupProfile(String *appliedId = nullptr, String *error = nullptr);
   void applyActiveConfig();
   bool syncDefaultProfileFromActiveConfig(String *error = nullptr);
@@ -43,6 +46,7 @@ public:
 private:
   GpioConfig &gpioConfig_;
   StorageService &storageService_;
+  PersistenceSchedulerService &persistenceSchedulerService_;
   LedDriver &ledDriver_;
   GpioProfile builtInProfiles_[kMaxBuiltInGpioProfiles];
   GpioProfile userProfiles_[kMaxUserGpioProfiles];
@@ -50,7 +54,16 @@ private:
   uint8_t builtInProfileCount_ = 0;
   uint8_t userProfileCount_ = 0;
   uint8_t deletedBuiltInProfileCount_ = 0;
+  uint8_t pendingPersistenceFlags_ = 0;
   String defaultProfileId_;
+
+  enum PendingPersistenceFlags : uint8_t {
+    kPendingUserProfiles = 1 << 0,
+    kPendingDefaultProfile = 1 << 1,
+  };
+
+  void requestSaveUserProfiles();
+  void requestSaveDefaultProfileId();
 
   void initializeBuiltInProfiles();
   void refreshDefaultProfile();

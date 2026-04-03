@@ -27,12 +27,14 @@ String buildBootedAtLabel() {
 
 ApiService::ApiService(CoreState &state, NetworkConfig &networkConfig, GpioConfig &gpioConfig,
                        StorageService &storageService, WifiService &wifiService,
+                       PersistenceSchedulerService &persistenceSchedulerService,
                        EffectPersistenceService &effectPersistenceService,
-                       ProfileService &profileService)
+                       ProfileService &profileService, WatchdogService &watchdogService)
     : state_(state), networkConfig_(networkConfig), gpioConfig_(gpioConfig),
       storageService_(storageService), wifiService_(wifiService),
+      persistenceSchedulerService_(persistenceSchedulerService),
       effectPersistenceService_(effectPersistenceService),
-      profileService_(profileService), httpServer_(80) {}
+      profileService_(profileService), watchdogService_(watchdogService), httpServer_(80) {}
 
 void ApiService::begin() {
   setupHttpRoutes();
@@ -82,9 +84,8 @@ void ApiService::processCommand(const String &command) {
 
     const String payload = command.substring(payloadPos);
     const bool changed = state_.applyPatchJson(payload);
-    if (changed && !storageService_.saveState()) {
-      Serial.println("{\"error\":\"persistence_failed\"}");
-      return;
+    if (changed) {
+      persistenceSchedulerService_.requestSaveState();
     }
     Serial.print("{\"updated\":");
     Serial.print(changed ? "true" : "false");
@@ -148,9 +149,8 @@ void ApiService::processCommand(const String &command) {
       return;
     }
 
-    if (changed && !storageService_.saveNetworkConfig()) {
-      Serial.println("{\"error\":\"persistence_failed\"}");
-      return;
+    if (changed) {
+      persistenceSchedulerService_.requestSaveNetwork();
     }
 
     if (changed && !wifiService_.applyConfig()) {
@@ -193,9 +193,8 @@ void ApiService::processCommand(const String &command) {
       return;
     }
 
-    if (changed && !storageService_.saveGpioConfig()) {
-      Serial.println("{\"error\":\"persistence_failed\"}");
-      return;
+    if (changed) {
+      persistenceSchedulerService_.requestSaveGpio();
     }
 
     if (changed) {
@@ -337,9 +336,8 @@ void ApiService::processCommand(const String &command) {
       return;
     }
 
-    if (changed && !storageService_.saveNetworkConfig()) {
-      Serial.println("{\"error\":\"persistence_failed\"}");
-      return;
+    if (changed) {
+      persistenceSchedulerService_.requestSaveNetwork();
     }
 
     Serial.print("{\"updated\":");
@@ -396,8 +394,8 @@ void ApiService::processCommand(const String &command) {
 
     networkConfig_ = netCandidate;
     gpioConfig_ = gpioCandidate;
-    storageService_.saveNetworkConfig();
-    storageService_.saveGpioConfig();
+    persistenceSchedulerService_.requestSaveNetwork();
+    persistenceSchedulerService_.requestSaveGpio();
     profileService_.syncDefaultProfileFromActiveConfig();
     wifiService_.applyConfig();
 
@@ -531,6 +529,10 @@ void ApiService::setupHttpRoutes() {
     handleHttpDebugRoute();
   });
 
+  httpServer_.on("/api/v1/diag", HTTP_GET, [this]() {
+    handleHttpDiagRoute();
+  });
+
   httpServer_.on("/config/manual", HTTP_GET, [this]() {
     httpServer_.send(200, "text/html", buildManualConfigHtml());
   });
@@ -577,9 +579,8 @@ void ApiService::handleHttpStateRoute() {
     }
 
     const bool changed = state_.applyPatchJson(payload);
-    if (changed && !storageService_.saveState()) {
-      httpServer_.send(500, "application/json", "{\"error\":\"persistence_failed\"}");
-      return;
+    if (changed) {
+      persistenceSchedulerService_.requestSaveState();
     }
     String response = "{\"updated\":";
     response += changed ? "true" : "false";
@@ -618,9 +619,8 @@ void ApiService::handleHttpNetworkRoute() {
       return;
     }
 
-    if (changed && !storageService_.saveNetworkConfig()) {
-      httpServer_.send(500, "application/json", "{\"error\":\"persistence_failed\"}");
-      return;
+    if (changed) {
+      persistenceSchedulerService_.requestSaveNetwork();
     }
 
     if (changed && !wifiService_.applyConfig()) {
@@ -665,9 +665,8 @@ void ApiService::handleHttpGpioRoute() {
       return;
     }
 
-    if (changed && !storageService_.saveGpioConfig()) {
-      httpServer_.send(500, "application/json", "{\"error\":\"persistence_failed\"}");
-      return;
+    if (changed) {
+      persistenceSchedulerService_.requestSaveGpio();
     }
 
     if (changed) {
@@ -975,9 +974,8 @@ void ApiService::handleHttpDebugRoute() {
       return;
     }
 
-    if (changed && !storageService_.saveNetworkConfig()) {
-      httpServer_.send(500, "application/json", "{\"error\":\"persistence_failed\"}");
-      return;
+    if (changed) {
+      persistenceSchedulerService_.requestSaveNetwork();
     }
 
     String response = "{\"updated\":";
@@ -992,6 +990,41 @@ void ApiService::handleHttpDebugRoute() {
   }
 
   httpServer_.send(405, "application/json", "{\"error\":\"method_not_allowed\"}");
+}
+
+void ApiService::handleHttpDiagRoute() {
+  // GET /api/v1/diag - System diagnostics (watchdog, uptime, memory)
+  if (httpServer_.method() != HTTP_GET) {
+    httpServer_.send(405, "application/json", "{\"error\":\"method_not_allowed\"}");
+    return;
+  }
+
+  JsonDocument doc;
+  doc["ok"] = true;
+
+  // Uptime in seconds
+  doc["uptime_s"] = millis() / 1000;
+
+  // Free heap memory in bytes
+  const uint32_t freeHeap = ESP.getFreeHeap();
+  const uint32_t totalHeap = ESP.getHeapSize();
+  doc["heap_free_bytes"] = freeHeap;
+  doc["heap_total_bytes"] = totalHeap;
+  doc["heap_percent_free"] = (freeHeap * 100) / totalHeap;
+
+  // Watchdog stats
+  const WatchdogService::Stats watchdogStats = watchdogService_.getStats();
+  doc["watchdog"]["reset_count"] = watchdogStats.resetCount;
+  doc["watchdog"]["control_task_resets"] = watchdogStats.controlTaskResets;
+  doc["watchdog"]["render_task_resets"] = watchdogStats.renderTaskResets;
+  doc["watchdog"]["last_reset_ms"] = watchdogStats.lastResetTimeMs;
+
+  // Task count (simple, no detailed task info)
+  doc["task_count"] = uxTaskGetNumberOfTasks();
+
+  String response;
+  serializeJson(doc, response);
+  httpServer_.send(200, "application/json", response);
 }
 
 String ApiService::buildFullConfigJson() const {
@@ -1067,10 +1100,8 @@ void ApiService::handleHttpConfigAllRoute() {
     networkConfig_ = netCandidate;
     gpioConfig_ = gpioCandidate;
 
-    if (!storageService_.saveNetworkConfig() || !storageService_.saveGpioConfig()) {
-      httpServer_.send(500, "application/json", "{\"error\":\"persistence_failed\"}");
-      return;
-    }
+    persistenceSchedulerService_.requestSaveNetwork();
+    persistenceSchedulerService_.requestSaveGpio();
 
     String syncError;
     if (!profileService_.syncDefaultProfileFromActiveConfig(&syncError)) {
@@ -2082,9 +2113,10 @@ String ApiService::buildHomeHtml() const {
 )HTML";
   const String versionLabel = String(BuildProfile::kFwVersion);
   const String bootedAtLabel = buildBootedAtLabel();
+  const CoreState stateSnapshot = state_.snapshot();
   html.replace("__FW_VERSION__", versionLabel);
   html.replace("__BOOTED_AT__", bootedAtLabel);
-  html.replace("__EFFECT_OPTIONS__", EffectRegistry::buildHtmlOptions(state_.effectId));
+  html.replace("__EFFECT_OPTIONS__", EffectRegistry::buildHtmlOptions(stateSnapshot.effectId));
   return html;
 }
 

@@ -2,7 +2,7 @@
 
 Proyecto: `DUXMAN-LED-NEXT`.
 
-Documento actualizado según la implementación actual del firmware `v0.2.2-beta`.
+Documento actualizado según la implementación actual del firmware `v0.3.0-beta` (Fase 4A-4C: FreeRTOS, async persistence, watchdog).
 
 ## Visión general
 

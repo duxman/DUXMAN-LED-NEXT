@@ -1,0 +1,44 @@
+{
+  "version": "0.3.0-beta",
+  "versionCode": 3,
+  "buildDate": "2026-04-03",
+  "branch": "main",
+  "features": [
+    "Fase 4A: FreeRTOS dual-core architecture (TaskControl + TaskRender)",
+    "Fase 4B: Asynchronous persistence with coalescent queue (state, network, GPIO)",
+    "Fase 4B.1: Profile service persistence decoupled from request path",
+    "Fase 4C: Task Watchdog Timers (TWDT) with recovery and metrics",
+    "Boot timestamp display in UI",
+    "Mutex-protected CoreState for API-render synchronization",
+    "Snapshot pattern for lock-free reads in render loop"
+  ],
+  "hardwareSupported": [
+    "ESP32-D0WD-V3 (esp32dev)",
+    "ESP32-C3-MINI (esp32c3supermini)",
+    "ESP32-S3 (esp32s3)"
+  ],
+  "changes": {
+    "added": [
+      "WatchdogService for task health monitoring",
+      "PersistenceSchedulerService for async I/O",
+      "FreeRTOS task framework (controlTask, renderTask)",
+      "Last boot timestamp in home API response"
+    ],
+    "improved": [
+      "API response time (non-blocking persistence)",
+      "Render loop stability (no blocking I/O)",
+      "CoreState synchronization (mutex + snapshot pattern)",
+      "RAM usage optimization (13.5% vs 15.8% in 0.2.2)"
+    ],
+    "fixed": [
+      "Potential CoreState corruption during concurrent API + render access",
+      "Render frame drops due to storage I/O blocking"
+    ]
+  },
+  "knownLimitations": [
+    "LittleFS writes still synchronous (moved to control task, not blocking API)",
+    "No OTA support (huge_app partition layout)",
+    "Single WiFi network configuration (no fallback networks)"
+  ],
+  "nextPhase": "Fase 5: Audio reactivity with I2S + FFT"
+}

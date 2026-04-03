@@ -8,16 +8,19 @@
 #include "core/HardwareInfo.h"
 #include "core/ReleaseInfo.h"
 #include "services/EffectPersistenceService.h"
+#include "services/PersistenceSchedulerService.h"
 #include "services/ProfileService.h"
 #include "services/StorageService.h"
+#include "services/WatchdogService.h"
 #include "services/WifiService.h"
 
 class ApiService {
 public:
   ApiService(CoreState &state, NetworkConfig &networkConfig, GpioConfig &gpioConfig,
              StorageService &storageService, WifiService &wifiService,
+             PersistenceSchedulerService &persistenceSchedulerService,
              EffectPersistenceService &effectPersistenceService,
-             ProfileService &profileService);
+             ProfileService &profileService, WatchdogService &watchdogService);
 
   void begin();
   void handle();
@@ -28,8 +31,10 @@ private:
   GpioConfig &gpioConfig_;
   StorageService &storageService_;
   WifiService &wifiService_;
+  PersistenceSchedulerService &persistenceSchedulerService_;
   EffectPersistenceService &effectPersistenceService_;
   ProfileService &profileService_;
+  WatchdogService &watchdogService_;
   String commandBuffer_;
   WebServer httpServer_;
 
@@ -39,6 +44,7 @@ private:
   void handleHttpNetworkRoute();
   void handleHttpGpioRoute();
   void handleHttpDebugRoute();
+  void handleHttpDiagRoute();
   void handleHttpConfigAllRoute();
   void handleHttpHardwareRoute();
   void handleHttpGpioProfilesRoute();

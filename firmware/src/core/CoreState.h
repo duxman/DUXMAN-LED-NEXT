@@ -1,6 +1,8 @@
 #pragma once
 
 #include <Arduino.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/semphr.h>
 
 #include "effects/EffectRegistry.h"
 
@@ -21,8 +23,12 @@ struct CoreState {
   uint32_t backgroundColor = 0x000000;
 
   static CoreState defaults();
+  static void setMutex(SemaphoreHandle_t mutex);
   static const char *effectName(uint8_t effectId);
   static const char *effectLabel(uint8_t effectId);
+  bool lock(TickType_t timeout = portMAX_DELAY) const;
+  void unlock() const;
+  CoreState snapshot() const;
   String toJson() const;
   bool applyPatchJson(const String &payload);
 };

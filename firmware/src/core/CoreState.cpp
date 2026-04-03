@@ -3,6 +3,8 @@
 #include <ArduinoJson.h>
 
 namespace {
+SemaphoreHandle_t gCoreStateMutex = nullptr;
+
 uint32_t parseHexColor(const char *value, uint32_t fallback) {
   if (value == nullptr) {
     return fallback;
@@ -87,6 +89,10 @@ CoreState CoreState::defaults() {
   return CoreState{};
 }
 
+void CoreState::setMutex(SemaphoreHandle_t mutex) {
+  gCoreStateMutex = mutex;
+}
+
 const char *CoreState::effectName(uint8_t effectId) {
   return EffectRegistry::keyFor(effectId);
 }
@@ -95,7 +101,33 @@ const char *CoreState::effectLabel(uint8_t effectId) {
   return EffectRegistry::labelFor(effectId);
 }
 
+bool CoreState::lock(TickType_t timeout) const {
+  if (gCoreStateMutex == nullptr) {
+    return true;
+  }
+  return xSemaphoreTake(gCoreStateMutex, timeout) == pdTRUE;
+}
+
+void CoreState::unlock() const {
+  if (gCoreStateMutex != nullptr) {
+    xSemaphoreGive(gCoreStateMutex);
+  }
+}
+
+CoreState CoreState::snapshot() const {
+  if (!lock()) {
+    return *this;
+  }
+  const CoreState copy = *this;
+  unlock();
+  return copy;
+}
+
 String CoreState::toJson() const {
+  if (!lock()) {
+    return "{}";
+  }
+
   JsonDocument doc;
   doc["power"] = power;
   doc["brightness"] = brightness;
@@ -116,6 +148,7 @@ String CoreState::toJson() const {
 
   String json;
   serializeJson(doc, json);
+  unlock();
   return json;
 }
 
@@ -126,6 +159,10 @@ bool CoreState::applyPatchJson(const String &payload) {
   }
 
   const JsonObjectConst root = doc.as<JsonObjectConst>();
+
+  if (!lock()) {
+    return false;
+  }
 
   CoreState next = *this;
 
@@ -177,6 +214,7 @@ bool CoreState::applyPatchJson(const String &payload) {
   }
 
   *this = next;
+  unlock();
 
   return changed;
 }

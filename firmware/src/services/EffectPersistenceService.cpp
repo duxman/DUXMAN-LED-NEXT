@@ -326,21 +326,27 @@ void EffectPersistenceService::applySequenceEntry(uint8_t index, unsigned long n
 
 EffectPersistenceService::SavedEffectConfig
 EffectPersistenceService::snapshotFromState(const CoreState &state) {
+  const CoreState stateSnapshot = state.snapshot();
+
   SavedEffectConfig snapshot;
-  snapshot.power = state.power;
-  snapshot.brightness = state.brightness;
-  snapshot.effectId = state.effectId;
-  snapshot.sectionCount = state.sectionCount;
-  snapshot.effectSpeed = state.effectSpeed;
-  snapshot.effectLevel = state.effectLevel;
+  snapshot.power = stateSnapshot.power;
+  snapshot.brightness = stateSnapshot.brightness;
+  snapshot.effectId = stateSnapshot.effectId;
+  snapshot.sectionCount = stateSnapshot.sectionCount;
+  snapshot.effectSpeed = stateSnapshot.effectSpeed;
+  snapshot.effectLevel = stateSnapshot.effectLevel;
   for (uint8_t i = 0; i < 3; ++i) {
-    snapshot.primaryColors[i] = state.primaryColors[i];
+    snapshot.primaryColors[i] = stateSnapshot.primaryColors[i];
   }
-  snapshot.backgroundColor = state.backgroundColor;
+  snapshot.backgroundColor = stateSnapshot.backgroundColor;
   return snapshot;
 }
 
 void EffectPersistenceService::applySnapshot(const SavedEffectConfig &config) const {
+  if (!state_.lock()) {
+    return;
+  }
+
   state_.power = config.power;
   state_.brightness = config.brightness;
   state_.effectId = config.effectId;
@@ -351,6 +357,8 @@ void EffectPersistenceService::applySnapshot(const SavedEffectConfig &config) co
     state_.primaryColors[i] = config.primaryColors[i];
   }
   state_.backgroundColor = config.backgroundColor;
+
+  state_.unlock();
 }
 
 void EffectPersistenceService::writeConfigJson(JsonObject target,

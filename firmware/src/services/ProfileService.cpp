@@ -52,8 +52,10 @@ String normalizeGpioPayload(const JsonObjectConst &source) {
 
 ProfileService::ProfileService(GpioConfig &gpioConfig,
                                StorageService &storageService,
+                               PersistenceSchedulerService &persistenceSchedulerService,
                                LedDriver &ledDriver)
   : gpioConfig_(gpioConfig), storageService_(storageService),
+    persistenceSchedulerService_(persistenceSchedulerService),
     ledDriver_(ledDriver) {}
 
 void ProfileService::begin() {
@@ -62,6 +64,30 @@ void ProfileService::begin() {
   initializeBuiltInProfiles();
   loadDefaultProfileId();
   refreshDefaultProfile();
+}
+
+void ProfileService::requestSaveUserProfiles() {
+  pendingPersistenceFlags_ |= kPendingUserProfiles;
+}
+
+void ProfileService::requestSaveDefaultProfileId() {
+  pendingPersistenceFlags_ |= kPendingDefaultProfile;
+}
+
+void ProfileService::processPendingPersistence() {
+  const uint8_t pending = pendingPersistenceFlags_;
+  if (pending == 0) {
+    return;
+  }
+  pendingPersistenceFlags_ = 0;
+
+  if ((pending & kPendingUserProfiles) != 0 && !saveUserProfiles()) {
+    Serial.println("[profiles][async] saveUserProfiles failed");
+  }
+
+  if ((pending & kPendingDefaultProfile) != 0 && !saveDefaultProfileId()) {
+    Serial.println("[profiles][async] saveDefaultProfileId failed");
+  }
 }
 
 bool ProfileService::applyStartupProfile(String *appliedId, String *error) {
@@ -87,12 +113,7 @@ bool ProfileService::applyStartupProfile(String *appliedId, String *error) {
   const bool changed = gpioConfig_.toJson() != profile->gpio.toJson();
   gpioConfig_ = profile->gpio;
 
-  if (!storageService_.saveGpioConfig()) {
-    if (error != nullptr) {
-      *error = "persistence_failed";
-    }
-    return false;
-  }
+  persistenceSchedulerService_.requestSaveGpio();
 
   if (appliedId != nullptr) {
     *appliedId = profile->id;
@@ -111,12 +132,7 @@ void ProfileService::applyActiveConfig() {
 bool ProfileService::syncDefaultProfileFromActiveConfig(String *error) {
   refreshDefaultProfile();
   defaultProfileId_ = kDefaultProfileId;
-  if (!saveDefaultProfileId()) {
-    if (error != nullptr) {
-      *error = "persistence_failed";
-    }
-    return false;
-  }
+  requestSaveDefaultProfileId();
 
   if (error != nullptr) {
     error->clear();
@@ -198,12 +214,10 @@ bool ProfileService::saveProfileFromJson(const String &payload, String *response
   profile.builtIn = false;
   profile.gpio = candidate;
 
-  if (!upsertUserProfile(profile, error) || !saveUserProfiles()) {
-    if (error != nullptr && error->isEmpty()) {
-      *error = "persistence_failed";
-    }
+  if (!upsertUserProfile(profile, error)) {
     return false;
   }
+  requestSaveUserProfiles();
 
   const bool applyNow = jsonBoolOrDefault(profileObj["applyNow"]);
   const bool setDefault = jsonBoolOrDefault(profileObj["autoApplyOnBoot"]) ||
@@ -213,12 +227,7 @@ bool ProfileService::saveProfileFromJson(const String &payload, String *response
   bool applied = false;
   if (activateAsCurrent) {
     gpioConfig_ = candidate;
-    if (!storageService_.saveGpioConfig()) {
-      if (error != nullptr) {
-        *error = "persistence_failed";
-      }
-      return false;
-    }
+    persistenceSchedulerService_.requestSaveGpio();
     if (!syncDefaultProfileFromActiveConfig(error)) {
       return false;
     }
@@ -343,22 +352,12 @@ bool ProfileService::deleteProfileFromJson(const String &payload, String *respon
     --userProfileCount_;
   }
 
-  if (!saveUserProfiles()) {
-    if (error != nullptr) {
-      *error = "persistence_failed";
-    }
-    return false;
-  }
+  requestSaveUserProfiles();
 
   bool defaultCleared = false;
   if (defaultProfileId_ == id) {
     defaultProfileId_.clear();
-    if (!saveDefaultProfileId()) {
-      if (error != nullptr) {
-        *error = "persistence_failed";
-      }
-      return false;
-    }
+    requestSaveDefaultProfileId();
     defaultCleared = true;
   }
 
@@ -661,12 +660,7 @@ bool ProfileService::markBuiltInProfileDeleted(const String &id, String *error) 
 
   deletedBuiltInProfileIds_[deletedBuiltInProfileCount_++] = id;
   initializeBuiltInProfiles();
-  if (!saveUserProfiles()) {
-    if (error != nullptr) {
-      *error = "persistence_failed";
-    }
-    return false;
-  }
+  requestSaveUserProfiles();
 
   if (error != nullptr) {
     error->clear();
@@ -702,12 +696,7 @@ bool ProfileService::applyProfileById(const String &id, bool setAsDefault,
   }
 
   gpioConfig_ = profile->gpio;
-  if (!storageService_.saveGpioConfig()) {
-    if (error != nullptr) {
-      *error = "persistence_failed";
-    }
-    return false;
-  }
+  persistenceSchedulerService_.requestSaveGpio();
 
   if (!syncDefaultProfileFromActiveConfig(error)) {
     return false;

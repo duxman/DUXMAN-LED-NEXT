@@ -301,10 +301,18 @@ Mitigación: límites de tamaño + validación estricta.
 
 ## 15) Estado actual de sesión (snapshot)
 
-- Decisión de stack cerrada: `PsychicHttp`.
-- Enfoque de producto definido: rompedor, moderno, modular.
-- Prioridad principal: configuración web y zona de memoria (persistencia robusta).
-- Próximo paso concreto: implementar Sprint 1 de API + persistencia básica.
+**Fase 4A-4C COMPLETADAS (v0.3.0-beta)**
+- ✅ FreeRTOS dual-core: `TaskControl` (core 0, 10ms) + `TaskRender` (core 1, 16ms)
+- ✅ CoreState sincronizado: Mutex para API-render + snapshot pattern
+- ✅ Persistencia asíncrona: `PersistenceSchedulerService` con coalescent flags
+- ✅ ProfileService desacoplado: Cola interna para saves diferidos
+- ✅ Task Watchdog Timers (TWDT): Monitoreo per-core con recuperación
+- ✅ Boot timestamp: Fecha/hora último arranque en respuesta state
+
+**Próximas fases:**
+- Fase 5: Audio reactivity (I2S + FFT para efectos reactivos)
+- Fase 4C.1: Métricas extendidas (contadores, latencias)
+- Fase 5B: Compatibilidad WLED protocol (dmx, artnet)
 
 ---
 
@@ -312,21 +320,32 @@ Mitigación: límites de tamaño + validación estricta.
 
 Usar este bloque al abrir un chat nuevo:
 
-> “Continuamos DUXMAN-LED-NEXT según `evolucion led-next.md`.
-> Stack cerrado: ESP32-S3 + PsychicHttp.
-> Implementa Fase 1: `CoreState` + `GET/PATCH /api/v1/state` con validación estricta y hooks de persistencia diferida.
-> Mantén arquitectura modular y actualiza documentación al final.”
+> "Continuamos DUXMAN-LED-NEXT en v0.3.0-beta según `evolucion led-next.md`.
+> Stack cerrado: ESP32 (C3/Dev/S3) + PlatformIO + Arduino + FreeRTOS.
+> 
+> **Estado actual (Fases 4A-4C COMPLETAS):**
+> - FreeRTOS dual-core (TaskControl 10ms, TaskRender 16ms) ✅
+> - Persistencia asíncrona con coalescent queues ✅
+> - Task Watchdog Timers con recuperación ✅
+> - CoreState mutex-protected para API-render sync ✅
+> 
+> **Siguiente paso:** Fase 5 (Audio reactivity I2S+FFT) o métricas extendidas."
 
 ---
 
 ## 17) Próxima tarea exacta
 
-1. Confirmar board exacta `ESP32-S3`.
-2. Crear `CoreState`.
-3. Exponer `GET /api/v1/state`.
-4. Exponer `PATCH /api/v1/state` con validación.
-5. Llamar `StorageService.scheduleSave()` solo si hubo cambio real.
-6. Añadir `GET /api/v1/diag`.
+**Fase 5: Audio Reactivity (I2S + FFT)**
+
+1. Integrar módulo PDM/I2S según ESP32 (recomendar SPM1423 o INMP441).
+2. Implementar `AudioService` con buffer circular y análisis FFT.
+3. Exponer bands de frecuencia (`bass`, `mid`, `treble`, `peak`) en estado.
+4. Crear efectos reactivos:
+   - `vumeter`: Altura de columna por bass
+   - `spectrum`: Barras independientes por frecuencia
+   - `flash_on_kick`: Estrobo en picos de bass
+5. Documentar wiring y `platformio.ini` para I2S pins por placa.
+6. Testing en hardware con audio real (música, voces, etc.).
 
 ---
 

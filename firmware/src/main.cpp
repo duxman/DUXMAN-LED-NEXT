@@ -1,4 +1,7 @@
 #include <Arduino.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/semphr.h>
+#include <freertos/task.h>
 
 #include "api/ApiService.h"
 #include "core/BuildProfile.h"
@@ -7,8 +10,10 @@
 #include "drivers/CurrentLedDriver.h"
 #include "effects/EffectManager.h"
 #include "services/EffectPersistenceService.h"
+#include "services/PersistenceSchedulerService.h"
 #include "services/ProfileService.h"
 #include "services/StorageService.h"
+#include "services/WatchdogService.h"
 #include "services/WifiService.h"
 
 namespace {
@@ -18,15 +23,21 @@ GpioConfig gpioConfig = GpioConfig::defaults();
 DefaultLedDriver ledDriver;
 EffectManager effectManager(state, ledDriver);
 StorageService storageService(state, networkConfig, gpioConfig);
+PersistenceSchedulerService persistenceSchedulerService(storageService);
 EffectPersistenceService effectPersistenceService(state);
-ProfileService profileService(gpioConfig, storageService, ledDriver);
+ProfileService profileService(gpioConfig, storageService, persistenceSchedulerService, ledDriver);
 WifiService wifiService(networkConfig);
+WatchdogService watchdogService;
 ApiService apiService(state, networkConfig, gpioConfig, storageService, wifiService,
-                      effectPersistenceService, profileService);
+                      persistenceSchedulerService,
+                      effectPersistenceService, profileService, watchdogService);
 
-unsigned long lastFrameAtMs = 0;
-constexpr unsigned long kFrameIntervalMs = 16;
-unsigned long lastHeartbeatAtMs = 0;
+SemaphoreHandle_t coreStateMutex = nullptr;
+TaskHandle_t controlTaskHandle = nullptr;
+TaskHandle_t renderTaskHandle = nullptr;
+
+constexpr TickType_t kRenderIntervalTicks = pdMS_TO_TICKS(16);
+constexpr TickType_t kControlIntervalTicks = pdMS_TO_TICKS(10);
 
 void waitForSerialIfUsbCdcEnabled(unsigned long timeoutMs) {
 #if defined(ARDUINO_USB_CDC_ON_BOOT) && (ARDUINO_USB_CDC_ON_BOOT == 1)
@@ -38,6 +49,42 @@ void waitForSerialIfUsbCdcEnabled(unsigned long timeoutMs) {
   (void)timeoutMs;
 #endif
 }
+
+void controlTask(void *parameter) {
+  (void)parameter;
+  unsigned long lastHeartbeatAtMs = 0;
+  TickType_t lastWake = xTaskGetTickCount();
+
+  while (true) {
+    watchdogService.feed();  // Reset watchdog timer
+    apiService.handle();
+    wifiService.handle();
+    profileService.processPendingPersistence();
+    persistenceSchedulerService.processPending();
+
+    const unsigned long now = millis();
+    effectPersistenceService.handle(now);
+    const unsigned long heartbeatIntervalMs = networkConfig.debug.heartbeatMs;
+    if (heartbeatIntervalMs > 0 && now - lastHeartbeatAtMs >= heartbeatIntervalMs) {
+      lastHeartbeatAtMs = now;
+      Serial.print("[hb] alive ms=");
+      Serial.println(now);
+    }
+
+    vTaskDelayUntil(&lastWake, kControlIntervalTicks);
+  }
+}
+
+void renderTask(void *parameter) {
+  (void)parameter;
+  TickType_t lastWake = xTaskGetTickCount();
+
+  while (true) {
+    watchdogService.feed();  // Reset watchdog timer
+    effectManager.renderFrame();
+    vTaskDelayUntil(&lastWake, kRenderIntervalTicks);
+  }
+}
 } // namespace
 
 void setup() {
@@ -46,6 +93,9 @@ void setup() {
   delay(150);
 
   storageService.begin();
+  coreStateMutex = xSemaphoreCreateMutex();
+  CoreState::setMutex(coreStateMutex);
+  watchdogService.init(5, true);  // 5 second timeout, auto-reboot on timeout
   effectPersistenceService.begin();
   profileService.begin();
   String appliedProfileId;
@@ -91,23 +141,45 @@ void setup() {
   Serial.print(networkConfig.debug.enabled ? "true" : "false");
   Serial.print(" heartbeatMs=");
   Serial.println(networkConfig.debug.heartbeatMs);
+
+  const BaseType_t controlTaskOk = xTaskCreatePinnedToCore(
+      controlTask,
+      "dux-control",
+      4096,
+      nullptr,
+      2,
+      &controlTaskHandle,
+      0);
+
+  const BaseType_t renderTaskOk = xTaskCreatePinnedToCore(
+      renderTask,
+      "dux-render",
+      4096,
+      nullptr,
+      3,
+      &renderTaskHandle,
+      1);
+
+  if (controlTaskOk == pdPASS && renderTaskOk == pdPASS) {
+    // Register tasks with watchdog
+    watchdogService.registerTask(controlTaskHandle, "dux-control");
+    watchdogService.registerTask(renderTaskHandle, "dux-render");
+    Serial.println("[rtos] tasks started control(core0) render(core1)");
+    return;
+  }
+
+  Serial.println("[rtos] task creation failed; fallback to loop() scheduler");
 }
 
 void loop() {
+  if (controlTaskHandle != nullptr && renderTaskHandle != nullptr) {
+    vTaskDelay(pdMS_TO_TICKS(1000));
+    return;
+  }
+
   apiService.handle();
   wifiService.handle();
-
-  const unsigned long now = millis();
-  effectPersistenceService.handle(now);
-  const unsigned long heartbeatIntervalMs = networkConfig.debug.heartbeatMs;
-  if (heartbeatIntervalMs > 0 && now - lastHeartbeatAtMs >= heartbeatIntervalMs) {
-    lastHeartbeatAtMs = now;
-    Serial.print("[hb] alive ms=");
-    Serial.println(now);
-  }
-
-  if (now - lastFrameAtMs >= kFrameIntervalMs) {
-    lastFrameAtMs = now;
-    effectManager.renderFrame();
-  }
+  effectPersistenceService.handle(millis());
+  effectManager.renderFrame();
+  delay(16);
 }
