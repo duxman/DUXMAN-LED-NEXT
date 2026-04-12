@@ -168,6 +168,29 @@ pio run -e esp32dev
 pio run -e esp32s3
 ```
 
+## GitHub Actions
+
+El repositorio incluye un workflow en `.github/workflows/firmware-build.yml` para compilar automáticamente el firmware en GitHub Actions.
+
+- Se ejecuta en `push` a `main` o `master`, en `pull_request` y manualmente con `workflow_dispatch`.
+- Compila estos entornos: `esp32c3supermini`, `esp32c3supermini_fastled`, `esp32c3supermini_digital`, `esp32dev` y `esp32s3`.
+- Sube un artefacto por entorno con `firmware.bin`, `bootloader.bin`, `partitions.bin`, `firmware.elf`, `firmware.map`, `flash_args`, checksums SHA-256 y un `BUILD_INFO.txt`.
+- Si haces push de un tag `v*` como `v0.3.4`, el workflow crea además una GitHub Release y adjunta un `.zip` por entorno con esos archivos.
+- El nombre, la descripción y si la release es `prerelease` salen de `firmware/config/release-info.json`.
+
+Para descargar una build:
+
+1. Ir a la pestaña `Actions` del repositorio.
+2. Abrir el workflow `Firmware Builds`.
+3. Descargar el artefacto del entorno deseado.
+
+Para publicar una release:
+
+1. Crear el tag local, por ejemplo `git tag v0.3.4`.
+2. Subirlo al remoto con `git push origin v0.3.4`.
+3. Esperar a que termine el workflow `Firmware Builds`.
+4. Revisar la release generada en la pestaña `Releases`.
+
 ### Variantes de backend LED (ESP32-C3)
 
 ``` 

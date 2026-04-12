@@ -1,0 +1,250 @@
+name: Firmware Builds
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    tags:
+      - "v*"
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: firmware-build-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build ${{ matrix.environment }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        environment:
+          - esp32c3supermini
+          - esp32c3supermini_fastled
+          - esp32c3supermini_digital
+          - esp32dev
+          - esp32s3
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Cache PlatformIO packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.platformio/.cache
+            ~/.platformio/packages
+            ~/.platformio/platforms
+          key: ${{ runner.os }}-platformio-${{ hashFiles('platformio.ini') }}
+          restore-keys: |
+            ${{ runner.os }}-platformio-
+
+      - name: Install PlatformIO Core
+        run: pip install --upgrade platformio
+
+      - name: Build firmware
+        run: pio run -e ${{ matrix.environment }}
+
+      - name: Package build artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          env_name="${{ matrix.environment }}"
+          build_dir=".pio/build/${env_name}"
+          out_dir="dist/${env_name}"
+
+          mkdir -p "${out_dir}"
+
+          files=(
+            firmware.bin
+            bootloader.bin
+            partitions.bin
+            firmware.elf
+            firmware.map
+            flash_args
+          )
+
+          for file in "${files[@]}"; do
+            if [[ -f "${build_dir}/${file}" ]]; then
+              cp "${build_dir}/${file}" "${out_dir}/${file}"
+            fi
+          done
+
+          if [[ -f "${build_dir}/firmware.bin" ]]; then
+            cp "${build_dir}/firmware.bin" "${out_dir}/${env_name}-firmware.bin"
+          fi
+
+          cat > "${out_dir}/BUILD_INFO.txt" <<EOF
+          Environment: ${env_name}
+          Commit: ${{ github.sha }}
+          Ref: ${{ github.ref_name }}
+          Workflow run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+          Included files:
+          - firmware.bin
+          - bootloader.bin
+          - partitions.bin
+          - firmware.elf
+          - firmware.map
+          - flash_args
+
+          Flashing note:
+          Use the files from this artifact together with the offsets in flash_args.
+          EOF
+
+          (
+            cd "${out_dir}"
+            sha256sum * > SHA256SUMS.txt
+          )
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: firmware-${{ matrix.environment }}
+          path: dist/${{ matrix.environment }}
+          if-no-files-found: error
+          retention-days: 30
+
+  release:
+    name: Publish GitHub Release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets/artifacts
+          pattern: firmware-*
+          merge-multiple: false
+
+      - name: Generate release metadata
+        id: release_meta
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          python3 <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          info = json.loads(Path("firmware/config/release-info.json").read_text(encoding="utf-8"))
+          version = info["version"]
+          build_date = info.get("buildDate", "unknown")
+          branch = info.get("branch", "unknown")
+          version_code = info.get("versionCode", "unknown")
+          next_phase = info.get("nextPhase")
+          tag_name = os.environ.get("GITHUB_REF_NAME", "unknown")
+          prerelease = any(token in version.lower() for token in ("alpha", "beta", "rc"))
+
+          def lines_for_section(title, items):
+              lines = [f"## {title}", ""]
+              for item in items:
+                  lines.append(f"- {item}")
+              lines.append("")
+              return lines
+
+          body_lines = [
+              f"Release generated from `firmware/config/release-info.json`.",
+              "",
+              f"- Version: {version}",
+              f"- Version code: {version_code}",
+              f"- Build date: {build_date}",
+              f"- Source branch: {branch}",
+              f"- Tag: {tag_name}",
+          ]
+
+          body_lines.append("")
+
+          body_lines.extend(lines_for_section("Features", info.get("features", [])))
+          body_lines.extend(lines_for_section("Supported Hardware", info.get("hardwareSupported", [])))
+
+          changes = info.get("changes", {})
+          for key, title in (("added", "Added"), ("improved", "Improved"), ("fixed", "Fixed")):
+              items = changes.get(key, [])
+              if items:
+                  body_lines.extend(lines_for_section(title, items))
+
+          limitations = info.get("knownLimitations", [])
+          if limitations:
+              body_lines.extend(lines_for_section("Known Limitations", limitations))
+
+          if next_phase:
+              body_lines.extend([
+                  "## Next Phase",
+                  "",
+                  f"- {next_phase}",
+                  "",
+              ])
+
+          body_lines.extend([
+              "## Release Assets",
+              "",
+              "- One ZIP per PlatformIO environment.",
+              "- Each ZIP includes firmware binaries, ELF, MAP, flash offsets, build info and SHA-256 checksums.",
+              "",
+          ])
+
+          notes_path = Path("release-assets/RELEASE_NOTES.md")
+          notes_path.parent.mkdir(parents=True, exist_ok=True)
+          notes_path.write_text("\n".join(body_lines).strip() + "\n", encoding="utf-8")
+
+          output_path = Path(os.environ["GITHUB_OUTPUT"])
+          with output_path.open("a", encoding="utf-8") as fh:
+              fh.write(f"release_name=DUXMAN-LED-NEXT {version}\n")
+              fh.write(f"tag_name={tag_name}\n")
+              fh.write(f"prerelease={'true' if prerelease else 'false'}\n")
+          PY
+
+      - name: Create release packages
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          mkdir -p release-assets/packages
+          shopt -s nullglob
+
+          for dir in release-assets/artifacts/firmware-*; do
+            env_name="${dir##*/}"
+            env_name="${env_name#firmware-}"
+            archive="release-assets/packages/${env_name}-${GITHUB_REF_NAME}.zip"
+
+            (
+              cd "${dir}"
+              zip -r "${GITHUB_WORKSPACE}/${archive}" .
+            )
+          done
+
+          ls -lah release-assets/packages
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.release_meta.outputs.tag_name }}
+          name: ${{ steps.release_meta.outputs.release_name }}
+          body_path: release-assets/RELEASE_NOTES.md
+          files: release-assets/packages/*.zip
+          fail_on_unmatched_files: true
+          prerelease: ${{ steps.release_meta.outputs.prerelease }}
