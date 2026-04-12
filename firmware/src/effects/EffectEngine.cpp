@@ -79,10 +79,17 @@ uint16_t EffectEngine::resolveSectionSize(uint16_t ledCount, uint8_t sectionCoun
   return max<uint16_t>(1, static_cast<uint16_t>((ledCount + safeSections - 1) / safeSections));
 }
 
-unsigned long EffectEngine::effectIntervalMs(uint8_t speedScale) {
+unsigned long EffectEngine::effectIntervalMs(uint8_t speedScale) const {
   const float s = speed01(speedScale);
   // 1 -> ~1200 ms (lento), 100 -> ~40 ms (rapido)
-  return static_cast<unsigned long>(1200.0f - 1160.0f * s);
+  unsigned long base = static_cast<unsigned long>(1200.0f - 1160.0f * s);
+  // P3: el audio acelera los efectos animados cuando reactiveToAudio está activo.
+  if (state_.reactiveToAudio) {
+    const float audio      = clamp01(static_cast<float>(state_.audioLevel) / 255.0f);
+    const float speedBoost = 1.0f + audio * 2.0f; // 1x en silencio → 3x en volumen máximo
+    base = static_cast<unsigned long>(static_cast<float>(base) / speedBoost);
+  }
+  return max(base, 20UL);
 }
 
 float EffectEngine::speed01(uint8_t speedScale) {
@@ -135,6 +142,19 @@ uint32_t EffectEngine::scaleColorFloat(uint32_t color, float gain) const {
   const uint8_t gr = static_cast<uint8_t>(((color >> 8)  & 0xFF) * g);
   const uint8_t b = static_cast<uint8_t>((color & 0xFF)          * g);
   return (static_cast<uint32_t>(r) << 16) | (static_cast<uint32_t>(gr) << 8) | b;
+}
+
+uint32_t EffectEngine::audioColorShift(uint32_t cA, uint32_t cB, uint32_t cC) const {
+  // P4: Desplazamiento de color por nivel de audio.
+  // Silencio → cA, volumen medio → cB, pico → cC.
+  if (!state_.reactiveToAudio) {
+    return cA;
+  }
+  const float level = clamp01(static_cast<float>(state_.audioLevel) / 255.0f);
+  if (level <= 0.5f) {
+    return lerpColor(cA, cB, level * 2.0f);
+  }
+  return lerpColor(cB, cC, (level - 0.5f) * 2.0f);
 }
 
 uint32_t EffectEngine::applyGamma(uint32_t color) {

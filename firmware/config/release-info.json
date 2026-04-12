@@ -1,7 +1,7 @@
 {
-  "version": "0.3.3-beta",
-  "versionCode": 6,
-  "buildDate": "2026-04-03",
+  "version": "0.3.4-beta",
+  "versionCode": 7,
+  "buildDate": "2026-04-12",
   "branch": "main",
   "features": [
     "Fase 4A: FreeRTOS dual-core architecture (TaskControl + TaskRender)",
@@ -13,8 +13,10 @@
     "Boot timestamp display in UI",
     "Mutex-protected CoreState for API-render synchronization",
     "Snapshot pattern for lock-free reads in render loop",
-    "AudioService I2S stabilized in MASTER_RX mode with runtime telemetry",
-    "Audio-reactive pipeline unified across all effects"
+    "AudioService AGC + noise gate for stable microphone baseline",
+    "Effects split into VISUAL and AUDIO categories with automatic audio mode",
+    "Audio-focused effects enhanced (Audio Pulse, Trig Ribbon, Stellar Twinkle, Bouncing Physics)",
+    "Roadmap expanded with phased master-slave sync and LedFx realtime plan"
   ],
   "hardwareSupported": [
     "ESP32-D0WD-V3 (esp32dev)",
@@ -49,5 +51,5 @@
     "No OTA support (huge_app partition layout)",
     "Single WiFi network configuration (no fallback networks)"
   ],
-  "nextPhase": "Fase 5.1: FFT bands (bass/mid/treble) and per-effect audio mappings"
+  "nextPhase": "Fase 5B: LedFx realtime mode (DDP/E1.31) + Fase 6A master-slave SyncState v1"
 }

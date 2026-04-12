@@ -10,7 +10,8 @@ EffectManager::EffectManager(CoreState &state, LedDriver &driver)
       gradientMeteorEffect_(state, driver), scanningPulseEffect_(state, driver),
   trigRibbonEffect_(state, driver), lavaFlowEffect_(state, driver),
   polarIceEffect_(state, driver), stellarTwinkleEffect_(state, driver),
-  randomColorPopEffect_(state, driver), bouncingPhysicsEffect_(state, driver) {
+      randomColorPopEffect_(state, driver), bouncingPhysicsEffect_(state, driver),
+  audioPulseEffect_(state, driver) {
   effects_[0] = &fixedEffect_;
   effects_[1] = &gradientEffect_;
   effects_[2] = &blinkFixedEffect_;
@@ -27,6 +28,7 @@ EffectManager::EffectManager(CoreState &state, LedDriver &driver)
   effects_[13] = &stellarTwinkleEffect_;
   effects_[14] = &randomColorPopEffect_;
   effects_[15] = &bouncingPhysicsEffect_;
+  effects_[16] = &audioPulseEffect_;
 }
 
 void EffectManager::begin() {

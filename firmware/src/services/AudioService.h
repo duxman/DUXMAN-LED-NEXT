@@ -88,13 +88,45 @@ private:
   size_t lastBytesRead_ = 0;
   int lastReadErr_ = 0;
 
+  // P1: Envolvente attack/decay — mantiene el nivel suavizado en float.
+  float smoothedLevel_ = 0.0f;
+  // P2: Beat detection — cooldown para evitar beats dobles.
+  unsigned long beatCooldownMs_ = 0;
+  // P6: Peak hold con decaimiento temporal.
+  uint8_t peakHold_ = 0;
+  unsigned long peakHoldDecayMs_ = 0;
+  // AGC: baseline del nivel ambiente, actualizado lentamente para calibración automática.
+  float ambientBaseline_ = 0.0f;
+
   // Buffer de audio para lectura
   static constexpr size_t kAudioBufferSize = 256;
   static constexpr unsigned long kAudioLogIntervalMs = 1000;
+
+  // P1: Attack rápido para capturar golpes; decay lento para suavizado visual.
+  static constexpr float kAttackFactor = 0.80f;
+  static constexpr float kDecayFactor  = 0.05f;
+  // P2: Beat = spike instantáneo ≥160% del nivel suavizado, encima del umbral mínimo.
+  static constexpr float         kBeatSpikeRatio      = 1.60f;
+  static constexpr uint8_t       kBeatMinThreshold    = 30;
+  static constexpr unsigned long kBeatCooldownMs      = 150;
+  // P6: Peak hold 1.2 s; luego descenso de 3 puntos cada 30 ms.
+  static constexpr unsigned long kPeakHoldDurationMs  = 1200;
+  static constexpr uint8_t       kPeakDecayStep       = 3;
+  static constexpr unsigned long kPeakDecayStepMs     = 30;
+
+  // AGC: sqrt(32767/sqrt(2)) ≈ 152 = RMS máximo teórico de int16_t.
+  // El AGC calibra el nivel ambiente en ~5 s y mapea todo lo que lo supera a 0-255.
+  static constexpr float kSqrtMaxRms        = 152.0f;
+  static constexpr float kAgcBaselineFactor = 0.002f;  // tau rápido si diff>40, lento si no
+  static constexpr float kAgcMinHeadroom    = 10.0f;   // evita divón entre casi-cero
+  // Noise gate: señales post-AGC por debajo de este umbral se suprimen a 0.
+  // Elimina la fluctuación del ruido ambiente residual que queda tras el AGC.
+  static constexpr float kNoiseGateKnee     = 35.0f;
+
   int16_t audioBuffer_[kAudioBufferSize] = {0};
 
   bool initializeI2S();
   void shutdownI2S();
-  void processAudioBuffer();
+  void processAudioBuffer(unsigned long nowMs);
   uint32_t calculateRMS(const int16_t *buffer, size_t length);
 };

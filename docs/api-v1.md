@@ -651,8 +651,8 @@ Ejemplo:
 
 ```json
 {
-	"version": "0.3.3-beta",
-	"releaseDate": "2026-04-03",
+	"version": "0.3.4-beta",
+	"releaseDate": "2026-04-12",
 	"branch": "main",
 	"board": "esp32c3supermini",
 	"repositoryUrl": "https://github.com/duxman/DUXMAN-LED-NEXT",
@@ -773,4 +773,4 @@ Además de la API JSON, el firmware expone páginas de ayuda y configuración:
 
 ## Estado de esta documentación
 
-Este documento describe la implementación actual del firmware `v0.3.3-beta` (Fase 4A-4C + catalogo de efectos dinamicos + audio reactivo I2S base + calibrado de speed/level). Debe actualizarse junto con `README.md` cuando se añadan o cambien endpoints, payloads o reglas de validación.
+Este documento describe la implementación actual del firmware `v0.3.4-beta` (Fase 4A-4C + catalogo de efectos dinamicos + audio reactivo I2S base + calibrado de speed/level). Debe actualizarse junto con `README.md` cuando se añadan o cambien endpoints, payloads o reglas de validación.

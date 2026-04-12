@@ -2,6 +2,23 @@
 
 Todos los cambios relevantes de este proyecto se documentan en este archivo.
 
+## [0.3.4-beta] - 2026-04-12
+
+### Added
+- Nuevo efecto `audio_pulse` como VU simetrico con `beat flash` y `peak hold`.
+- Metadatos de tipo de efecto (`VISUAL` vs `AUDIO`) expuestos en catalogo y estado runtime.
+- Roadmap por fases para sincronizacion maestro-esclavo y uso de LedFx como fuente audio-reactive.
+
+### Changed
+- Normalizacion de audio migrada a AGC con `noise gate` para evitar saturacion y ruido residual.
+- Reactividad al microfono ya no es global: ahora se activa automaticamente solo en efectos de audio.
+- UI embebida separa efectos en grupos `Visuales` y `Audio reactivos` con etiquetas claras.
+- Efectos `trig_ribbon`, `stellar_twinkle` y `bouncing_physics` reforzados para respuesta de audio/beat.
+
+### Fixed
+- `audioLevel` constante en 255 en escenarios de RMS alto.
+- Ambiguedad en persistencia/estado sobre cuando un efecto debe usar audio.
+
 ## [0.3.3-beta] - 2026-04-03
 
 ### Added

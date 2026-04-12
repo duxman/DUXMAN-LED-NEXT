@@ -1928,10 +1928,12 @@ String ApiService::buildHomeHtml() const {
                   <span id='effectLevelValue'>5</span>
                 </label>
 
-                <label style='display:flex; align-items:center; gap:10px;'>
-                  <input id='reactiveToAudio' type='checkbox' style='width:auto; flex-shrink:0;'>
-                  <span>Efecto reactivo al micrófono</span>
+                <label style='display:flex; align-items:center; gap:10px; opacity:0.9;'>
+                  <input id='reactiveToAudio' type='checkbox' style='width:auto; flex-shrink:0;' disabled>
+                  <span id='reactiveToAudioLabel'>Audio del micrófono: automático según el efecto</span>
                 </label>
+
+                <div id='effectModeBanner' class='badge' style='display:inline-flex; align-items:center; gap:8px;'>Tipo de efecto: cargando...</div>
 
                 <label>
                   Brillo global
@@ -2038,6 +2040,8 @@ String ApiService::buildHomeHtml() const {
     const effectLevel = document.getElementById('effectLevel');
     const effectLevelValue = document.getElementById('effectLevelValue');
     const speedControl = document.getElementById('speedControl');
+    const reactiveToAudio = document.getElementById('reactiveToAudio');
+    const reactiveToAudioLabel = document.getElementById('reactiveToAudioLabel');
     const runtimeBody = document.getElementById('runtimeBody');
     const toggleRuntime = document.getElementById('toggleRuntime');
     const effectDurationSec = document.getElementById('effectDurationSec');
@@ -2046,7 +2050,24 @@ String ApiService::buildHomeHtml() const {
     const startupEffectSummary = document.getElementById('startupEffectSummary');
     const sequenceList = document.getElementById('sequenceList');
     const effectsOut = document.getElementById('effectsOut');
+    const effectModeBanner = document.getElementById('effectModeBanner');
     let effectsState = null;
+
+    function effectUsesAudio(config) {
+      return !!(config && (config.effectUsesAudio || config.reactiveToAudio));
+    }
+
+    function effectTypeText(config) {
+      return effectUsesAudio(config) ? 'AUDIO REACTIVO' : 'VISUAL';
+    }
+
+    function effectTypeBadgeHtml(config) {
+      const isAudio = effectUsesAudio(config);
+      const bg = isAudio ? '#3f0d12' : '#0b3d20';
+      const fg = isAudio ? '#ffd9de' : '#d8ffe7';
+      const label = isAudio ? 'AUDIO' : 'VISUAL';
+      return "<span style='display:inline-block; padding:2px 8px; border-radius:999px; background:" + bg + "; color:" + fg + "; font-size:12px; font-weight:700; letter-spacing:0.04em;'>" + label + "</span>";
+    }
 
     function setRuntimeVisible(visible) {
       runtimeBody.classList.toggle('hidden', !visible);
@@ -2074,10 +2095,22 @@ String ApiService::buildHomeHtml() const {
       effectDurationSecValue.textContent = effectDurationSec.value + ' s';
     });
 
+    function selectedEffectUsesAudio() {
+      const option = effect.options[effect.selectedIndex];
+      return !!(option && option.dataset && option.dataset.audio === '1');
+    }
+
     function updateSpeedControl() {
       effectSpeed.disabled = false;
       speedControl.style.opacity = '1';
       effectSpeedHint.textContent = 'Valor 1..100. Disponible siempre; cada efecto decide si lo usa.';
+
+      const usesAudio = selectedEffectUsesAudio();
+      reactiveToAudio.checked = usesAudio;
+      reactiveToAudioLabel.textContent = usesAudio
+        ? 'Audio del micrófono: activado automáticamente para este efecto'
+        : 'Audio del micrófono: desactivado en efectos visuales';
+      effectModeBanner.textContent = 'Tipo de efecto: ' + (usesAudio ? 'AUDIO REACTIVO' : 'VISUAL');
     }
 
     effect.addEventListener('change', updateSpeedControl);
@@ -2093,13 +2126,14 @@ String ApiService::buildHomeHtml() const {
       effectSpeedValue.textContent = document.getElementById('effectSpeed').value;
       document.getElementById('effectLevel').value = state.effectLevel ?? 5;
       effectLevelValue.textContent = document.getElementById('effectLevel').value;
-      document.getElementById('reactiveToAudio').checked = !!state.reactiveToAudio;
+      reactiveToAudio.checked = !!(state.effectUsesAudio || state.reactiveToAudio);
       const colors = Array.isArray(state.primaryColors) ? state.primaryColors : ['#ff4d00','#ffd400','#00b8d9'];
       document.getElementById('color0').value = colors[0] || '#ff4d00';
       document.getElementById('color1').value = colors[1] || '#ffd400';
       document.getElementById('color2').value = colors[2] || '#00b8d9';
       document.getElementById('backgroundColor').value = state.backgroundColor || '#000000';
       updateSpeedControl();
+      effectModeBanner.textContent = 'Tipo de efecto: ' + effectTypeText(state);
       out.textContent = JSON.stringify(state, null, 2);
       status.textContent = 'Estado cargado';
     }
@@ -2131,7 +2165,7 @@ String ApiService::buildHomeHtml() const {
       effectsOut.textContent = JSON.stringify(effectsState, null, 2);
 
       if (effectsState.hasStartupEffect && effectsState.startupEffect) {
-        startupEffectSummary.textContent = 'Arranque: ' + describeConfig(effectsState.startupEffect);
+        startupEffectSummary.innerHTML = 'Arranque: ' + effectTypeBadgeHtml(effectsState.startupEffect) + ' ' + describeConfig(effectsState.startupEffect);
       } else {
         startupEffectSummary.textContent = 'Sin efecto de arranque guardado.';
       }
@@ -2146,7 +2180,7 @@ String ApiService::buildHomeHtml() const {
           return "<article class='sequence-item'>"
             + "<div class='sequence-head'>"
             + "<div class='sequence-title'>"
-            + "<strong>#" + entry.id + " · " + (config.effectLabel || config.effect || 'Efecto') + "</strong>"
+            + "<strong>#" + entry.id + " · " + effectTypeBadgeHtml(config) + " " + (config.effectLabel || config.effect || 'Efecto') + "</strong>"
             + "<span class='sequence-meta'>Duracion " + (entry.durationSec ?? 0) + " s · " + describeConfig(config) + "</span>"
             + "</div>"
             + "<button class='delete-btn' type='button' onclick='deleteSequenceEntry(" + entry.id + ")'>Eliminar</button>"
@@ -2278,7 +2312,7 @@ String ApiService::buildHomeHtml() const {
         sectionCount: Number(document.getElementById('sectionCount').value),
         effectSpeed: Number(document.getElementById('effectSpeed').value),
         effectLevel: Number(document.getElementById('effectLevel').value),
-        reactiveToAudio: document.getElementById('reactiveToAudio').checked,
+        reactiveToAudio: selectedEffectUsesAudio(),
         primaryColors: [
           document.getElementById('color0').value,
           document.getElementById('color1').value,

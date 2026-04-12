@@ -34,7 +34,7 @@ protected:
   static uint32_t gradientColor(uint32_t colorA, uint32_t colorB, uint32_t colorC,
                                 uint16_t pixelIndex, uint16_t pixelCount);
   static uint16_t resolveSectionSize(uint16_t ledCount, uint8_t sectionCount);
-  static unsigned long effectIntervalMs(uint8_t speedScale);
+  unsigned long effectIntervalMs(uint8_t speedScale) const;
   static float speed01(uint8_t speedScale);
   static float level01(uint8_t levelScale);
 
@@ -46,6 +46,8 @@ protected:
   static uint32_t lerpColor(uint32_t colorA, uint32_t colorB, float t);
   static uint32_t addColor(uint32_t colorA, uint32_t colorB);
   uint32_t scaleColorFloat(uint32_t color, float gain) const;
+  // P4: Interpola entre tres colores primarios según el nivel de audio (0→cA, 50%→cB, max→cC).
+  uint32_t audioColorShift(uint32_t cA, uint32_t cB, uint32_t cC) const;
   static uint32_t applyGamma(uint32_t color);
 
 private:

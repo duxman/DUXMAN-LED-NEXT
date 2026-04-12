@@ -335,7 +335,7 @@ EffectPersistenceService::snapshotFromState(const CoreState &state) {
   snapshot.sectionCount = stateSnapshot.sectionCount;
   snapshot.effectSpeed = stateSnapshot.effectSpeed;
   snapshot.effectLevel = stateSnapshot.effectLevel;
-  snapshot.reactiveToAudio = stateSnapshot.reactiveToAudio;
+  snapshot.reactiveToAudio = EffectRegistry::usesAudio(stateSnapshot.effectId);
   for (uint8_t i = 0; i < 3; ++i) {
     snapshot.primaryColors[i] = stateSnapshot.primaryColors[i];
   }
@@ -354,7 +354,7 @@ void EffectPersistenceService::applySnapshot(const SavedEffectConfig &config) co
   state_.sectionCount = config.sectionCount;
   state_.effectSpeed = config.effectSpeed;
   state_.effectLevel = config.effectLevel;
-  state_.reactiveToAudio = config.reactiveToAudio;
+  state_.reactiveToAudio = EffectRegistry::usesAudio(config.effectId);
   for (uint8_t i = 0; i < 3; ++i) {
     state_.primaryColors[i] = config.primaryColors[i];
   }
@@ -373,7 +373,8 @@ void EffectPersistenceService::writeConfigJson(JsonObject target,
   target["sectionCount"] = config.sectionCount;
   target["effectSpeed"] = config.effectSpeed;
   target["effectLevel"] = config.effectLevel;
-  target["reactiveToAudio"] = config.reactiveToAudio;
+  target["reactiveToAudio"] = EffectRegistry::usesAudio(config.effectId);
+  target["effectUsesAudio"] = EffectRegistry::usesAudio(config.effectId);
   JsonArray colors = target["primaryColors"].to<JsonArray>();
   for (uint8_t i = 0; i < 3; ++i) {
     colors.add(formatHexColor(config.primaryColors[i]));
@@ -397,7 +398,7 @@ bool EffectPersistenceService::readConfigJson(JsonObjectConst source,
   config.sectionCount = constrain(source["sectionCount"] | 3, 1, 10);
   config.effectSpeed = constrain(source["effectSpeed"] | 10, 1, 100);
   config.effectLevel = constrain(source["effectLevel"] | 5, 1, 10);
-  config.reactiveToAudio = source["reactiveToAudio"] | false;
+  config.reactiveToAudio = EffectRegistry::usesAudio(config.effectId);
   config.backgroundColor = parseColorValue(source["backgroundColor"], config.backgroundColor);
 
   JsonArrayConst colors = source["primaryColors"].as<JsonArrayConst>();

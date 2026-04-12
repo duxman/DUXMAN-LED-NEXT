@@ -8,6 +8,7 @@ struct EffectDescriptor {
   const char *label;
   const char *description;
   bool usesSpeed;
+  bool usesAudio;
 };
 
 namespace EffectRegistry {
@@ -27,6 +28,7 @@ constexpr uint8_t kEffectPolarIce = 12;
 constexpr uint8_t kEffectStellarTwinkle = 13;
 constexpr uint8_t kEffectRandomColorPop = 14;
 constexpr uint8_t kEffectBouncingPhysics = 15;
+constexpr uint8_t kEffectAudioPulse      = 16;
 
 const EffectDescriptor *all();
 size_t count();
@@ -35,6 +37,7 @@ const EffectDescriptor *findById(uint8_t effectId);
 const EffectDescriptor *findByKey(const String &effectKey);
 const char *keyFor(uint8_t effectId);
 const char *labelFor(uint8_t effectId);
+bool usesAudio(uint8_t effectId);
 uint8_t parseId(const String &value, uint8_t fallback);
 String toJsonArray();
 String buildHtmlOptions(uint8_t selectedEffectId);

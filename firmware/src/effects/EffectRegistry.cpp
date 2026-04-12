@@ -5,37 +5,39 @@
 namespace {
 constexpr EffectDescriptor kEffects[] = {
     {EffectRegistry::kEffectFixed, "fixed", "Color fijo",
-    "Alterna los 3 colores por secciones fijas.", false},
+  "Alterna los 3 colores por secciones fijas.", false, false},
     {EffectRegistry::kEffectGradient, "gradient", "Degradado fijo",
-    "Genera un degradado estatico con los 3 colores dentro de cada seccion.", false},
+  "Genera un degradado estatico con los 3 colores dentro de cada seccion.", false, false},
    {EffectRegistry::kEffectBlinkFixed, "blink_fixed", "Parpadeo fijo",
-    "Parpadea el patron fijo por secciones usando la velocidad configurada.", true},
+  "Parpadea el patron fijo por secciones usando la velocidad configurada.", true, false},
    {EffectRegistry::kEffectBlinkGradient, "blink_gradient", "Parpadeo degradado",
-    "Parpadea el degradado por secciones usando la velocidad configurada.", true},
+  "Parpadea el degradado por secciones usando la velocidad configurada.", true, false},
    {EffectRegistry::kEffectDiagnostic, "diagnostic", "Diagnostico",
-    "Activa solo la primera salida en rojo para aislar la linea principal.", false},
+  "Activa solo la primera salida en rojo para aislar la linea principal.", false, false},
    {EffectRegistry::kEffectBreathFixed, "breath_fixed", "Respiracion fija",
-    "Las secciones de color fijo respiran con una envolvente senoidal.", true},
+  "Las secciones de color fijo respiran con una envolvente senoidal.", true, false},
    {EffectRegistry::kEffectBreathGradient, "breath_gradient", "Respiracion degradado",
-    "El degradado completo respira con una envolvente senoidal.", true},
+  "El degradado completo respira con una envolvente senoidal.", true, false},
      {EffectRegistry::kEffectTripleChase, "triple_chase", "Triple chase",
-    "Tren de color en movimiento con huecos y repeticiones por secciones.", true},
+  "Tren de color en movimiento con huecos y repeticiones por secciones.", true, false},
      {EffectRegistry::kEffectGradientMeteor, "gradient_meteor", "Meteorito degradado",
-    "Cabeza y cola en movimiento con color degradado a lo largo de la tira.", true},
+  "Cabeza y cola en movimiento con color degradado a lo largo de la tira.", true, false},
     {EffectRegistry::kEffectScanningPulse, "scanning_pulse", "Pulso barrido",
-    "Pulso que recorre la tira de extremo a extremo con rebote.", true},
-    {EffectRegistry::kEffectTrigRibbon, "trig_ribbon", "Cinta trigonometrica",
-    "Patron ondulante con mezcla de sinusoides y gradiente dinamico.", true},
+  "Pulso que recorre la tira de extremo a extremo con rebote.", true, false},
+  {EffectRegistry::kEffectTrigRibbon, "trig_ribbon", "AUDIO · Cinta trigonometrica",
+  "Patron ondulante con mezcla de sinusoides y gradiente dinamico guiado por el micro.", true, true},
     {EffectRegistry::kEffectLavaFlow, "lava_flow", "Lava flow",
-    "Flujo organico con deformacion de ondas y mezcla calida.", true},
+  "Flujo organico con deformacion de ondas y mezcla calida.", true, false},
     {EffectRegistry::kEffectPolarIce, "polar_ice", "Polar ice",
-    "Interferencia fria con ondas lentas y contraste polar.", true},
-    {EffectRegistry::kEffectStellarTwinkle, "stellar_twinkle", "Stellar twinkle",
-    "Destellos estelares pseudoaleatorios sobre fondo base.", true},
+  "Interferencia fria con ondas lentas y contraste polar.", true, false},
+  {EffectRegistry::kEffectStellarTwinkle, "stellar_twinkle", "AUDIO · Stellar twinkle",
+  "Destellos estelares pseudoaleatorios reforzados por beats y nivel del micro.", true, true},
     {EffectRegistry::kEffectRandomColorPop, "random_color_pop", "Random color pop",
-    "Apariciones de color aleatorias con envolvente de atenuacion.", true},
-    {EffectRegistry::kEffectBouncingPhysics, "bouncing_physics", "Bouncing physics",
-    "Bolas luminosas que rebotan con energia variable.", true},
+  "Apariciones de color aleatorias con envolvente de atenuacion.", true, false},
+  {EffectRegistry::kEffectBouncingPhysics, "bouncing_physics", "AUDIO · Bouncing physics",
+  "Bolas luminosas que rebotan con energia variable y responden al micro.", true, true},
+  {EffectRegistry::kEffectAudioPulse, "audio_pulse", "AUDIO · Audio Pulse",
+  "VU metro simetrico reactivo: beat flash, peak hold y color dinamico al audio.", false, true},
 };
 }
 
@@ -124,6 +126,11 @@ const char *labelFor(uint8_t effectId) {
   return effect != nullptr ? effect->label : defaultEffect().label;
 }
 
+bool usesAudio(uint8_t effectId) {
+  const EffectDescriptor *effect = findById(effectId);
+  return effect != nullptr ? effect->usesAudio : false;
+}
+
 uint8_t parseId(const String &value, uint8_t fallback) {
   if (value.isEmpty()) {
     return fallback;
@@ -156,6 +163,7 @@ String toJsonArray() {
     item["label"] = kEffects[i].label;
     item["description"] = kEffects[i].description;
     item["usesSpeed"] = kEffects[i].usesSpeed;
+    item["usesAudio"] = kEffects[i].usesAudio;
   }
 
   String json;
@@ -164,17 +172,38 @@ String toJsonArray() {
 }
 
 String buildHtmlOptions(uint8_t selectedEffectId) {
-  String html;
+  String visualHtml;
+  String audioHtml;
   for (size_t i = 0; i < count(); ++i) {
-    html += "<option value='";
-    html += kEffects[i].key;
-    html += "'";
+    String option = "<option value='";
+    option += kEffects[i].key;
+    option += "' data-audio='";
+    option += kEffects[i].usesAudio ? "1" : "0";
+    option += "'";
     if (kEffects[i].id == selectedEffectId) {
-      html += " selected";
+      option += " selected";
     }
-    html += ">";
-    html += kEffects[i].label;
-    html += "</option>";
+    option += ">";
+    option += kEffects[i].label;
+    option += "</option>";
+
+    if (kEffects[i].usesAudio) {
+      audioHtml += option;
+    } else {
+      visualHtml += option;
+    }
+  }
+
+  String html;
+  if (!visualHtml.isEmpty()) {
+    html += "<optgroup label='Visuales'>";
+    html += visualHtml;
+    html += "</optgroup>";
+  }
+  if (!audioHtml.isEmpty()) {
+    html += "<optgroup label='Audio reactivos'>";
+    html += audioHtml;
+    html += "</optgroup>";
   }
   return html;
 }

@@ -22,6 +22,8 @@ Fases incrementales según `evolucion led-next.md`.
 
 ## Fases propuestas
 
+> Plan ajustado para ejecutar por etapas cortas, con foco en sincronizacion maestro-esclavo y uso de LedFx como fuente audio-reactive.
+
 ### Fase 1. Driver LED real
 
 - Integrar backend real de LEDs.
@@ -64,6 +66,29 @@ Fases incrementales según `evolucion led-next.md`.
 - Exponer el resultado del análisis como entradas del motor de efectos (`speed`, `brightness`, `density`, `sparkle`, etc.).
 - Mantener el pipeline preparado para escenarios musicales sin comprometer la estabilidad del render.
 
+### Fase 5A. Audio reactivo base (estado actual)
+
+- [x] Captura I2S estable en modo `MASTER_RX`.
+- [x] Nivel de audio normalizado + suavizado `attack/decay`.
+- [x] `beatDetected` y `audioPeakHold` en estado runtime.
+- [x] Efectos marcados por tipo (`VISUAL` vs `AUDIO`) y reactividad automatica por efecto.
+- [x] Efectos audio destacados: `audio_pulse`, `trig_ribbon`, `stellar_twinkle`, `bouncing_physics`.
+
+### Fase 5B. LedFx como fuente audio-reactive (prioridad alta)
+
+- [ ] Definir modo operativo `ledfx-realtime` en firmware (sin mezcla de render local).
+- [ ] Seleccionar protocolo principal para LedFx: `DDP` (preferente) y fallback `E1.31`.
+- [ ] Implementar receptor robusto de tramas realtime (timeout, watchdog, salida segura).
+- [ ] Añadir conmutacion limpia: `modo local` <-> `modo LedFx` sin reinicio.
+- [ ] Exponer diagnostico realtime en `/api/v1/diag` (`rxFps`, `droppedPackets`, `lastPacketMs`, `sourceIp`).
+- [ ] Validar en red real 15/30/60 FPS con 1, 2 y 4 nodos.
+
+### Fase 5C. Audio avanzado local (opcional, despues de LedFx)
+
+- [ ] Integrar FFT por bandas (`bass`, `mid`, `treble`).
+- [ ] Publicar bandas en estado interno para efectos generativos locales.
+- [ ] Perfilado de CPU/RAM para asegurar estabilidad con WiFi activo.
+
 ### Fase 6. UI y arquitectura de control
 
 - Corto plazo: mantener la UI embebida actual solo como herramienta de configuración y diagnóstico.
@@ -73,16 +98,37 @@ Fases incrementales según `evolucion led-next.md`.
 	- Camino B: Raspberry Pi como hub central y ESP32 como nodo ejecutor.
 - Si se adopta hub/nodo, definir protocolo hub↔nodo, responsabilidades, formato de comandos y estrategia de descubrimiento.
 
+### Fase 6A. Sincronizacion maestro-esclavo de configuracion
+
+- [ ] Definir `SyncState v1` (power, brightness, effectId, effectSpeed, effectLevel, colors, background, flags).
+- [ ] Añadir `sourceId`, `groupId`, `seq`, `timestampMs` para orden y deduplicacion.
+- [ ] Implementar envio en maestro ante cambios directos (`UI/API`) + snapshot periodico.
+- [ ] Implementar recepcion en esclavo con validacion de version y `seq` monotono.
+- [ ] Mascaras de sincronizacion por campo (solo brillo, solo color, solo efecto, todo).
+- [ ] UI de red: rol (`standalone/master/slave`) y pertenencia a grupo.
+
+### Fase 6B. Sincronizacion de tiempo y fase de efectos
+
+- [ ] Sincronizar reloj base entre nodos (NTP local + correccion drift).
+- [ ] Compartir `seed` y `frameClock` para alinear efectos procedurales.
+- [ ] Propagar metadatos de audio desde maestro (`audioLevel`, `beatDetected`, `peakHold`).
+- [ ] Verificar desfase visual objetivo < 30 ms entre nodos en misma LAN.
+
+### Fase 6C. Hub externo (Raspberry Pi / PC)
+
+- [ ] Crear servicio hub que descubra nodos y gestione grupos.
+- [ ] En modo `ledfx-realtime`, el hub enruta/controla origen de tramas para todos los esclavos.
+- [ ] Endpoint de orquestacion de escenas (activar modo local o modo LedFx por grupo).
+
 ### Fase 7. OTA y despliegue
 
 - Recuperar una estrategia OTA compatible con el crecimiento del firmware.
 - Evaluar opciones: nueva tabla de particiones, OTA desde LittleFS, OTA HTTP con rollback controlado o delegación del despliegue desde hub.
 
-## TODO
+## Backlog transversal
 
-- [ ] Pensar solución OTA — actualmente se usa partición `huge_app` (sin OTA dual). Evaluar alternativas: OTA con partición reducida, OTA desde LittleFS, o HTTP OTA con rollback manual.
-- [ ] Arquitectura hub/nodo — Delegar UI, API y navegación a una Raspberry Pi (hub). ESP32 como nodo ejecutor puro (recibe config, controla LEDs). Definir protocolo de comunicación hub↔nodo y alcance de cada componente.
-- [ ] Completar `LedDriver` real sobre la base ya preparada: selección por compilación entre `NeoPixelBus`, `FastLED` y `digital`, con soporte multi-salida y color order.
-- [ ] Definir esquema JSON de efectos/presets independiente del número de LEDs y segmentos.
-- [ ] Afinar catalogo de efectos dinámicos ya implementado (curvas, presets, perfiles por hardware LED).
-- [ ] Diseñar pipeline de audio reactivo con I2S + FFT.
+- [ ] OTA: definir estrategia final compatible con crecimiento de firmware (manteniendo rollback seguro).
+- [ ] Hub/nodo: cerrar decision de despliegue (ESP32 standalone vs hub central obligatorio).
+- [ ] Validacion de protocolos en campo: `DDP` (prioritario), `E1.31` (compatibilidad), `UDP sync` (configuracion).
+- [ ] Suite de pruebas de red: perdida de paquetes, reconexion AP, latencia y jitter por grupo.
+- [ ] Documentar guia de operacion: maestro-esclavo, modo LedFx, troubleshooting y limites recomendados.

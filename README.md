@@ -1,6 +1,6 @@
 # DUXMAN-LED-NEXT
 
-Controlador LED modular para ESP32, inspirado en WLED. Firmware beta v0.3.3-beta (FreeRTOS + Watchdog + catalogo de efectos dinamicos).
+Controlador LED modular para ESP32, inspirado en WLED. Firmware beta v0.3.4-beta (FreeRTOS + Watchdog + catalogo de efectos dinamicos).
 
 ## Características implementadas
 
@@ -255,7 +255,7 @@ Ejemplo de payload:
 }
 ```
 
-## Uso de Flash (v0.3.3-beta)
+## Uso de Flash (v0.3.4-beta)
 
 | Recurso | Uso | Disponible |
 |---|---|---|
@@ -263,7 +263,7 @@ Ejemplo de payload:
 | Flash (app) | 31.3% | 3072 KB |
 | LittleFS | Configs | 960 KB |
 
-## Catalogo de efectos dinamicos (v0.3.3-beta)
+## Catalogo de efectos dinamicos (v0.3.4-beta)
 
 Disponibles actualmente en runtime:
 

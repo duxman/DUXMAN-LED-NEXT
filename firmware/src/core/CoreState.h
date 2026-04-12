@@ -23,6 +23,7 @@ struct CoreState {
   static constexpr uint8_t kEffectStellarTwinkle = EffectRegistry::kEffectStellarTwinkle;
   static constexpr uint8_t kEffectRandomColorPop = EffectRegistry::kEffectRandomColorPop;
   static constexpr uint8_t kEffectBouncingPhysics = EffectRegistry::kEffectBouncingPhysics;
+  static constexpr uint8_t kEffectAudioPulse       = EffectRegistry::kEffectAudioPulse;
 
   bool power = true;
   uint8_t brightness = 128;
@@ -34,6 +35,8 @@ struct CoreState {
   uint32_t backgroundColor = 0x000000;
   bool reactiveToAudio = false;
   uint8_t audioLevel = 0;
+  bool beatDetected = false;      // Pulso: true durante ~50ms al detectar un beat de audio.
+  uint8_t audioPeakHold = 0;     // Nivel pico con decaimiento lento (P6).
 
   static CoreState defaults();
   static void setMutex(SemaphoreHandle_t mutex);

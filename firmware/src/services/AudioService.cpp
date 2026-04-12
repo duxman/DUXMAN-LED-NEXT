@@ -79,6 +79,8 @@ void AudioService::handle(unsigned long nowMs) {
     Serial.print(networkConfig_.microphone.gainPercent);
     Serial.print(" noiseFloor=");
     Serial.print(networkConfig_.microphone.noiseFloorPercent);
+    Serial.print(" baseline=");
+    Serial.print(static_cast<int>(ambientBaseline_));
     Serial.print(" pins=");
     Serial.print(networkConfig_.microphone.pins.bclk);
     Serial.print('/');
@@ -97,7 +99,7 @@ void AudioService::handle(unsigned long nowMs) {
   }
 
   lastProcessMs_ = nowMs;
-  processAudioBuffer();
+  processAudioBuffer(nowMs);
 }
 
 bool AudioService::initializeI2S() {
@@ -160,12 +162,15 @@ void AudioService::shutdownI2S() {
   }
 }
 
-void AudioService::processAudioBuffer() {
+void AudioService::processAudioBuffer(unsigned long nowMs) {
   if (!isActive_) {
     return;
   }
 
-  // Leer datos I2S
+  // P2: Limpiar flag de beat del ciclo anterior para que sea un pulso limpio.
+  coreState_.beatDetected = false;
+
+  // Leer datos I2S.
   size_t bytesRead = 0;
   esp_err_t err =
       i2s_read(i2sPort_, (void *)audioBuffer_, kAudioBufferSize * sizeof(int16_t), &bytesRead, 10);
@@ -173,47 +178,106 @@ void AudioService::processAudioBuffer() {
   lastReadErr_ = static_cast<int>(err);
 
   if (err != ESP_OK || bytesRead == 0) {
-    // Error o sin datos disponibles, mantener nivel anterior
+    // Sin datos: dejar caer el nivel suavizado para que los efectos reflejen el silencio.
+    smoothedLevel_ += (0.0f - smoothedLevel_) * kDecayFactor;
+    audioLevel_ = static_cast<uint8_t>(smoothedLevel_);
     return;
   }
 
-  // Convertir bytes leídos a número de muestras
   size_t samplesRead = bytesRead / sizeof(int16_t);
   if (samplesRead == 0) {
     return;
   }
 
-  // Calcular RMS y nivel pico
+  // Calcular RMS, aplicar ganancia y filtro de ruido estático configurable.
   uint32_t rms = calculateRMS(audioBuffer_, samplesRead);
-
-  // Normalizar RMS a 0-255
-  // RMS de int16 puede ser hasta ~32768 en pico teórico, pero usualmente 0-8000 en audio normal
-  // Aplicar gain configurado
-  float gainMultiplier = networkConfig_.microphone.gainPercent / 100.0f;
+  const float gainMultiplier = networkConfig_.microphone.gainPercent / 100.0f;
   uint32_t scaledRms = static_cast<uint32_t>(rms * gainMultiplier);
 
-  // Aplicar noise floor configurable antes del mapeo final.
-  const uint32_t noiseFloor = static_cast<uint32_t>(networkConfig_.microphone.noiseFloorPercent) * 20U;
+  const uint32_t noiseFloor =
+      static_cast<uint32_t>(networkConfig_.microphone.noiseFloorPercent) * 20U;
   if (scaledRms <= noiseFloor) {
     scaledRms = 0;
   } else {
     scaledRms -= noiseFloor;
   }
-
-  // Mapeo más sensible para micros MEMS típicos:
-  // valores bajos ya generan respuesta visible sin necesidad de gritar.
-  audioLevel_ = constrain(static_cast<uint8_t>(scaledRms / 3), 0, 255);
-
-  // Guardar pico máximo en esta ventana
   peakLevel_ = scaledRms;
 
-  // Publicar nivel para efectos reactivos. Si no se puede tomar el mutex,
-  // hacemos escritura directa para evitar que audioLevel quede congelado.
+  // Normalización con raíz cuadrada: escalado perceptual mejor que lineal.
+  // kSqrtMaxRms = sqrt(23169) ≈ 152 (RMS máximo teórico de señal int16_t a plena escala).
+  const float sqrtRaw = sqrtf(static_cast<float>(scaledRms));
+  const float rawF    = (sqrtRaw / kSqrtMaxRms) * 255.0f;
+  const float rawFClamped = rawF < 0.0f ? 0.0f : (rawF > 255.0f ? 255.0f : rawF);
+
+  // AGC: seguimiento asimétrico del nivel ambiente.
+  // Sube lento para evitar que transientes eleven la baseline permanentemente.
+  // Baja MUY lento para que la baseline nunca siga una caída de señal real.
+  // Primeros 8 s: convergencia rápida para calibrar el entorno en el arranque.
+  const float agcDiff  = rawFClamped - ambientBaseline_;
+  const bool  isWarmup = (nowMs < 8000UL);
+  float agcFactor;
+  if (agcDiff > 0.0f) {
+    // Baseline sube: rápido en warmup, lento en estado estacionario.
+    agcFactor = isWarmup ? kAgcBaselineFactor * 12.0f : kAgcBaselineFactor;
+  } else {
+    // Baseline baja: siempre muy lento para no exponer ruido como señal.
+    agcFactor = kAgcBaselineFactor * 0.15f;
+  }
+  ambientBaseline_ += agcDiff * agcFactor;
+  if (ambientBaseline_ < 0.0f)   ambientBaseline_ = 0.0f;
+  if (ambientBaseline_ > 250.0f) ambientBaseline_ = 250.0f;
+
+  // Señal activa = lo que supera el baseline, re-escalada al headroom disponible.
+  const float headroom      = 255.0f - ambientBaseline_;
+  const float aboveBaseline = rawFClamped - ambientBaseline_;
+  float agcSignal = 0.0f;
+  if (headroom > kAgcMinHeadroom && aboveBaseline > 0.0f) {
+    agcSignal = (aboveBaseline / headroom) * 255.0f;
+    if (agcSignal > 255.0f) agcSignal = 255.0f;
+  }
+
+  // Noise gate suave: elimina la fluctuación del ruido ambiente residual post-AGC.
+  // Señal < kNoiseGateKnee → 0; por encima → rampa lineal hasta 255.
+  if (agcSignal <= kNoiseGateKnee) {
+    agcSignal = 0.0f;
+  } else {
+    agcSignal = (agcSignal - kNoiseGateKnee) * (255.0f / (255.0f - kNoiseGateKnee));
+    if (agcSignal > 255.0f) agcSignal = 255.0f;
+  }
+
+  // P2: Detección de beat — spike instantáneo ≥160% sobre el nivel suavizado actual.
+  if (agcSignal >= smoothedLevel_ * kBeatSpikeRatio &&
+      agcSignal >= static_cast<float>(kBeatMinThreshold) &&
+      nowMs >= beatCooldownMs_) {
+    coreState_.beatDetected = true;
+    beatCooldownMs_ = nowMs + kBeatCooldownMs;
+  }
+
+  // P1: Envolvente attack/decay — ataque rápido, caída lenta.
+  if (agcSignal > smoothedLevel_) {
+    smoothedLevel_ += (agcSignal - smoothedLevel_) * kAttackFactor;
+  } else {
+    smoothedLevel_ += (agcSignal - smoothedLevel_) * kDecayFactor;
+  }
+  audioLevel_ = static_cast<uint8_t>(constrain(static_cast<int>(smoothedLevel_), 0, 255));
+
+  // P6: Peak hold con decaimiento temporal.
+  if (audioLevel_ >= peakHold_) {
+    peakHold_        = audioLevel_;
+    peakHoldDecayMs_ = nowMs + kPeakHoldDurationMs;
+  } else if (nowMs >= peakHoldDecayMs_ && peakHold_ > 0) {
+    peakHold_        = (peakHold_ > kPeakDecayStep) ? (peakHold_ - kPeakDecayStep) : 0;
+    peakHoldDecayMs_ = nowMs + kPeakDecayStepMs;
+  }
+
+  // Publicar métricas al CoreState compartido.
   if (coreState_.lock(pdMS_TO_TICKS(1))) {
-    coreState_.audioLevel = audioLevel_;
+    coreState_.audioLevel    = audioLevel_;
+    coreState_.audioPeakHold = peakHold_;
     coreState_.unlock();
   } else {
-    coreState_.audioLevel = audioLevel_;
+    coreState_.audioLevel    = audioLevel_;
+    coreState_.audioPeakHold = peakHold_;
   }
 }
 

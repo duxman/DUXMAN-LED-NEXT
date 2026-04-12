@@ -18,6 +18,7 @@
 #include "effects/EffectRandomColorPop.h"
 #include "effects/EffectStellarTwinkle.h"
 #include "effects/EffectTripleChase.h"
+#include "effects/EffectAudioPulse.h"
 #include "effects/EffectTrigRibbon.h"
 
 class EffectManager {
@@ -28,7 +29,7 @@ public:
   void renderFrame();
 
 private:
-  static constexpr size_t kEffectCount = 16;
+  static constexpr size_t kEffectCount = 17;
   EffectEngine &resolveActiveEffect();
   EffectEngine *effects_[kEffectCount] = {};
   uint8_t lastEffectId_ = 255;  // 255 = ninguno activo aún
@@ -51,4 +52,5 @@ private:
   EffectStellarTwinkle stellarTwinkleEffect_;
   EffectRandomColorPop randomColorPopEffect_;
   EffectBouncingPhysics bouncingPhysicsEffect_;
+  EffectAudioPulse      audioPulseEffect_;
 };

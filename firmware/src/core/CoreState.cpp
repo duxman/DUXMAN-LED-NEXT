@@ -134,11 +134,14 @@ String CoreState::toJson() const {
   doc["effectId"] = effectId;
   doc["effect"] = effectName(effectId);
   doc["effectLabel"] = effectLabel(effectId);
+  doc["effectUsesAudio"] = EffectRegistry::usesAudio(effectId);
   doc["sectionCount"] = sectionCount;
   doc["effectSpeed"] = effectSpeed;
   doc["effectLevel"] = effectLevel;
   doc["reactiveToAudio"] = reactiveToAudio;
   doc["audioLevel"] = audioLevel;
+  doc["beatDetected"] = beatDetected;
+  doc["audioPeakHold"] = audioPeakHold;
   doc["availableEffects"] = serialized(EffectRegistry::toJsonArray());
 
   JsonArray colors = doc["primaryColors"].to<JsonArray>();
@@ -184,6 +187,10 @@ bool CoreState::applyPatchJson(const String &payload) {
     next.effectId = parseEffectId(root["effect"], next.effectId);
   }
 
+  // La reactividad al audio ya no es un toggle global del motor base.
+  // Se deriva automáticamente del tipo de efecto seleccionado.
+  next.reactiveToAudio = EffectRegistry::usesAudio(next.effectId);
+
   if (!root["sectionCount"].isNull()) {
     next.sectionCount = static_cast<uint8_t>(constrain(root["sectionCount"].as<int>(), 1, 10));
   }
@@ -194,10 +201,6 @@ bool CoreState::applyPatchJson(const String &payload) {
 
   if (!root["effectLevel"].isNull()) {
     next.effectLevel = static_cast<uint8_t>(constrain(root["effectLevel"].as<int>(), 1, 10));
-  }
-
-  if (!root["reactiveToAudio"].isNull()) {
-    next.reactiveToAudio = root["reactiveToAudio"].as<bool>();
   }
 
   if (root["primaryColors"].is<JsonArrayConst>()) {
