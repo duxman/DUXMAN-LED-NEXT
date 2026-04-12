@@ -4,6 +4,7 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/semphr.h>
 
+#include "core/PaletteRegistry.h"
 #include "effects/EffectRegistry.h"
 
 struct CoreState {
@@ -31,6 +32,7 @@ struct CoreState {
   uint8_t sectionCount = 3;
   uint8_t effectSpeed = 10;
   uint8_t effectLevel = 5;
+  int16_t paletteId = 0; // -1 = manual, >=0 = palette predefinida
   uint32_t primaryColors[3] = {0xFF4D00, 0xFFD400, 0x00B8D9};
   uint32_t backgroundColor = 0x000000;
   bool reactiveToAudio = false;

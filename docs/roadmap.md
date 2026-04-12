@@ -50,6 +50,25 @@ Fases incrementales según `evolucion led-next.md`.
 - Permitir almacenar presets en LittleFS y cargarlos en caliente sin reinicio.
 - Preparar el modelo para trabajar con múltiples salidas/segmentos sin depender del número físico de LEDs.
 
+### Fase 3A. Paletas predefinidas de 3 colores principales
+
+- [x] Definir catálogo inicial de paletas curadas (min. 12) con trío `primaryColors[3]` y nombre legible.
+- [x] Clasificar paletas por estilo para uso rápido: `warm`, `cold`, `neon`, `pastel`, `high-contrast`, `party`.
+- [x] Añadir reglas de calidad visual para aceptar paletas:
+	- [x] contraste suficiente entre colores adyacentes,
+	- [x] buena lectura con brillo bajo/medio/alto,
+	- [x] comportamiento correcto en efectos visuales y audio.
+- [x] Implementar `paletteId` opcional en estado/config manteniendo compatibilidad con colores manuales.
+- [x] Exponer endpoints para listado/aplicación de paletas (`GET /api/v1/palettes`, `POST /api/v1/palettes/apply`).
+- [x] UI embebida: selector de paleta + vista previa rápida + botón “aplicar y guardar”.
+- [x] Persistencia: guardar paleta activa en startup effect y secuencias sin romper configuraciones existentes.
+- [x] Validación en hardware real con al menos 3 tiras distintas (WS2812B/WS2815/SK6812) y 3 niveles de brillo.
+- [x] Documentar paletas recomendadas por escenario:
+	- [x] salón/ambiente,
+	- [x] fiesta/show,
+	- [x] audio reactivo (LedFx/local).
+- [x] Evidencia y guía consolidada en `docs/palettes.md`.
+
 ### Fase 4. Concurrencia y FreeRTOS
 
 - Separar tareas por responsabilidad cuando el firmware lo necesite:

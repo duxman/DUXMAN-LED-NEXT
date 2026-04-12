@@ -1,6 +1,6 @@
 # DUXMAN-LED-NEXT
 
-Controlador LED modular para ESP32, inspirado en WLED. Firmware beta v0.3.4-beta (FreeRTOS + Watchdog + catalogo de efectos dinamicos).
+Controlador LED modular para ESP32, inspirado en WLED. Firmware beta v0.3.5-beta (FreeRTOS + Watchdog + catalogo de efectos dinamicos + paletas predefinidas).
 
 ## Características implementadas
 
@@ -175,7 +175,7 @@ El repositorio incluye un workflow en `.github/workflows/firmware-build.yml` par
 - Se ejecuta en `push` a `main` o `master`, en `pull_request` y manualmente con `workflow_dispatch`.
 - Compila estos entornos: `esp32c3supermini`, `esp32c3supermini_fastled`, `esp32c3supermini_digital`, `esp32dev` y `esp32s3`.
 - Sube un artefacto por entorno con `firmware.bin`, `bootloader.bin`, `partitions.bin`, `firmware.elf`, `firmware.map`, `flash_args`, checksums SHA-256 y un `BUILD_INFO.txt`.
-- Si haces push de un tag `v*` como `v0.3.4`, el workflow crea además una GitHub Release y adjunta un `.zip` por entorno con esos archivos.
+- Si haces push de un tag `v*` como `v0.3.5`, el workflow crea además una GitHub Release y adjunta un `.zip` por entorno con esos archivos.
 - El nombre, la descripción y si la release es `prerelease` salen de `firmware/config/release-info.json`.
 
 Para descargar una build:
@@ -186,8 +186,8 @@ Para descargar una build:
 
 Para publicar una release:
 
-1. Crear el tag local, por ejemplo `git tag v0.3.4`.
-2. Subirlo al remoto con `git push origin v0.3.4`.
+1. Crear el tag local, por ejemplo `git tag v0.3.5`.
+2. Subirlo al remoto con `git push origin v0.3.5`.
 3. Esperar a que termine el workflow `Firmware Builds`.
 4. Revisar la release generada en la pestaña `Releases`.
 
@@ -278,15 +278,15 @@ Ejemplo de payload:
 }
 ```
 
-## Uso de Flash (v0.3.4-beta)
+## Uso de Flash (v0.3.5-beta)
 
 | Recurso | Uso | Disponible |
 |---|---|---|
-| RAM | 14.6% | 320 KB |
-| Flash (app) | 31.3% | 3072 KB |
+| RAM | 16.1% | 320 KB |
+| Flash (app) | 38.2% | 3072 KB |
 | LittleFS | Configs | 960 KB |
 
-## Catalogo de efectos dinamicos (v0.3.4-beta)
+## Catalogo de efectos dinamicos (v0.3.5-beta)
 
 Disponibles actualmente en runtime:
 

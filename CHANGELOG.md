@@ -2,6 +2,22 @@
 
 Todos los cambios relevantes de este proyecto se documentan en este archivo.
 
+## [0.3.5-beta] - 2026-04-12
+
+### Added
+- Sistema de paletas predefinidas de 3 colores con catálogo curado de 12 combinaciones.
+- Endpoints `GET /api/v1/palettes` y `POST /api/v1/palettes/apply` para listado y aplicación de paletas.
+- Documento `docs/palettes.md` con recomendaciones por escenario y evidencia de validación.
+
+### Changed
+- `CoreState` y la persistencia de efectos incorporan `paletteId` y metadatos de paleta manteniendo compatibilidad con colores manuales.
+- UI embebida añade selector de paleta, vista previa rápida y flujo de `aplicar` / `aplicar y guardar`.
+- Documentación técnica sincronizada (`README`, API, arquitectura y roadmap) para reflejar el cierre completo de la Fase 3A.
+
+### Fixed
+- Ambigüedad entre modo paleta y modo manual al enviar `primaryColors` por API.
+- Falta de trazabilidad documental sobre validación real en `ws2812b`, `ws2815` y `sk6812` con múltiples niveles de brillo.
+
 ## [0.3.4-beta] - 2026-04-12
 
 ### Added

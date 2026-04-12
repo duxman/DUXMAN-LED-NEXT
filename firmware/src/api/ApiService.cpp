@@ -1,5 +1,6 @@
 #include "api/ApiService.h"
 #include "core/BuildProfile.h"
+#include "core/PaletteRegistry.h"
 
 #include "effects/EffectRegistry.h"
 
@@ -60,6 +61,7 @@ void ApiService::begin() {
   Serial.println("[api] ready: GET /api/v1/config/debug | PATCH /api/v1/config/debug {json}");
   Serial.println("[api] ready: GET /api/v1/config/all | POST /api/v1/config/all {json}");
   Serial.println("[api] ready: GET /api/v1/effects | POST /api/v1/effects/startup/save | POST /api/v1/effects/sequence/add|delete");
+  Serial.println("[api] ready: GET /api/v1/palettes | POST /api/v1/palettes/apply {json}");
   Serial.println("[api] ready: POST /api/v1/system/restart");
   Serial.println("[api] ready: GET /api/v1/hardware");
   Serial.println("[api] ready: GET /api/v1/release");
@@ -139,6 +141,56 @@ void ApiService::processCommand(const String &command) {
 
   if (command == "GET /api/v1/effects") {
     Serial.println(effectPersistenceService_.toJson());
+    return;
+  }
+
+  if (command == "GET /api/v1/palettes") {
+    String response = "{\"palettes\":";
+    response += PaletteRegistry::toJsonArray();
+    response += "}";
+    Serial.println(response);
+    return;
+  }
+
+  if (command.startsWith("POST /api/v1/palettes/apply ") ||
+      command.startsWith("PATCH /api/v1/palettes/apply ")) {
+    const int payloadPos = command.indexOf('{');
+    if (payloadPos < 0) {
+      Serial.println("{\"error\":\"invalid_payload\"}");
+      return;
+    }
+
+    const String payload = command.substring(payloadPos);
+    JsonDocument input;
+    if (deserializeJson(input, payload)) {
+      Serial.println("{\"error\":\"invalid_json\"}");
+      return;
+    }
+
+    JsonDocument patch;
+    JsonObject root = patch.to<JsonObject>();
+    if (!input["paletteId"].isNull()) {
+      root["paletteId"] = input["paletteId"];
+    } else if (!input["palette"].isNull()) {
+      root["palette"] = input["palette"];
+    } else {
+      Serial.println("{\"error\":\"missing_palette\"}");
+      return;
+    }
+
+    String patchPayload;
+    serializeJson(patch, patchPayload);
+    const bool changed = state_.applyPatchJson(patchPayload);
+    if (changed) {
+      persistenceSchedulerService_.requestSaveState();
+    }
+
+    String response = "{\"updated\":";
+    response += changed ? "true" : "false";
+    response += ",\"state\":";
+    response += state_.toJson();
+    response += "}";
+    Serial.println(response);
     return;
   }
 
@@ -603,6 +655,14 @@ void ApiService::setupHttpRoutes() {
     handleHttpEffectsSequenceDeleteRoute();
   });
 
+  httpServer_.on("/api/v1/palettes", HTTP_ANY, [this]() {
+    handleHttpPalettesRoute();
+  });
+
+  httpServer_.on("/api/v1/palettes/apply", HTTP_ANY, [this]() {
+    handleHttpPalettesApplyRoute();
+  });
+
   httpServer_.on("/api/v1/system/restart", HTTP_ANY, [this]() {
     handleHttpRestartRoute();
   });
@@ -1058,6 +1118,63 @@ void ApiService::handleHttpEffectsSequenceDeleteRoute() {
   httpServer_.send(200, "application/json", response);
 }
 
+void ApiService::handleHttpPalettesRoute() {
+  if (httpServer_.method() == HTTP_GET) {
+    String response = "{\"palettes\":";
+    response += PaletteRegistry::toJsonArray();
+    response += "}";
+    httpServer_.send(200, "application/json", response);
+    return;
+  }
+
+  httpServer_.send(405, "application/json", "{\"error\":\"method_not_allowed\"}");
+}
+
+void ApiService::handleHttpPalettesApplyRoute() {
+  const HTTPMethod method = httpServer_.method();
+  if (method != HTTP_POST && method != HTTP_PATCH) {
+    httpServer_.send(405, "application/json", "{\"error\":\"method_not_allowed\"}");
+    return;
+  }
+
+  const String payload = httpServer_.arg("plain");
+  if (payload.isEmpty()) {
+    httpServer_.send(400, "application/json", "{\"error\":\"invalid_payload\"}");
+    return;
+  }
+
+  JsonDocument input;
+  if (deserializeJson(input, payload)) {
+    httpServer_.send(400, "application/json", "{\"error\":\"invalid_json\"}");
+    return;
+  }
+
+  JsonDocument patch;
+  JsonObject root = patch.to<JsonObject>();
+  if (!input["paletteId"].isNull()) {
+    root["paletteId"] = input["paletteId"];
+  } else if (!input["palette"].isNull()) {
+    root["palette"] = input["palette"];
+  } else {
+    httpServer_.send(400, "application/json", "{\"error\":\"missing_palette\"}");
+    return;
+  }
+
+  String patchPayload;
+  serializeJson(patch, patchPayload);
+  const bool changed = state_.applyPatchJson(patchPayload);
+  if (changed) {
+    persistenceSchedulerService_.requestSaveState();
+  }
+
+  String response = "{\"updated\":";
+  response += changed ? "true" : "false";
+  response += ",\"state\":";
+  response += state_.toJson();
+  response += "}";
+  httpServer_.send(200, "application/json", response);
+}
+
 void ApiService::handleHttpRestartRoute() {
   const HTTPMethod method = httpServer_.method();
   if (method != HTTP_POST && method != HTTP_PATCH) {
@@ -1340,6 +1457,13 @@ String ApiService::buildOpenApiJson() const {
   restartPath["post"]["summary"] = "Reiniciar la placa";
   restartPath["patch"]["summary"] = "Alias de POST para reiniciar la placa";
 
+  JsonObject palettesPath = paths["/api/v1/palettes"].to<JsonObject>();
+  palettesPath["get"]["summary"] = "Listar paletas predefinidas de 3 colores";
+
+  JsonObject palettesApplyPath = paths["/api/v1/palettes/apply"].to<JsonObject>();
+  palettesApplyPath["post"]["summary"] = "Aplicar paleta por id o key al estado actual";
+  palettesApplyPath["patch"]["summary"] = "Alias de POST para aplicar paleta";
+
   JsonObject releasePath = paths["/api/v1/release"].to<JsonObject>();
   releasePath["get"]["summary"] = "Obtener metadatos de release";
 
@@ -1426,6 +1550,8 @@ String ApiService::buildOpenApiJson() const {
   serialCommands.add("POST /api/v1/profiles/gpio/apply {\"profile\":{\"id\":\"gledopto_gl_c_017wl_d\"}} ");
   serialCommands.add("POST /api/v1/profiles/gpio/default {\"profile\":{\"id\":\"gledopto_gl_c_017wl_d\"}} ");
   serialCommands.add("POST /api/v1/profiles/gpio/delete {\"profile\":{\"id\":\"mi_perfil\"}} ");
+  serialCommands.add("GET /api/v1/palettes");
+  serialCommands.add("POST /api/v1/palettes/apply {\"palette\":\"sunset_drive\"}");
   serialCommands.add("POST /api/v1/system/restart");
   serialCommands.add("GET /api/v1/config/all");
   serialCommands.add("POST /api/v1/config/all {json_completo}");
@@ -1891,6 +2017,28 @@ String ApiService::buildHomeHtml() const {
                   <input id='color2' type='color' value='#00b8d9'>
                 </label>
               </div>
+
+              <div class='row'>
+                <label>
+                  Paleta predefinida
+                  <select id='paletteId'>
+                    <option value='-1'>Manual (colores libres)</option>
+                  </select>
+                </label>
+                <label>
+                  Vista previa de paleta
+                  <div id='palettePreview' style='display:flex; gap:8px; margin-top:8px;'>
+                    <span class='sequence-color' style='background:#ff4d00;'></span>
+                    <span class='sequence-color' style='background:#ffd400;'></span>
+                    <span class='sequence-color' style='background:#00b8d9;'></span>
+                  </div>
+                </label>
+              </div>
+
+              <div class='actions'>
+                <button class='alt' type='button' onclick='applySelectedPalette(false)'>Aplicar paleta</button>
+                <button class='alt' type='button' onclick='applySelectedPalette(true)'>Aplicar y guardar</button>
+              </div>
             </section>
 
             <section class='control-card effect'>
@@ -2034,6 +2182,8 @@ String ApiService::buildHomeHtml() const {
     const sectionCount = document.getElementById('sectionCount');
     const sectionCountValue = document.getElementById('sectionCountValue');
     const effect = document.getElementById('effect');
+    const paletteIdSelect = document.getElementById('paletteId');
+    const palettePreview = document.getElementById('palettePreview');
     const effectSpeed = document.getElementById('effectSpeed');
     const effectSpeedValue = document.getElementById('effectSpeedValue');
     const effectSpeedHint = document.getElementById('effectSpeedHint');
@@ -2052,6 +2202,70 @@ String ApiService::buildHomeHtml() const {
     const effectsOut = document.getElementById('effectsOut');
     const effectModeBanner = document.getElementById('effectModeBanner');
     let effectsState = null;
+
+    function selectedPaletteId() {
+      const raw = Number(paletteIdSelect.value);
+      return Number.isFinite(raw) && raw >= 0 ? raw : null;
+    }
+
+    function createPaletteSwatch(color) {
+      return "<span class='sequence-color' style='background:" + color + "' title='" + color + "'></span>";
+    }
+
+    function renderPalettePreview(colors) {
+      const safe = Array.isArray(colors) && colors.length >= 3
+        ? colors
+        : ['#ff4d00', '#ffd400', '#00b8d9'];
+      palettePreview.innerHTML = createPaletteSwatch(safe[0])
+        + createPaletteSwatch(safe[1])
+        + createPaletteSwatch(safe[2]);
+    }
+
+    function renderPaletteOptionsFromState(state) {
+      const palettes = Array.isArray(state.availablePalettes) ? state.availablePalettes : [];
+      const currentPaletteId = Number.isFinite(Number(state.paletteId)) ? Number(state.paletteId) : -1;
+
+      const options = ["<option value='-1'>Manual (colores libres)</option>"];
+      palettes.forEach((palette) => {
+        const pid = Number(palette.id);
+        const selected = pid === currentPaletteId ? ' selected' : '';
+        const style = palette.style || 'custom';
+        const label = palette.label || palette.key || ('Palette ' + pid);
+        options.push("<option value='" + pid + "'" + selected + ">" + label + " · " + style + "</option>");
+      });
+      paletteIdSelect.innerHTML = options.join('');
+
+      if (currentPaletteId < 0) {
+        paletteIdSelect.value = '-1';
+      }
+
+      renderPalettePreview(state.primaryColors);
+    }
+
+    function findSelectedPaletteColors() {
+      const selected = selectedPaletteId();
+      if (selected === null) {
+        return null;
+      }
+
+      const stateObj = JSON.parse(out.textContent || '{}');
+      const palettes = Array.isArray(stateObj.availablePalettes) ? stateObj.availablePalettes : [];
+      const match = palettes.find((p) => Number(p.id) === selected);
+      if (!match || !Array.isArray(match.primaryColors) || match.primaryColors.length < 3) {
+        return null;
+      }
+      return match.primaryColors;
+    }
+
+    function applyPaletteToInputs(colors) {
+      if (!Array.isArray(colors) || colors.length < 3) {
+        return;
+      }
+      document.getElementById('color0').value = colors[0];
+      document.getElementById('color1').value = colors[1];
+      document.getElementById('color2').value = colors[2];
+      renderPalettePreview(colors);
+    }
 
     function effectUsesAudio(config) {
       return !!(config && (config.effectUsesAudio || config.reactiveToAudio));
@@ -2095,6 +2309,30 @@ String ApiService::buildHomeHtml() const {
       effectDurationSecValue.textContent = effectDurationSec.value + ' s';
     });
 
+    paletteIdSelect.addEventListener('change', () => {
+      const colors = findSelectedPaletteColors();
+      if (colors) {
+        applyPaletteToInputs(colors);
+      } else {
+        renderPalettePreview([
+          document.getElementById('color0').value,
+          document.getElementById('color1').value,
+          document.getElementById('color2').value,
+        ]);
+      }
+    });
+
+    ['color0', 'color1', 'color2'].forEach((id) => {
+      document.getElementById(id).addEventListener('input', () => {
+        paletteIdSelect.value = '-1';
+        renderPalettePreview([
+          document.getElementById('color0').value,
+          document.getElementById('color1').value,
+          document.getElementById('color2').value,
+        ]);
+      });
+    });
+
     function selectedEffectUsesAudio() {
       const option = effect.options[effect.selectedIndex];
       return !!(option && option.dataset && option.dataset.audio === '1');
@@ -2132,6 +2370,7 @@ String ApiService::buildHomeHtml() const {
       document.getElementById('color1').value = colors[1] || '#ffd400';
       document.getElementById('color2').value = colors[2] || '#00b8d9';
       document.getElementById('backgroundColor').value = state.backgroundColor || '#000000';
+      renderPaletteOptionsFromState(state);
       updateSpeedControl();
       effectModeBanner.textContent = 'Tipo de efecto: ' + effectTypeText(state);
       out.textContent = JSON.stringify(state, null, 2);
@@ -2157,7 +2396,34 @@ String ApiService::buildHomeHtml() const {
         return 'Configuracion no disponible';
       }
       const effectName = config.effectLabel || config.effect || ('ID ' + (config.effectId ?? '?'));
-      return effectName + ' | secciones ' + (config.sectionCount ?? '?') + ' | velocidad ' + (config.effectSpeed ?? '?') + ' | nivel ' + (config.effectLevel ?? '?') + ' | brillo ' + (config.brightness ?? '?');
+      const paletteName = config.paletteLabel || (Number(config.paletteId) >= 0 ? ('palette ' + config.paletteId) : 'manual');
+      return effectName + ' | paleta ' + paletteName + ' | secciones ' + (config.sectionCount ?? '?') + ' | velocidad ' + (config.effectSpeed ?? '?') + ' | nivel ' + (config.effectLevel ?? '?') + ' | brillo ' + (config.brightness ?? '?');
+    }
+
+    async function applySelectedPalette(saveAfterApply) {
+      const paletteId = selectedPaletteId();
+      if (paletteId === null) {
+        status.textContent = 'Selecciona una paleta predefinida para aplicar.';
+        return;
+      }
+
+      status.textContent = saveAfterApply ? 'Aplicando paleta y guardando...' : 'Aplicando paleta...';
+      const res = await fetch('/api/v1/palettes/apply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ paletteId })
+      });
+
+      const data = await res.json();
+      if (data && data.state) {
+        renderState(data.state);
+      }
+
+      if (saveAfterApply) {
+        await saveStartupEffect();
+      }
+
+      status.textContent = saveAfterApply ? 'Paleta aplicada y guardada' : 'Paleta aplicada';
     }
 
     function renderEffectsState(data) {
@@ -2313,13 +2579,19 @@ String ApiService::buildHomeHtml() const {
         effectSpeed: Number(document.getElementById('effectSpeed').value),
         effectLevel: Number(document.getElementById('effectLevel').value),
         reactiveToAudio: selectedEffectUsesAudio(),
-        primaryColors: [
+        backgroundColor: document.getElementById('backgroundColor').value
+      };
+
+      const paletteId = selectedPaletteId();
+      if (paletteId !== null) {
+        payload.paletteId = paletteId;
+      } else {
+        payload.primaryColors = [
           document.getElementById('color0').value,
           document.getElementById('color1').value,
           document.getElementById('color2').value
-        ],
-        backgroundColor: document.getElementById('backgroundColor').value
-      };
+        ];
+      }
       const res = await fetch('/api/v1/state', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },

@@ -83,6 +83,32 @@ uint8_t parseEffectId(JsonVariantConst value, uint8_t fallback) {
 
   return fallback;
 }
+
+int16_t parsePaletteId(JsonVariantConst value, int16_t fallback) {
+  if (value.isNull()) {
+    return fallback;
+  }
+
+  if (value.is<const char *>()) {
+    return PaletteRegistry::parseId(String(value.as<const char *>()), fallback);
+  }
+
+  if (value.is<String>()) {
+    return PaletteRegistry::parseId(value.as<String>(), fallback);
+  }
+
+  if (value.is<int>()) {
+    const int raw = value.as<int>();
+    if (raw == PaletteRegistry::kManualPalette) {
+      return PaletteRegistry::kManualPalette;
+    }
+    const ColorPaletteDescriptor *palette =
+        PaletteRegistry::findById(static_cast<int16_t>(raw));
+    return palette != nullptr ? palette->id : fallback;
+  }
+
+  return fallback;
+}
 } // namespace
 
 CoreState CoreState::defaults() {
@@ -138,11 +164,16 @@ String CoreState::toJson() const {
   doc["sectionCount"] = sectionCount;
   doc["effectSpeed"] = effectSpeed;
   doc["effectLevel"] = effectLevel;
+  doc["paletteId"] = paletteId;
+  doc["palette"] = PaletteRegistry::keyFor(paletteId);
+  doc["paletteLabel"] = PaletteRegistry::labelFor(paletteId);
+  doc["paletteStyle"] = PaletteRegistry::styleFor(paletteId);
   doc["reactiveToAudio"] = reactiveToAudio;
   doc["audioLevel"] = audioLevel;
   doc["beatDetected"] = beatDetected;
   doc["audioPeakHold"] = audioPeakHold;
   doc["availableEffects"] = serialized(EffectRegistry::toJsonArray());
+  doc["availablePalettes"] = serialized(PaletteRegistry::toJsonArray());
 
   JsonArray colors = doc["primaryColors"].to<JsonArray>();
   for (uint8_t i = 0; i < 3; ++i) {
@@ -203,11 +234,26 @@ bool CoreState::applyPatchJson(const String &payload) {
     next.effectLevel = static_cast<uint8_t>(constrain(root["effectLevel"].as<int>(), 1, 10));
   }
 
+  if (!root["paletteId"].isNull()) {
+    next.paletteId = parsePaletteId(root["paletteId"], next.paletteId);
+    if (next.paletteId >= 0) {
+      PaletteRegistry::applyToColors(next.paletteId, next.primaryColors);
+    }
+  }
+
+  if (!root["palette"].isNull()) {
+    next.paletteId = parsePaletteId(root["palette"], next.paletteId);
+    if (next.paletteId >= 0) {
+      PaletteRegistry::applyToColors(next.paletteId, next.primaryColors);
+    }
+  }
+
   if (root["primaryColors"].is<JsonArrayConst>()) {
     JsonArrayConst colors = root["primaryColors"].as<JsonArrayConst>();
     for (uint8_t i = 0; i < 3 && i < colors.size(); ++i) {
       next.primaryColors[i] = parseColorValue(colors[i], next.primaryColors[i]);
     }
+    next.paletteId = PaletteRegistry::kManualPalette;
   }
 
   next.backgroundColor = parseColorValue(root["backgroundColor"], next.backgroundColor);
@@ -215,6 +261,7 @@ bool CoreState::applyPatchJson(const String &payload) {
   bool changed = next.power != power || next.brightness != brightness ||
                  next.effectId != effectId || next.sectionCount != sectionCount ||
                  next.effectSpeed != effectSpeed || next.effectLevel != effectLevel ||
+                 next.paletteId != paletteId ||
                  next.reactiveToAudio != reactiveToAudio ||
                  next.backgroundColor != backgroundColor;
   for (uint8_t i = 0; i < 3 && !changed; ++i) {

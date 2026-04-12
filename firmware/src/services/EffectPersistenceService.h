@@ -3,6 +3,7 @@
 #include <Arduino.h>
 #include <ArduinoJson.h>
 
+#include "core/PaletteRegistry.h"
 #include "core/CoreState.h"
 
 class EffectPersistenceService {
@@ -29,6 +30,7 @@ private:
     uint8_t sectionCount = 3;
     uint8_t effectSpeed = 10;
     uint8_t effectLevel = 5;
+    int16_t paletteId = PaletteRegistry::kManualPalette;
     uint32_t primaryColors[3] = {0xFF4D00, 0xFFD400, 0x00B8D9};
     uint32_t backgroundColor = 0x000000;
     bool reactiveToAudio = false;

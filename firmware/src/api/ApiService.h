@@ -57,6 +57,8 @@ private:
   void handleHttpEffectsStartupRoute();
   void handleHttpEffectsSequenceAddRoute();
   void handleHttpEffectsSequenceDeleteRoute();
+  void handleHttpPalettesRoute();
+  void handleHttpPalettesApplyRoute();
   void handleHttpRestartRoute();
   String buildFullConfigJson() const;
   String buildOpenApiJson() const;

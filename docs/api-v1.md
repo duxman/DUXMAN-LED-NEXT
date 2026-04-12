@@ -22,6 +22,9 @@ Documentación de la API real implementada actualmente en firmware.
 | `GET` | `/api/v1/state` | Obtener estado runtime actual |
 | `PATCH` | `/api/v1/state` | Actualizar estado runtime |
 | `POST` | `/api/v1/state` | Alias de `PATCH` |
+| `GET` | `/api/v1/palettes` | Listar catálogo de paletas predefinidas |
+| `POST` | `/api/v1/palettes/apply` | Aplicar paleta por `paletteId` o `palette` |
+| `PATCH` | `/api/v1/palettes/apply` | Alias de `POST` |
 | `GET` | `/api/v1/config/network` | Obtener configuración de red |
 | `PATCH` | `/api/v1/config/network` | Actualizar configuración de red |
 | `POST` | `/api/v1/config/network` | Alias de `PATCH` |
@@ -119,16 +122,70 @@ Campos soportados actualmente en el payload de estado:
 
 - `power`: encendido general
 - `brightness`: brillo global `0..255`
-- `effectId`: `0` fijo, `1` degradado
-- `effect`: alias string (`fixed`, `gradient`)
+- `effectId`: identificador numérico del efecto
+- `effect`: alias string del efecto (por ejemplo `fixed`, `gradient`, `lava_flow`)
 - `sectionCount`: número de secciones repartidas sobre cada salida
-- `primaryColors`: array de 3 colores hex `#RRGGBB`
+- `effectSpeed`: velocidad del efecto (`1..10`)
+- `effectLevel`: nivel/intensidad del efecto (`1..10`)
+- `paletteId`: identificador de paleta predefinida (`-1` modo manual)
+- `palette`: clave string de paleta (alternativa a `paletteId`)
+- `primaryColors`: array de 3 colores hex `#RRGGBB` (fuerza modo manual)
 - `backgroundColor`: color de fondo/off `#RRGGBB`
+- `reactiveToAudio`: habilita/deshabilita reactividad cuando el efecto soporta audio
 
 Errores típicos:
 
 ```json
 {"error":"invalid_payload"}
+```
+
+## Paletas predefinidas
+
+### `GET /api/v1/palettes`
+
+Devuelve el catálogo curado de paletas de 3 colores.
+
+Campos por entrada:
+
+- `id`: identificador numérico de paleta
+- `key`: clave estable para API
+- `label`: nombre legible para UI
+- `style`: clasificación (`warm`, `cold`, `neon`, `pastel`, `high-contrast`, `party`)
+- `description`: intención visual de la paleta
+- `primaryColors`: trío de colores `#RRGGBB`
+
+### `POST /api/v1/palettes/apply`
+
+Aplica una paleta al estado runtime y programa persistencia.
+
+Payload soportado (usar uno de los dos):
+
+```json
+{"paletteId":1}
+```
+
+```json
+{"palette":"sunset_drive"}
+```
+
+Respuesta:
+
+```json
+{
+	"updated": true,
+	"state": {
+		"paletteId": 1,
+		"palette": "sunset_drive"
+	}
+}
+```
+
+Errores posibles:
+
+```json
+{"error":"invalid_payload"}
+{"error":"invalid_json"}
+{"error":"missing_palette"}
 ```
 
 ## Configuración de red
@@ -651,7 +708,7 @@ Ejemplo:
 
 ```json
 {
-	"version": "0.3.4-beta",
+	"version": "0.3.5-beta",
 	"releaseDate": "2026-04-12",
 	"branch": "main",
 	"board": "esp32c3supermini",
@@ -773,4 +830,4 @@ Además de la API JSON, el firmware expone páginas de ayuda y configuración:
 
 ## Estado de esta documentación
 
-Este documento describe la implementación actual del firmware `v0.3.4-beta` (Fase 4A-4C + catalogo de efectos dinamicos + audio reactivo I2S base + calibrado de speed/level). Debe actualizarse junto con `README.md` cuando se añadan o cambien endpoints, payloads o reglas de validación.
+Este documento describe la implementación actual del firmware `v0.3.5-beta` (Fase 4A-4C + catalogo de efectos dinamicos + audio reactivo I2S base + Fase 3A de paletas predefinidas). Debe actualizarse junto con `README.md` cuando se añadan o cambien endpoints, payloads o reglas de validación.

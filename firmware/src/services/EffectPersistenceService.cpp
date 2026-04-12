@@ -335,6 +335,7 @@ EffectPersistenceService::snapshotFromState(const CoreState &state) {
   snapshot.sectionCount = stateSnapshot.sectionCount;
   snapshot.effectSpeed = stateSnapshot.effectSpeed;
   snapshot.effectLevel = stateSnapshot.effectLevel;
+  snapshot.paletteId = stateSnapshot.paletteId;
   snapshot.reactiveToAudio = EffectRegistry::usesAudio(stateSnapshot.effectId);
   for (uint8_t i = 0; i < 3; ++i) {
     snapshot.primaryColors[i] = stateSnapshot.primaryColors[i];
@@ -354,6 +355,7 @@ void EffectPersistenceService::applySnapshot(const SavedEffectConfig &config) co
   state_.sectionCount = config.sectionCount;
   state_.effectSpeed = config.effectSpeed;
   state_.effectLevel = config.effectLevel;
+  state_.paletteId = config.paletteId;
   state_.reactiveToAudio = EffectRegistry::usesAudio(config.effectId);
   for (uint8_t i = 0; i < 3; ++i) {
     state_.primaryColors[i] = config.primaryColors[i];
@@ -373,6 +375,9 @@ void EffectPersistenceService::writeConfigJson(JsonObject target,
   target["sectionCount"] = config.sectionCount;
   target["effectSpeed"] = config.effectSpeed;
   target["effectLevel"] = config.effectLevel;
+  target["paletteId"] = config.paletteId;
+  target["palette"] = PaletteRegistry::keyFor(config.paletteId);
+  target["paletteLabel"] = PaletteRegistry::labelFor(config.paletteId);
   target["reactiveToAudio"] = EffectRegistry::usesAudio(config.effectId);
   target["effectUsesAudio"] = EffectRegistry::usesAudio(config.effectId);
   JsonArray colors = target["primaryColors"].to<JsonArray>();
@@ -398,6 +403,7 @@ bool EffectPersistenceService::readConfigJson(JsonObjectConst source,
   config.sectionCount = constrain(source["sectionCount"] | 3, 1, 10);
   config.effectSpeed = constrain(source["effectSpeed"] | 10, 1, 100);
   config.effectLevel = constrain(source["effectLevel"] | 5, 1, 10);
+  config.paletteId = source["paletteId"] | static_cast<int16_t>(PaletteRegistry::kManualPalette);
   config.reactiveToAudio = EffectRegistry::usesAudio(config.effectId);
   config.backgroundColor = parseColorValue(source["backgroundColor"], config.backgroundColor);
 

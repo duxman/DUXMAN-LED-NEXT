@@ -1,6 +1,6 @@
 {
-  "version": "0.3.4-beta",
-  "versionCode": 7,
+  "version": "0.3.5-beta",
+  "versionCode": 8,
   "buildDate": "2026-04-12",
   "branch": "main",
   "features": [
@@ -16,7 +16,8 @@
     "AudioService AGC + noise gate for stable microphone baseline",
     "Effects split into VISUAL and AUDIO categories with automatic audio mode",
     "Audio-focused effects enhanced (Audio Pulse, Trig Ribbon, Stellar Twinkle, Bouncing Physics)",
-    "Roadmap expanded with phased master-slave sync and LedFx realtime plan"
+    "Roadmap expanded with phased master-slave sync and LedFx realtime plan",
+    "Phase 3A completed: predefined 3-color palettes with runtime/API/UI/persistence support"
   ],
   "hardwareSupported": [
     "ESP32-D0WD-V3 (esp32dev)",
@@ -30,7 +31,9 @@
       "FreeRTOS task framework (controlTask, renderTask)",
       "Last boot timestamp in home API response",
       "Triple Chase, Gradient Meteor, Scanning Pulse, Trig Ribbon",
-      "Lava Flow, Polar Ice, Stellar Twinkle, Random Color Pop, Bouncing Physics"
+      "Lava Flow, Polar Ice, Stellar Twinkle, Random Color Pop, Bouncing Physics",
+      "PaletteRegistry with curated 3-color presets and style tags",
+      "Palette recommendations and validation guide in docs/palettes.md"
     ],
     "improved": [
       "API response time (non-blocking persistence)",
@@ -38,12 +41,14 @@
       "CoreState synchronization (mutex + snapshot pattern)",
       "RAM usage optimization (13.5% vs 15.8% in 0.2.2)",
       "Effect slider semantics: speed and level now consistent and more predictable",
-      "Audio diagnostics with periodic serial telemetry (level, peak, read bytes and read error)"
+      "Audio diagnostics with periodic serial telemetry (level, peak, read bytes and read error)",
+      "Embedded UI workflow for palette selection, preview and save"
     ],
     "fixed": [
       "Potential CoreState corruption during concurrent API + render access",
       "Render frame drops due to storage I/O blocking",
-      "Blink speed inversion (high speed now means faster animation)"
+      "Blink speed inversion (high speed now means faster animation)",
+      "State/persistence consistency when switching between palette mode and manual colors"
     ]
   },
   "knownLimitations": [
