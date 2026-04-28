@@ -63,6 +63,23 @@ void ApiService::begin() {
   Serial.println("[api] ready: GET /api/v1/hardware");
   Serial.println("[api] ready: GET /api/v1/release");
   Serial.println("[api] ui: GET / | GET /config | GET /config/network | GET /config/microphone | GET /config/gpio | GET /config/palettes | GET /config/debug | GET /config/manual | GET /api | GET /version");
+
+  // ── IP summary ────────────────────────────────────────────────────────────
+  {
+    const IPAddress staIp = WiFi.localIP();
+    const IPAddress apIp  = WiFi.softAPIP();
+    Serial.print("[api] STA ip=");
+    Serial.print(staIp.toString());
+    Serial.print("  AP ip=");
+    Serial.println(apIp.toString());
+    if (staIp[0] != 0) {
+      Serial.print("[api] UI -> http://");
+      Serial.println(staIp.toString());
+    } else if (apIp[0] != 0) {
+      Serial.print("[api] UI -> http://");
+      Serial.println(apIp.toString());
+    }
+  }
 }
 
 void ApiService::handle() {

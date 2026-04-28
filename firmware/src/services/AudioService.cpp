@@ -2,8 +2,8 @@
 
 #include <cmath>
 
-AudioService::AudioService(MicrophoneConfig &microphoneConfig, CoreState &coreState)
-    : microphoneConfig_(microphoneConfig), coreState_(coreState) {}
+AudioService::AudioService(MicrophoneConfig &microphoneConfig, CoreState &coreState, DebugConfig &debugConfig)
+    : microphoneConfig_(microphoneConfig), coreState_(coreState), debugConfig_(debugConfig) {}
 
 AudioService::~AudioService() {
   end();
@@ -59,34 +59,36 @@ void AudioService::end() {
 void AudioService::handle(unsigned long nowMs) {
   if (nowMs - lastLogMs_ >= kAudioLogIntervalMs) {
     lastLogMs_ = nowMs;
-    Serial.print("[audio.dbg] active=");
-    Serial.print(isActive_ ? "1" : "0");
-    Serial.print(" error=");
-    Serial.print(hasError_ ? "1" : "0");
-    Serial.print(" level=");
-    Serial.print(audioLevel_);
-    Serial.print(" peak=");
-    Serial.print(peakLevel_);
-    Serial.print(" bytes=");
-    Serial.print(lastBytesRead_);
-    Serial.print(" readErr=");
-    Serial.print(lastReadErr_);
-    Serial.print(" reactive=");
-    Serial.print(coreState_.reactiveToAudio ? "1" : "0");
-    Serial.print(" effectId=");
-    Serial.print(coreState_.effectId);
-    Serial.print(" gain=");
-    Serial.print(microphoneConfig_.gainPercent);
-    Serial.print(" noiseFloor=");
-    Serial.print(microphoneConfig_.noiseFloorPercent);
-    Serial.print(" baseline=");
-    Serial.print(static_cast<int>(ambientBaseline_));
-    Serial.print(" pins=");
-    Serial.print(microphoneConfig_.pins.bclk);
-    Serial.print('/');
-    Serial.print(microphoneConfig_.pins.ws);
-    Serial.print('/');
-    Serial.println(microphoneConfig_.pins.din);
+    if (debugConfig_.enabled) {
+      Serial.print("[audio.dbg] active=");
+      Serial.print(isActive_ ? "1" : "0");
+      Serial.print(" error=");
+      Serial.print(hasError_ ? "1" : "0");
+      Serial.print(" level=");
+      Serial.print(audioLevel_);
+      Serial.print(" peak=");
+      Serial.print(peakLevel_);
+      Serial.print(" bytes=");
+      Serial.print(lastBytesRead_);
+      Serial.print(" readErr=");
+      Serial.print(lastReadErr_);
+      Serial.print(" reactive=");
+      Serial.print(coreState_.reactiveToAudio ? "1" : "0");
+      Serial.print(" effectId=");
+      Serial.print(coreState_.effectId);
+      Serial.print(" gain=");
+      Serial.print(microphoneConfig_.gainPercent);
+      Serial.print(" noiseFloor=");
+      Serial.print(microphoneConfig_.noiseFloorPercent);
+      Serial.print(" baseline=");
+      Serial.print(static_cast<int>(ambientBaseline_));
+      Serial.print(" pins=");
+      Serial.print(microphoneConfig_.pins.bclk);
+      Serial.print('/');
+      Serial.print(microphoneConfig_.pins.ws);
+      Serial.print('/');
+      Serial.println(microphoneConfig_.pins.din);
+    }
   }
 
   if (!isActive_) {

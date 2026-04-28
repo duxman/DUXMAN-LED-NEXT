@@ -22,7 +22,7 @@
  */
 class AudioService {
 public:
-  AudioService(MicrophoneConfig &microphoneConfig, CoreState &coreState);
+  AudioService(MicrophoneConfig &microphoneConfig, CoreState &coreState, DebugConfig &debugConfig);
   virtual ~AudioService();
 
   /**
@@ -75,6 +75,7 @@ public:
 private:
   MicrophoneConfig &microphoneConfig_;
   CoreState &coreState_;
+  DebugConfig &debugConfig_;
 
   i2s_port_t i2sPort_ = I2S_NUM_0;
   bool isActive_ = false;

@@ -33,7 +33,7 @@ ProfileService profileService(networkConfig, gpioConfig, microphoneConfig, debug
 UserPaletteService userPaletteService(persistenceSchedulerService);
 WifiService wifiService(networkConfig, debugConfig);
 WatchdogService watchdogService;
-AudioService audioService(microphoneConfig, state);
+AudioService audioService(microphoneConfig, state, debugConfig);
 ApiService apiService(state, networkConfig, gpioConfig, microphoneConfig, debugConfig, storageService, wifiService,
                       persistenceSchedulerService,
                       effectPersistenceService, profileService, userPaletteService, watchdogService);
