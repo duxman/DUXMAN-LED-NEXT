@@ -2,7 +2,7 @@
  * duxman-led next - v0.3.7-beta
  * Licensed under the Apache License 2.0
  * File: firmware/src/drivers/LedDriverDigital.h
- * Last commit: 46b693c - 2026-04-02
+ * Last commit: ec3d96f - 2026-04-28
  */
 
 #pragma once
