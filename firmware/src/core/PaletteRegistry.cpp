@@ -1,3 +1,10 @@
+/*
+ * duxman-led next - v0.3.7-beta
+ * Licensed under the Apache License 2.0
+ * File: firmware/src/core/PaletteRegistry.cpp
+ * Last commit: cb75703 - 2026-04-12
+ */
+
 #include "core/PaletteRegistry.h"
 
 #include <ArduinoJson.h>

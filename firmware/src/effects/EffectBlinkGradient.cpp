@@ -1,3 +1,10 @@
+/*
+ * duxman-led next - v0.3.7-beta
+ * Licensed under the Apache License 2.0
+ * File: firmware/src/effects/EffectBlinkGradient.cpp
+ * Last commit: e30e0c1 - 2026-04-03
+ */
+
 #include "effects/EffectBlinkGradient.h"
 
 bool EffectBlinkGradient::supports(uint8_t effectId) const {

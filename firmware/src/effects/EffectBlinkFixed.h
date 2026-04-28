@@ -1,3 +1,10 @@
+/*
+ * duxman-led next - v0.3.7-beta
+ * Licensed under the Apache License 2.0
+ * File: firmware/src/effects/EffectBlinkFixed.h
+ * Last commit: 2deea99 - 2026-04-02
+ */
+
 #pragma once
 
 #include "effects/EffectEngine.h"

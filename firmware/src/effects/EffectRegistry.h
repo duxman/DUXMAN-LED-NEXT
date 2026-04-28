@@ -1,3 +1,10 @@
+/*
+ * duxman-led next - v0.3.7-beta
+ * Licensed under the Apache License 2.0
+ * File: firmware/src/effects/EffectRegistry.h
+ * Last commit: a67d822 - 2026-04-12
+ */
+
 #pragma once
 
 #include <Arduino.h>

@@ -1,3 +1,10 @@
+/*
+ * duxman-led next - v0.3.7-beta
+ * Licensed under the Apache License 2.0
+ * File: firmware/src/drivers/LedDriverDigital.cpp
+ * Last commit: 46b693c - 2026-04-02
+ */
+
 #include "drivers/LedDriverDigital.h"
 
 void LedDriverDigital::begin() {

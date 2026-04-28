@@ -1,3 +1,10 @@
+/*
+ * duxman-led next - v0.3.7-beta
+ * Licensed under the Apache License 2.0
+ * File: firmware/src/services/ProfileService.h
+ * Last commit: 47b0156 - 2026-04-28
+ */
+
 #pragma once
 
 #include <Arduino.h>

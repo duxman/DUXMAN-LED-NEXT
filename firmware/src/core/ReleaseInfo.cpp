@@ -1,3 +1,10 @@
+/*
+ * duxman-led next - v0.3.7-beta
+ * Licensed under the Apache License 2.0
+ * File: firmware/src/core/ReleaseInfo.cpp
+ * Last commit: 7486530 - 2026-03-31
+ */
+
 #include "core/ReleaseInfo.h"
 #include "core/BuildProfile.h"
 

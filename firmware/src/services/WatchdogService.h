@@ -1,3 +1,10 @@
+/*
+ * duxman-led next - v0.3.7-beta
+ * Licensed under the Apache License 2.0
+ * File: firmware/src/services/WatchdogService.h
+ * Last commit: bd45789 - 2026-04-03
+ */
+
 #ifndef WATCHDOG_SERVICE_H
 #define WATCHDOG_SERVICE_H
 

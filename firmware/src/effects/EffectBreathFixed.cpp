@@ -1,3 +1,10 @@
+/*
+ * duxman-led next - v0.3.7-beta
+ * Licensed under the Apache License 2.0
+ * File: firmware/src/effects/EffectBreathFixed.cpp
+ * Last commit: 4c84f5d - 2026-04-03
+ */
+
 #include "effects/EffectBreathFixed.h"
 
 #include "effects/EffectRegistry.h"

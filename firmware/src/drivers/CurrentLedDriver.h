@@ -1,3 +1,10 @@
+/*
+ * duxman-led next - v0.3.7-beta
+ * Licensed under the Apache License 2.0
+ * File: firmware/src/drivers/CurrentLedDriver.h
+ * Last commit: 46b693c - 2026-04-02
+ */
+
 #pragma once
 
 #include "core/BuildProfile.h"

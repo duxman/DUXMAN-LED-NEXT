@@ -1,3 +1,10 @@
+/*
+ * duxman-led next - v0.3.7-beta
+ * Licensed under the Apache License 2.0
+ * File: firmware/src/effects/EffectPolarIce.cpp
+ * Last commit: 9442b04 - 2026-04-03
+ */
+
 #include "effects/EffectPolarIce.h"
 
 #include "effects/EffectRegistry.h"

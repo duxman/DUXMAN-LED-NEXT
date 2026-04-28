@@ -1,0 +1,59 @@
+name: Update License Headers
+
+# Runs automatically on every push that touches source files.
+# The bot adds/refreshes the license + last-commit header at the top of
+# every .cpp / .h / .ino / .py file found under firmware/src and tools/.
+#
+# The commit it creates uses [skip ci] so it does NOT re-trigger this
+# workflow (avoids an infinite loop).
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - "firmware/src/**"
+      - "tools/**"
+      - "firmware/config/release-info.json" # also run on version bump
+  workflow_dispatch: # allow manual runs from the Actions tab
+
+# Need write access to push the updated headers back
+permissions:
+  contents: write
+
+jobs:
+  update-headers:
+    name: Inject / refresh file headers
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── 1. Full checkout (depth=0 so git log works per file) ──────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      # ── 2. Python (script has no external dependencies) ───────────────────
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # ── 3. Run the header updater ─────────────────────────────────────────
+      - name: Update file headers
+        run: python .github/scripts/update_headers.py
+
+      # ── 4. Commit back only if something actually changed ─────────────────
+      - name: Commit updated headers
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add firmware/src tools
+          if git diff --cached --quiet; then
+            echo "All headers already up-to-date. Nothing to commit."
+          else
+            git commit -m "chore: update license headers [skip ci]"
+            git push
+          fi

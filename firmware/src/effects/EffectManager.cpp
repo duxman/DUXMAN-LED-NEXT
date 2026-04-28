@@ -1,3 +1,10 @@
+/*
+ * duxman-led next - v0.3.7-beta
+ * Licensed under the Apache License 2.0
+ * File: firmware/src/effects/EffectManager.cpp
+ * Last commit: a67d822 - 2026-04-12
+ */
+
 #include "effects/EffectManager.h"
 
 #include "effects/EffectRegistry.h"
