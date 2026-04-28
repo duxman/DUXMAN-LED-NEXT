@@ -1744,6 +1744,18 @@ String ApiService::buildCommonCss() const {
   .hint{font-size:13px;color:var(--muted);}
   .ok{color:var(--ok);}
   .err{color:var(--danger);}
+  .status-live{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important;}
+  .toast-host{position:fixed;bottom:18px;right:18px;display:flex;flex-direction:column-reverse;gap:10px;z-index:12000;pointer-events:none;max-width:min(360px,calc(100vw - 24px));}
+  .toast{pointer-events:auto;display:flex;align-items:flex-start;gap:10px;padding:12px 14px;border-radius:12px;border:1px solid var(--line);background:rgba(15,32,40,.96);color:var(--text);box-shadow:0 14px 30px rgba(0,0,0,.28);opacity:0;transform:translateY(-8px);animation:toast-in .18s ease forwards;}
+  .toast::before{content:'';width:10px;height:10px;border-radius:999px;flex:0 0 auto;margin-top:5px;background:var(--accent);box-shadow:0 0 0 4px rgba(15,208,224,.16);}
+  .toast.success{border-color:rgba(34,214,138,.32);}
+  .toast.success::before{background:var(--ok);box-shadow:0 0 0 4px rgba(34,214,138,.16);}
+  .toast.error{border-color:rgba(248,113,113,.36);background:rgba(53,23,28,.96);}
+  .toast.error::before{background:var(--danger);box-shadow:0 0 0 4px rgba(248,113,113,.16);}
+  .toast.hide{animation:toast-out .18s ease forwards;}
+  .toast-message{font-size:13px;line-height:1.4;color:inherit;}
+  @keyframes toast-in{from{opacity:0;transform:translateY(-8px);}to{opacity:1;transform:translateY(0);}}
+  @keyframes toast-out{from{opacity:1;transform:translateY(0);}to{opacity:0;transform:translateY(-8px);}}
   .warn{background:rgba(245,166,35,.1);border:1px solid rgba(245,166,35,.3);border-radius:8px;padding:10px;margin-top:8px;font-size:13px;color:var(--warn);}
   .badge{display:inline-block;font-size:11px;padding:2px 8px;border-radius:99px;background:rgba(15,208,224,.15);color:var(--accent);border:1px solid rgba(15,208,224,.3);}
   .badge-sys{background:rgba(34,214,138,.12);color:var(--ok);border:1px solid rgba(34,214,138,.3);}
@@ -1858,6 +1870,7 @@ String ApiService::buildCommonCss() const {
     .row{flex-direction:column;}
     .runtime-head{flex-direction:column;align-items:stretch;}
     .toggle-btn{width:100%;}
+    .toast-host{right:12px;left:12px;bottom:12px;max-width:none;}
   }
 </style>
 <link rel='icon' type='image/png' href='data:image/png;base64,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'>
@@ -1936,11 +1949,47 @@ String ApiService::buildNavHtml() const {
     </li>
   </ul>
 </nav>
+<div id='dux-toast-host' class='toast-host' aria-live='polite' aria-atomic='true'></div>
 <script>
   (function(){
     var ham=document.getElementById('gen-ham');
     var nav=document.getElementById('gen-nav');
     var menu=document.getElementById('gen-menu');
+    function isProgressMessage(message){
+      if(!message) return false;
+      var normalized=String(message).toLowerCase();
+      return ['cargando','leyendo','guardando','activando','borrando','clonando','aplicando'].some(function(prefix){
+        return normalized.indexOf(prefix)===0;
+      });
+    }
+    window.duxShowToast=function(message, variant, durationMs){
+      if(!message) return;
+      var host=document.getElementById('dux-toast-host');
+      if(!host) return;
+      var toast=document.createElement('div');
+      var kind=variant==='error'?'error':'success';
+      toast.className='toast '+kind;
+      toast.setAttribute('role', kind==='error' ? 'alert' : 'status');
+      var content=document.createElement('div');
+      content.className='toast-message';
+      content.textContent=String(message);
+      toast.appendChild(content);
+      host.appendChild(toast);
+      var hideDelay=typeof durationMs==='number'?durationMs:(kind==='error'?7000:4000);
+      window.setTimeout(function(){
+        toast.classList.add('hide');
+        window.setTimeout(function(){
+          if(toast.parentNode) toast.parentNode.removeChild(toast);
+        }, 180);
+      }, hideDelay);
+    };
+    window.duxUpdateStatus=function(target, message, isError){
+      var el=typeof target==='string'?document.getElementById(target):target;
+      if(el) el.textContent=message||'';
+      if(!message) return;
+      if(!isError && isProgressMessage(message)) return;
+      window.duxShowToast(message, isError ? 'error' : 'success');
+    };
     if(ham){
       ham.addEventListener('click',function(){
         var open=menu.classList.toggle('open');
@@ -2728,7 +2777,7 @@ __NAV__
       <div class='form-actions'>
         <button class='btn btn-primary' onclick='submitPalette()'>Guardar</button>
         <button class='btn btn-ghost' onclick='closePanel()'>Cancelar</button>
-        <span id='formStatus' class='hint'></span>
+        <span id='formStatus' class='status-live' aria-live='polite'></span>
       </div>
     </div>
 
@@ -2768,8 +2817,11 @@ __NAV__
   }
   function setStatus(msg, isErr) {
     var el = document.getElementById('formStatus');
-    el.textContent = msg;
-    el.className = isErr ? 'hint err' : 'hint ok';
+    if (window.duxUpdateStatus) {
+      window.duxUpdateStatus(el, msg, !!isErr);
+      return;
+    }
+    el.textContent = msg || '';
   }
   function showJson(obj) {
     document.getElementById('jsonOut').textContent = JSON.stringify(obj, null, 2);
@@ -2825,10 +2877,10 @@ __NAV__
       body: JSON.stringify({key:key})
     }).then(function(r){return r.json();}).then(function(d){
       showJson(d);
-      if (d.error) { alert('Error: '+d.error); return; }
+      if (d.error) { setStatus('Error: ' + d.error, true); return; }
       if (editingKey === key) closePanel();
       loadPalettes();
-    }).catch(function(e){alert('Error: '+e);});
+    }).catch(function(e){setStatus('Error: ' + e, true);});
   }
   function submitPalette() {
     var key = document.getElementById('inpId').value.trim();
@@ -3193,7 +3245,7 @@ __NAV__
         <button class='btn alt' onclick='loadConfig()'>Recargar</button>
         <button class='btn' onclick='saveConfig()'>Guardar Configuracion</button>
       </div>
-      <p id='status' class='hint'>Cargando...</p>
+      <p id='status' class='status-live' aria-live='polite'></p>
     </div>
 
     <div class='card'>
@@ -3329,8 +3381,11 @@ __NAV__
 
     function setStatus(message, isError) {
       const el = byId('status');
-      el.textContent = message;
-      el.className = isError ? 'hint err' : 'hint ok';
+      if (window.duxUpdateStatus) {
+        window.duxUpdateStatus(el, message, !!isError);
+        return;
+      }
+      el.textContent = message || '';
     }
 
     function setValue(id, value) {
@@ -3480,7 +3535,7 @@ __NAV__
         <button class='btn alt' onclick='loadConfig()'>Recargar</button>
         <button class='btn' onclick='saveConfig()'>Guardar</button>
       </div>
-      <p id='status' class='hint'>Cargando...</p>
+      <p id='status' class='status-live' aria-live='polite'></p>
     </div>
 
     <div class='card'>
@@ -3565,8 +3620,11 @@ __NAV__
     function byId(id) { return document.getElementById(id); }
     function setStatus(message, isError) {
       const el = byId('status');
-      el.textContent = message;
-      el.className = isError ? 'hint err' : 'hint ok';
+      if (window.duxUpdateStatus) {
+        window.duxUpdateStatus(el, message, !!isError);
+        return;
+      }
+      el.textContent = message || '';
     }
     function setValue(id, value) { byId(id).value = value == null ? '' : String(value); }
 
@@ -3680,7 +3738,7 @@ __NAV__
         <button class='btn alt' onclick='loadDebug()'>Recargar</button>
         <button class='btn' onclick='saveDebug()'>Guardar</button>
       </div>
-      <p id='status' class='hint'>Cargando...</p>
+      <p id='status' class='status-live' aria-live='polite'></p>
     </div>
 
     <div class='card'>
@@ -3716,8 +3774,11 @@ __NAV__
     function byId(id) { return document.getElementById(id); }
     function setStatus(message, isError) {
       const el = byId('status');
-      el.textContent = message;
-      el.className = isError ? 'hint err' : 'hint ok';
+      if (window.duxUpdateStatus) {
+        window.duxUpdateStatus(el, message, !!isError);
+        return;
+      }
+      el.textContent = message || '';
     }
 
     function toggleJson(checked) {
@@ -3898,7 +3959,7 @@ __NAV__
         <button class='btn alt' onclick='loadGpio()'>Recargar</button>
         <button class='btn' onclick='saveGpio()'>Guardar</button>
       </div>
-      <p id='status' class='hint'>Cargando...</p>
+      <p id='status' class='status-live' aria-live='polite'></p>
     </div>
 
     <div class='card' id='outputsCard'>
@@ -3949,8 +4010,11 @@ __NAV__
     function byId(id) { return document.getElementById(id); }
     function setStatus(msg, isErr) {
       const el = byId('status');
-      el.textContent = msg;
-      el.className = isErr ? 'hint err' : 'hint ok';
+      if (window.duxUpdateStatus) {
+        window.duxUpdateStatus(el, msg, !!isErr);
+        return;
+      }
+      el.textContent = msg || '';
     }
 
     function pinWarning(pin) {
@@ -4328,7 +4392,7 @@ __NAV__
     <div class='actions'>
       <button class='btn alt' onclick='loadProfiles()'>&#8635; Actualizar lista</button>
     </div>
-    <p id='status' class='hint'>Cargando...</p>
+    <p id='status' class='status-live' aria-live='polite'></p>
   </div>
 
   <div class='card'>
@@ -4392,8 +4456,11 @@ __NAV__
   function byId(id) { return document.getElementById(id); }
   function setStatus(msg, isErr) {
     const el = byId('status');
-    el.textContent = msg;
-    el.className = isErr ? 'hint err' : 'hint ok';
+    if (window.duxUpdateStatus) {
+      window.duxUpdateStatus(el, msg, !!isErr);
+      return;
+    }
+    el.textContent = msg || '';
   }
 
   async function loadProfiles() {
@@ -4674,7 +4741,7 @@ __NAV__
     <div class='card'>
       <h1>Configuracion Manual</h1>
       <p class='hint'>Edita, exporta o importa toda la configuracion del dispositivo como JSON. La importacion solo se aplica si el JSON es completamente valido.</p>
-      <p id='status' class='hint'>Cargando...</p>
+      <p id='status' class='status-live' aria-live='polite'></p>
     </div>
 
     <div class='card'>
@@ -4709,8 +4776,11 @@ __NAV__
     function byId(id) { return document.getElementById(id); }
     function setStatus(msg, isErr) {
       const el = byId('status');
-      el.textContent = msg;
-      el.className = isErr ? 'hint err' : 'hint ok';
+      if (window.duxUpdateStatus) {
+        window.duxUpdateStatus(el, msg, !!isErr);
+        return;
+      }
+      el.textContent = msg || '';
     }
 
     async function loadConfig() {

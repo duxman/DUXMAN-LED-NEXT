@@ -466,6 +466,12 @@ bool ProfileService::applyProfileById(const String &id, bool setAsDefault,
   const AppProfile *profile = findProfileById(id);
   if (profile == nullptr) { if (error) *error = "profile_not_found"; return false; }
 
+  // Capture the current GPIO config before updating so we can detect whether
+  // the LED driver actually needs to be reinitialised.  Calling begin() when
+  // nothing changed causes an unnecessary RMT teardown/reinit that can produce
+  // extra pixels on the strip (frame-stitch artefact).
+  const String gpioJsonBefore = gpioConfig_.toJson();
+
   applyProfileConfig(*profile);
   persistenceSchedulerService_.requestSaveConfig();
   refreshDefaultProfile();
@@ -474,7 +480,11 @@ bool ProfileService::applyProfileById(const String &id, bool setAsDefault,
     defaultProfileId_ = id;
     requestSaveDefaultProfileId();
   }
-  applyActiveConfig();
+
+  const bool gpioChanged = (gpioConfig_.toJson() != gpioJsonBefore);
+  if (gpioChanged) {
+    applyActiveConfig();
+  }
 
   if (response) {
     JsonDocument resp;

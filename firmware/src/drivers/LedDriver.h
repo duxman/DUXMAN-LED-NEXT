@@ -72,6 +72,10 @@ public:
     setAllColor(0);
   }
 
+  // Activa un volcado de diagnostico en el proximo show().
+  // Solo se dispara una vez; se resetea automaticamente despues.
+  void scheduleShowLog() { logNextShow_ = true; }
+
   uint8_t outputCount() const {
     return outputCount_;
   }
@@ -88,6 +92,7 @@ protected:
   static bool isAddressableType(LedDriverType ledType);
 
   uint8_t level_ = 0;
+  bool logNextShow_ = false;
 
 private:
   LedDriverOutputConfig outputs_[kMaxLedOutputs];
