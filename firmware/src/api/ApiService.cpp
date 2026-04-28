@@ -1860,6 +1860,7 @@ String ApiService::buildCommonCss() const {
     .toggle-btn{width:100%;}
   }
 </style>
+<link rel='icon' type='image/png' href='data:image/png;base64,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'>
 )CSS";
 }
 
@@ -2080,6 +2081,21 @@ __NAV__
                   <input id='brightness' type='range' min='0' max='255' value='128'>
                   <span id='brightnessValue'>128</span>
                 </label>
+
+                <hr style='border:none;border-top:1px solid var(--line);margin:10px 0'>
+
+                <div class='actions' style='flex-wrap:wrap'>
+                  <button onclick='applyState()'>&#9654; Aplicar</button>
+                  <button class='alt' onclick='saveStartupEffect()'>&#128190; Guardar arranque</button>
+                  <button class='alt' onclick='loadState()'>&#8635; Recargar</button>
+                </div>
+
+                <div class='actions' style='flex-wrap:wrap;margin-top:6px'>
+                  <span style='font-size:12px;color:var(--muted);align-self:center'>Preset:</span>
+                  <button class='alt sm' onclick='applyVisualPreset("smooth")'>Suave</button>
+                  <button class='alt sm' onclick='applyVisualPreset("show")'>Show</button>
+                  <button class='alt sm' onclick='applyVisualPreset("aggressive")'>Agresivo</button>
+                </div>
               </div>
             </section>
           </div>
@@ -2087,8 +2103,7 @@ __NAV__
           <div class='controls-bottom'>
             <section class='power-card'>
               <div class='power-copy'>
-                <h2>Estado y acciones</h2>
-                <p>Activa la salida, revisa el estado cargado y aplica cambios rapidamente.</p>
+                <h2>Estado del dispositivo</h2>
               </div>
 
               <div>
@@ -2100,19 +2115,6 @@ __NAV__
               </div>
 
               <div class='power-actions'>
-                <div class='actions'>
-                  <button onclick='applyState()'>Aplicar</button>
-                  <button class='alt' onclick='loadState()'>Recargar</button>
-                  <button class='alt' onclick='saveStartupEffect()'>Guardar arranque</button>
-                  <button class='alt' onclick='restartBoard()'>Reiniciar placa</button>
-                </div>
-
-                <div class='actions'>
-                  <button class='alt' onclick='applyVisualPreset("smooth")'>Preset suave</button>
-                  <button class='alt' onclick='applyVisualPreset("show")'>Preset show</button>
-                  <button class='alt' onclick='applyVisualPreset("aggressive")'>Preset agresivo</button>
-                </div>
-
                 <div class='sequence-tools'>
                   <label>
                     Duracion para nueva entrada
@@ -2196,6 +2198,7 @@ __NAV__
     const effectsOut = document.getElementById('effectsOut');
     const effectModeBanner = document.getElementById('effectModeBanner');
     let effectsState = null;
+    let allPalettes = [];
 
     function selectedPaletteId() {
       const raw = Number(paletteIdSelect.value);
@@ -2216,18 +2219,27 @@ __NAV__
     }
 
     function renderPaletteOptionsFromState(state) {
-      const palettes = Array.isArray(state.availablePalettes) ? state.availablePalettes : [];
+      const palettes = allPalettes.length > 0 ? allPalettes : (Array.isArray(state.availablePalettes) ? state.availablePalettes : []);
       const currentPaletteId = Number.isFinite(Number(state.paletteId)) ? Number(state.paletteId) : -1;
 
-      const options = ["<option value='-1'>Manual (colores libres)</option>"];
-      palettes.forEach((palette) => {
+      const sysList = palettes.filter((p) => p.source !== 'user');
+      const userList = palettes.filter((p) => p.source === 'user');
+
+      function makeOpt(palette) {
         const pid = Number(palette.id);
-        const selected = pid === currentPaletteId ? ' selected' : '';
-        const style = palette.style || 'custom';
-        const label = palette.label || palette.key || ('Palette ' + pid);
-        options.push("<option value='" + pid + "'" + selected + ">" + label + " - " + style + "</option>");
-      });
-      paletteIdSelect.innerHTML = options.join('');
+        const sel = pid === currentPaletteId ? ' selected' : '';
+        const lbl = palette.label || palette.key || ('Palette ' + pid);
+        return "<option value='" + pid + "'" + sel + ">" + lbl + "</option>";
+      }
+
+      let html = "<option value='-1'>Manual (colores libres)</option>";
+      if (sysList.length) {
+        html += "<optgroup label='Sistema'>" + sysList.map(makeOpt).join('') + "</optgroup>";
+      }
+      if (userList.length) {
+        html += "<optgroup label='Mis paletas'>" + userList.map(makeOpt).join('') + "</optgroup>";
+      }
+      paletteIdSelect.innerHTML = html;
 
       if (currentPaletteId < 0) {
         paletteIdSelect.value = '-1';
@@ -2242,9 +2254,7 @@ __NAV__
         return null;
       }
 
-      const stateObj = JSON.parse(out.textContent || '{}');
-      const palettes = Array.isArray(stateObj.availablePalettes) ? stateObj.availablePalettes : [];
-      const match = palettes.find((p) => Number(p.id) === selected);
+      const match = allPalettes.find((p) => Number(p.id) === selected);
       if (!match || !Array.isArray(match.primaryColors) || match.primaryColors.length < 3) {
         return null;
       }
@@ -2556,6 +2566,16 @@ __NAV__
       status.textContent = 'Preset ' + presetName + ' aplicado';
     }
 
+    async function loadPalettes() {
+      try {
+        const res = await fetch('/api/v1/palettes');
+        const data = await res.json();
+        allPalettes = Array.isArray(data.palettes) ? data.palettes : [];
+      } catch (_) {
+        allPalettes = [];
+      }
+    }
+
     async function loadState() {
       status.textContent = 'Leyendo estado...';
       const res = await fetch('/api/v1/state');
@@ -2603,7 +2623,7 @@ __NAV__
     }
 
     setRuntimeVisible(window.matchMedia('(min-width: 761px)').matches);
-    Promise.all([loadState(), loadEffectsPersistence()]);
+    loadPalettes().then(() => Promise.all([loadState(), loadEffectsPersistence()]));
   </script>
 </div>
 </body>
@@ -4157,6 +4177,18 @@ __NAV__
 
   <p class='section-title'>Sistema</p>
   <div class='grid' id='gridSystem'><div class='loader'>Cargando sistema...</div></div>
+
+  <p class='section-title'>Dispositivo</p>
+  <div class='grid'>
+    <div class='card'>
+      <h2>Acerca de</h2>
+      <p style='color:var(--muted);font-size:13px;margin-bottom:12px'>Acciones de mantenimiento del dispositivo.</p>
+      <div class='actions'>
+        <button class='alt' onclick='restartBoard()'>&#9211; Reiniciar placa</button>
+      </div>
+      <p id='restartMsg' style='font-size:12px;color:var(--muted);margin-top:8px;display:none'></p>
+    </div>
+  </div>
 </main>
 <script>
   function row(lbl, val, cls) {
@@ -4252,6 +4284,20 @@ __NAV__
     }
   }
   load();
+
+  async function restartBoard() {
+    if (!window.confirm('Se reiniciara la placa inmediatamente. Continuar?')) return;
+    const msg = document.getElementById('restartMsg');
+    msg.style.display = 'block';
+    msg.textContent = 'Enviando reinicio...';
+    try {
+      await fetch('/api/v1/system/restart', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+      msg.textContent = 'Reinicio enviado. La placa volvera en unos segundos...';
+    } catch (_) {
+      msg.textContent = 'La placa se esta reiniciando...';
+    }
+    setTimeout(() => { msg.textContent = 'Puedes recargar la pagina para comprobar el estado.'; }, 5000);
+  }
 </script>
 </div>
 </body>
@@ -4314,6 +4360,29 @@ __NAV__
     <div id='profileList'><p class='hint'>Cargando...</p></div>
   </div>
 
+  <div id='editPanel' class='card' style='display:none'>
+    <h2 style='margin:0 0 6px'>Editar perfil: <span id='editPanelId' style='color:var(--accent);font-family:Consolas,monospace'></span></h2>
+    <p class='hint'>Modifica el JSON y pulsa <strong>Guardar cambios</strong>. Solo se sobrescriben los campos que edites.</p>
+    <div class='row' style='margin-bottom:8px'>
+      <div class='field'>
+        <label for='editName'>Nombre</label>
+        <input id='editName' type='text'>
+      </div>
+      <div class='field'>
+        <label for='editDesc'>Descripcion</label>
+        <input id='editDesc' type='text'>
+      </div>
+    </div>
+    <div class='field'>
+      <label>JSON completo del perfil (editable)</label>
+      <textarea id='editJson' rows='14' style='font-family:Consolas,monospace;font-size:12px;resize:vertical'></textarea>
+    </div>
+    <div class='actions'>
+      <button class='btn' onclick='saveEditedProfile()'>Guardar cambios</button>
+      <button class='btn alt' onclick='closeEditPanel()'>Cancelar</button>
+    </div>
+  </div>
+
   <div class='resp-card card'>
     <h3 style='margin:0 0 8px'>Respuesta</h3>
     <pre id='resultOut'>Sin llamadas aun.</pre>
@@ -4360,10 +4429,11 @@ __NAV__
       else badges.push("<span class='badge user'>usuario</span>");
       if (isDefault) badges.push("<span class='badge default'>activo por defecto</span>");
       if (item.readOnly) badges.push("<span class='badge'>solo lectura</span>");
-      let acts = '<button class="btn sm alt" onclick="viewProfile(\'' + item.id + '\')" title="Ver JSON completo guardado">Ver config</button>';
+      let acts = '<button class="btn sm alt" onclick="editProfile(\'' + item.id + '\')" title="Cargar y editar este perfil">Editar</button>';
       if (!isDefault) {
         acts += '<button class="btn sm" onclick="activateProfile(\'' + item.id + '\')" title="Aplicar este perfil al dispositivo y ponerlo como predeterminado">Activar</button>';
       }
+      acts += '<button class="btn sm alt" onclick="cloneProfile(\'' + item.id + '\')" title="Clonar este perfil con un nuevo ID">Clonar</button>';
       if (!isBuiltIn) {
         acts += '<button class="btn sm danger" onclick="deleteProfile(\'' + item.id + '\')">Borrar</button>';
       }
@@ -4423,6 +4493,48 @@ __NAV__
     if (!confirm('Borrar el perfil "' + id + '"?\n\nEsta accion no se puede deshacer.')) return;
     const ok = await callJson('/api/v1/profiles/delete', { profile: { id: id } }, 'Borrando perfil "' + id + '"...');
     if (ok) await loadProfiles();
+  }
+
+  async function cloneProfile(id) {
+    const newId = prompt('ID para el perfil clonado (sin espacios):', id + '_copia');
+    if (!newId) return;
+    const newName = prompt('Nombre del perfil clonado:', newId);
+    const ok = await callJson('/api/v1/profiles/clone', { profile: { id: id, newId: newId.trim(), name: newName || newId.trim() } }, 'Clonando perfil "' + id + '"...');
+    if (ok) await loadProfiles();
+  }
+
+  async function editProfile(id) {
+    setStatus('Cargando perfil "' + id + '"...', false);
+    try {
+      const res = await fetch('/api/v1/profiles/get?id=' + encodeURIComponent(id));
+      const data = await res.json();
+      const profile = (data.profile || data);
+      byId('editPanelId').textContent = id;
+      byId('editName').value = profile.name || '';
+      byId('editDesc').value = profile.description || '';
+      byId('editJson').value = JSON.stringify(profile, null, 2);
+      byId('editJson').dataset.id = id;
+      byId('editPanel').style.display = 'block';
+      byId('editPanel').scrollIntoView({ behavior: 'smooth' });
+      setStatus('Perfil "' + id + '" cargado para editar.', false);
+    } catch (err) {
+      setStatus('Error cargando perfil: ' + err, true);
+    }
+  }
+
+  async function saveEditedProfile() {
+    let parsed;
+    try { parsed = JSON.parse(byId('editJson').value); } catch (e) {
+      setStatus('JSON invalido: ' + e.message, true); return;
+    }
+    parsed.name = byId('editName').value.trim() || parsed.name;
+    parsed.description = byId('editDesc').value.trim() || parsed.description;
+    const ok = await callJson('/api/v1/profiles/save', { profile: parsed }, 'Guardando cambios en "' + parsed.id + '"...');
+    if (ok) { closeEditPanel(); await loadProfiles(); }
+  }
+
+  function closeEditPanel() {
+    byId('editPanel').style.display = 'none';
   }
 
   async function callJson(url, payload, statusLabel) {

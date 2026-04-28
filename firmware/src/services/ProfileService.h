@@ -11,6 +11,7 @@
 #include <ArduinoJson.h>
 
 #include "core/Config.h"
+#include "core/CoreState.h"
 #include "drivers/LedDriver.h"
 #include "services/PersistenceSchedulerService.h"
 #include "services/StorageService.h"
@@ -38,7 +39,8 @@ public:
                  MicrophoneConfig &microphoneConfig, DebugConfig &debugConfig,
                  StorageService &storageService,
                  PersistenceSchedulerService &persistenceSchedulerService,
-                 LedDriver &ledDriver);
+                 LedDriver &ledDriver,
+                 CoreState &coreState);
 
   void begin();
   void processPendingPersistence();
@@ -89,6 +91,7 @@ private:
   StorageService   &storageService_;
   PersistenceSchedulerService &persistenceSchedulerService_;
   LedDriver        &ledDriver_;
+  CoreState        &coreState_;
 
   AppProfile builtInProfiles_[kMaxBuiltInProfiles];
   AppProfile userProfiles_[kMaxUserProfiles];

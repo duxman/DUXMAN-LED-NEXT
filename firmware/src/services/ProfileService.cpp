@@ -93,12 +93,13 @@ ProfileService::ProfileService(NetworkConfig &networkConfig, GpioConfig &gpioCon
                                MicrophoneConfig &microphoneConfig, DebugConfig &debugConfig,
                                StorageService &storageService,
                                PersistenceSchedulerService &persistenceSchedulerService,
-                               LedDriver &ledDriver)
+                               LedDriver &ledDriver,
+                               CoreState &coreState)
   : networkConfig_(networkConfig), gpioConfig_(gpioConfig),
     microphoneConfig_(microphoneConfig), debugConfig_(debugConfig),
     storageService_(storageService),
     persistenceSchedulerService_(persistenceSchedulerService),
-    ledDriver_(ledDriver) {}
+    ledDriver_(ledDriver), coreState_(coreState) {}
 
 void ProfileService::begin() {
   initializeBuiltInProfiles();
@@ -147,8 +148,14 @@ bool ProfileService::applyStartupProfile(String *appliedId, String *error) {
 }
 
 void ProfileService::applyActiveConfig() {
+  // IMPORTANTE: tomar el mutex de CoreState antes de reconfigurar el driver.
+  // El render task (core 1) mantiene este mutex durante renderFrame();
+  // sin esta proteccion hay una carrera de datos sobre los objetos NeoPixelBus
+  // que causa pixeles aleatorios y congela la animacion.
+  coreState_.lock();
   ledDriver_.configure(gpioConfig_);
   ledDriver_.begin();
+  coreState_.unlock();
 }
 
 bool ProfileService::syncDefaultProfileFromActiveConfig(String *error) {
