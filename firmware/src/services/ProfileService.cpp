@@ -5,7 +5,7 @@
  * Last commit: 47b0156 - 2026-04-28
  */
 
-﻿#include "services/ProfileService.h"
+#include "services/ProfileService.h"
 
 #include <LittleFS.h>
 #include <ArduinoJson.h>

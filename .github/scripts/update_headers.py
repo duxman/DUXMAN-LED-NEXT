@@ -164,7 +164,7 @@ def update_file_header(filepath: Path, version: str, repo_root: Path) -> bool:
     is_python = filepath.suffix == ".py"
 
     try:
-        original = filepath.read_text(encoding="utf-8", errors="replace")
+        original = filepath.read_text(encoding="utf-8-sig", errors="replace")
     except Exception as exc:
         print(f"  [skip] Cannot read {rel_path}: {exc}")
         return False
@@ -184,7 +184,7 @@ def update_file_header(filepath: Path, version: str, repo_root: Path) -> bool:
         return False  # already up-to-date
 
     try:
-        filepath.write_text(new_content, encoding="utf-8")
+        filepath.write_text(new_content, encoding="utf-8")  # always write without BOM
     except Exception as exc:
         print(f"  [error] Cannot write {rel_path}: {exc}")
         return False

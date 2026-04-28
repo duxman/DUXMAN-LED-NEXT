@@ -5,7 +5,7 @@
  * Last commit: ad4cfd2 - 2026-04-28
  */
 
-﻿#include "services/AudioService.h"
+#include "services/AudioService.h"
 
 #include <cmath>
 

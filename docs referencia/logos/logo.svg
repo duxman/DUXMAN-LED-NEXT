@@ -1,0 +1,20 @@
+<svg width="130" height="73" viewBox="0 0 130 73" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="led-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#00CFFF" />
+      <stop offset="33%" stop-color="#94FF00" />
+      <stop offset="66%" stop-color="#FFD600" />
+      <stop offset="100%" stop-color="#FF2E2E" />
+    </linearGradient>
+  </defs>
+
+  <text x="50%" y="30" text-anchor="middle" font-family="Arial, sans-serif" font-weight="900" font-style="italic" font-size="18" fill="url(#led-gradient)">
+    duxman-led
+  </text>
+
+  <text x="50%" y="50" text-anchor="middle" font-family="Arial, sans-serif" font-weight="900" font-style="italic" font-size="22" fill="url(#led-gradient)">
+    next »
+  </text>
+
+
+</svg>
