@@ -2,7 +2,7 @@
  * duxman-led next - v0.3.7-beta
  * Licensed under the Apache License 2.0
  * File: firmware/src/effects/EffectBlinkFixed.cpp
- * Last commit: e30e0c1 - 2026-04-03
+ * Last commit: ec3d96f - 2026-04-28
  */
 
 #include "effects/EffectBlinkFixed.h"
