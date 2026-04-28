@@ -13,3 +13,5 @@ Desktop.ini
 **/.pio/
 **/build/
 **/dist/
+/firmware/src/api/*.bak
+/firmware/src/services/*.bak

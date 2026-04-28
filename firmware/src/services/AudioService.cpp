@@ -5,7 +5,7 @@
  * Last commit: ec3d96f - 2026-04-28
  */
 
-﻿#include "services/AudioService.h"
+#include "services/AudioService.h"
 
 #include <cmath>
 
