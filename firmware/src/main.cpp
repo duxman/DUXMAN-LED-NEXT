@@ -36,7 +36,7 @@ EffectManager effectManager(state, ledDriver);
 StorageService storageService(state, networkConfig, gpioConfig, microphoneConfig, debugConfig);
 PersistenceSchedulerService persistenceSchedulerService(storageService);
 EffectPersistenceService effectPersistenceService(state);
-ProfileService profileService(networkConfig, gpioConfig, microphoneConfig, debugConfig, storageService, persistenceSchedulerService, ledDriver);
+ProfileService profileService(networkConfig, gpioConfig, microphoneConfig, debugConfig, storageService, persistenceSchedulerService, ledDriver, state);
 UserPaletteService userPaletteService(persistenceSchedulerService);
 WifiService wifiService(networkConfig, debugConfig);
 WatchdogService watchdogService;
