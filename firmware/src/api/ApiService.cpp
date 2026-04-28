@@ -1,6 +1,7 @@
 #include "api/ApiService.h"
 #include "core/BuildProfile.h"
 #include "core/PaletteRegistry.h"
+#include "services/UserPaletteService.h"
 
 #include "effects/EffectRegistry.h"
 
@@ -25,29 +26,25 @@ String buildBootedAtLabel() {
   return String("Arranque: ") + buffer;
 }
 
-String buildMicrophoneJson(const NetworkConfig &networkConfig) {
-  JsonDocument source;
-  deserializeJson(source, networkConfig.toJson());
-
-  JsonDocument outDoc;
-  outDoc["microphone"] = source["microphone"];
-
-  String out;
-  serializeJson(outDoc, out);
-  return out;
+String buildMicrophoneJson(const MicrophoneConfig &microphoneConfig) {
+  return microphoneConfig.toJson();
 }
 } // namespace
 
 ApiService::ApiService(CoreState &state, NetworkConfig &networkConfig, GpioConfig &gpioConfig,
+                       MicrophoneConfig &microphoneConfig, DebugConfig &debugConfig,
                        StorageService &storageService, WifiService &wifiService,
                        PersistenceSchedulerService &persistenceSchedulerService,
                        EffectPersistenceService &effectPersistenceService,
-                       ProfileService &profileService, WatchdogService &watchdogService)
+                       ProfileService &profileService, UserPaletteService &userPaletteService,
+                       WatchdogService &watchdogService)
     : state_(state), networkConfig_(networkConfig), gpioConfig_(gpioConfig),
+      microphoneConfig_(microphoneConfig), debugConfig_(debugConfig),
       storageService_(storageService), wifiService_(wifiService),
       persistenceSchedulerService_(persistenceSchedulerService),
       effectPersistenceService_(effectPersistenceService),
-      profileService_(profileService), watchdogService_(watchdogService), httpServer_(80) {}
+      profileService_(profileService), userPaletteService_(userPaletteService),
+      watchdogService_(watchdogService), httpServer_(80) {}
 
 void ApiService::begin() {
   setupHttpRoutes();
@@ -57,15 +54,15 @@ void ApiService::begin() {
   Serial.println("[api] ready: GET /api/v1/config/network | PATCH /api/v1/config/network {json}");
   Serial.println("[api] ready: GET /api/v1/config/microphone | PATCH /api/v1/config/microphone {json}");
   Serial.println("[api] ready: GET /api/v1/config/gpio | PATCH /api/v1/config/gpio {json}");
-  Serial.println("[api] ready: GET /api/v1/profiles/gpio | POST /api/v1/profiles/gpio/save|apply|default|delete {json}");
+  Serial.println("[api] ready: GET /api/v1/profiles | POST /api/v1/profiles/save|apply|default|delete|clone {json} | GET /api/v1/profiles/get?id=");
   Serial.println("[api] ready: GET /api/v1/config/debug | PATCH /api/v1/config/debug {json}");
   Serial.println("[api] ready: GET /api/v1/config/all | POST /api/v1/config/all {json}");
   Serial.println("[api] ready: GET /api/v1/effects | POST /api/v1/effects/startup/save | POST /api/v1/effects/sequence/add|delete");
-  Serial.println("[api] ready: GET /api/v1/palettes | POST /api/v1/palettes/apply {json}");
+  Serial.println("[api] ready: GET /api/v1/palettes | POST /api/v1/palettes/apply {json} | POST /api/v1/palettes/save {json} | POST /api/v1/palettes/delete {json}");
   Serial.println("[api] ready: POST /api/v1/system/restart");
   Serial.println("[api] ready: GET /api/v1/hardware");
   Serial.println("[api] ready: GET /api/v1/release");
-  Serial.println("[api] ui: GET / | GET /config | GET /config/network | GET /config/microphone | GET /config/gpio | GET /config/debug | GET /config/manual | GET /api | GET /version");
+  Serial.println("[api] ui: GET / | GET /config | GET /config/network | GET /config/microphone | GET /config/gpio | GET /config/palettes | GET /config/debug | GET /config/manual | GET /api | GET /version");
 }
 
 void ApiService::handle() {
@@ -116,15 +113,15 @@ void ApiService::processCommand(const String &command) {
   }
 
   if (command == "GET /api/v1/config/microphone") {
-    Serial.println(buildMicrophoneJson(networkConfig_));
+    Serial.println(buildMicrophoneJson(microphoneConfig_));
     return;
   }
 
   if (command == "GET /api/v1/config/debug") {
     Serial.print("{\"debug\":{\"enabled\":");
-    Serial.print(networkConfig_.debug.enabled ? "true" : "false");
+    Serial.print(debugConfig_.enabled ? "true" : "false");
     Serial.print(",\"heartbeatMs\":");
-    Serial.print(networkConfig_.debug.heartbeatMs);
+    Serial.print(debugConfig_.heartbeatMs);
     Serial.println("}}");
     return;
   }
@@ -145,10 +142,39 @@ void ApiService::processCommand(const String &command) {
   }
 
   if (command == "GET /api/v1/palettes") {
-    String response = "{\"palettes\":";
-    response += PaletteRegistry::toJsonArray();
-    response += "}";
-    Serial.println(response);
+    Serial.println(userPaletteService_.listAllJson());
+    return;
+  }
+
+  if (command.startsWith("POST /api/v1/palettes/save ") ||
+      command.startsWith("PATCH /api/v1/palettes/save ")) {
+    const int payloadPos = command.indexOf('{');
+    if (payloadPos < 0) {
+      Serial.println("{\"error\":\"invalid_payload\"}");
+      return;
+    }
+    String respBody, errMsg;
+    if (!userPaletteService_.saveFromJson(command.substring(payloadPos), &respBody, &errMsg)) {
+      Serial.print("{\"error\":\""); Serial.print(errMsg); Serial.println("\"}");
+      return;
+    }
+    Serial.println(respBody);
+    return;
+  }
+
+  if (command.startsWith("POST /api/v1/palettes/delete ") ||
+      command.startsWith("PATCH /api/v1/palettes/delete ")) {
+    const int payloadPos = command.indexOf('{');
+    if (payloadPos < 0) {
+      Serial.println("{\"error\":\"invalid_payload\"}");
+      return;
+    }
+    String respBody, errMsg;
+    if (!userPaletteService_.deleteFromJson(command.substring(payloadPos), &respBody, &errMsg)) {
+      Serial.print("{\"error\":\""); Serial.print(errMsg); Serial.println("\"}");
+      return;
+    }
+    Serial.println(respBody);
     return;
   }
 
@@ -220,7 +246,7 @@ void ApiService::processCommand(const String &command) {
     }
 
     if (changed) {
-      persistenceSchedulerService_.requestSaveNetwork();
+      persistenceSchedulerService_.requestSaveConfig();
     }
 
     if (changed && !wifiService_.applyConfig()) {
@@ -243,28 +269,8 @@ void ApiService::processCommand(const String &command) {
       return;
     }
 
-    const String rawPayload = command.substring(payloadPos);
-    JsonDocument parsed;
-    const DeserializationError parseResult = deserializeJson(parsed, rawPayload);
-    if (parseResult) {
-      Serial.println("{\"error\":\"invalid_json\"}");
-      return;
-    }
-
-    JsonObjectConst incoming = parsed.as<JsonObjectConst>();
-    JsonDocument patchDoc;
-    JsonObject patchRoot = patchDoc.to<JsonObject>();
-    if (!incoming["microphone"].isNull()) {
-      patchRoot["microphone"] = incoming["microphone"];
-    } else {
-      patchRoot["microphone"] = incoming;
-    }
-
-    String normalizedPayload;
-    serializeJson(patchDoc, normalizedPayload);
-
     String error;
-    const bool changed = networkConfig_.applyPatchJson(normalizedPayload, &error);
+    const bool changed = microphoneConfig_.applyPatchJson(command.substring(payloadPos), &error);
     if (!error.isEmpty()) {
       Serial.print("{\"error\":\"");
       Serial.print(error);
@@ -273,17 +279,13 @@ void ApiService::processCommand(const String &command) {
     }
 
     if (changed) {
-      persistenceSchedulerService_.requestSaveNetwork();
+      persistenceSchedulerService_.requestSaveConfig();
     }
 
     Serial.print("{\"updated\":");
     Serial.print(changed ? "true" : "false");
     Serial.print(",\"microphone\":");
-    JsonDocument current;
-    deserializeJson(current, networkConfig_.toJson());
-    String mic;
-    serializeJson(current["microphone"], mic);
-    Serial.print(mic);
+    Serial.print(microphoneConfig_.toJson());
     Serial.println("}");
     return;
   }
@@ -293,7 +295,7 @@ void ApiService::processCommand(const String &command) {
     return;
   }
 
-  if (command == "GET /api/v1/profiles/gpio") {
+  if (command == "GET /api/v1/profiles") {
     Serial.println(profileService_.listProfilesJson());
     return;
   }
@@ -316,7 +318,7 @@ void ApiService::processCommand(const String &command) {
     }
 
     if (changed) {
-      persistenceSchedulerService_.requestSaveGpio();
+      persistenceSchedulerService_.requestSaveConfig();
     }
 
     if (changed) {
@@ -338,8 +340,8 @@ void ApiService::processCommand(const String &command) {
     return;
   }
 
-  if (command.startsWith("POST /api/v1/profiles/gpio/save ") ||
-      command.startsWith("PATCH /api/v1/profiles/gpio/save ")) {
+  if (command.startsWith("POST /api/v1/profiles/save ") ||
+      command.startsWith("PATCH /api/v1/profiles/save ")) {
     const int payloadPos = command.indexOf('{');
     if (payloadPos < 0) {
       Serial.println("{\"error\":\"invalid_payload\"}");
@@ -359,8 +361,8 @@ void ApiService::processCommand(const String &command) {
     return;
   }
 
-  if (command.startsWith("POST /api/v1/profiles/gpio/apply ") ||
-      command.startsWith("PATCH /api/v1/profiles/gpio/apply ")) {
+  if (command.startsWith("POST /api/v1/profiles/apply ") ||
+      command.startsWith("PATCH /api/v1/profiles/apply ")) {
     const int payloadPos = command.indexOf('{');
     if (payloadPos < 0) {
       Serial.println("{\"error\":\"invalid_payload\"}");
@@ -380,8 +382,8 @@ void ApiService::processCommand(const String &command) {
     return;
   }
 
-  if (command.startsWith("POST /api/v1/profiles/gpio/default ") ||
-      command.startsWith("PATCH /api/v1/profiles/gpio/default ")) {
+  if (command.startsWith("POST /api/v1/profiles/default ") ||
+      command.startsWith("PATCH /api/v1/profiles/default ")) {
     const int payloadPos = command.indexOf('{');
     if (payloadPos < 0) {
       Serial.println("{\"error\":\"invalid_payload\"}");
@@ -401,8 +403,8 @@ void ApiService::processCommand(const String &command) {
     return;
   }
 
-  if (command.startsWith("POST /api/v1/profiles/gpio/delete ") ||
-      command.startsWith("PATCH /api/v1/profiles/gpio/delete ")) {
+  if (command.startsWith("POST /api/v1/profiles/delete ") ||
+      command.startsWith("PATCH /api/v1/profiles/delete ")) {
     const int payloadPos = command.indexOf('{');
     if (payloadPos < 0) {
       Serial.println("{\"error\":\"invalid_payload\"}");
@@ -429,28 +431,8 @@ void ApiService::processCommand(const String &command) {
       return;
     }
 
-    const String rawPayload = command.substring(payloadPos);
-    JsonDocument parsed;
-    const DeserializationError parseResult = deserializeJson(parsed, rawPayload);
-    if (parseResult) {
-      Serial.println("{\"error\":\"invalid_json\"}");
-      return;
-    }
-
-    JsonObjectConst incoming = parsed.as<JsonObjectConst>();
-    JsonDocument patchDoc;
-    JsonObject patchRoot = patchDoc.to<JsonObject>();
-    if (!incoming["debug"].isNull()) {
-      patchRoot["debug"] = incoming["debug"];
-    } else {
-      patchRoot["debug"] = incoming;
-    }
-
-    String normalizedPayload;
-    serializeJson(patchDoc, normalizedPayload);
-
     String error;
-    const bool changed = networkConfig_.applyPatchJson(normalizedPayload, &error);
+    const bool changed = debugConfig_.applyPatchJson(command.substring(payloadPos), &error);
     if (!error.isEmpty()) {
       Serial.print("{\"error\":\"");
       Serial.print(error);
@@ -459,15 +441,15 @@ void ApiService::processCommand(const String &command) {
     }
 
     if (changed) {
-      persistenceSchedulerService_.requestSaveNetwork();
+      persistenceSchedulerService_.requestSaveConfig();
     }
 
     Serial.print("{\"updated\":");
     Serial.print(changed ? "true" : "false");
     Serial.print(",\"debug\":{\"enabled\":");
-    Serial.print(networkConfig_.debug.enabled ? "true" : "false");
+    Serial.print(debugConfig_.enabled ? "true" : "false");
     Serial.print(",\"heartbeatMs\":");
-    Serial.print(networkConfig_.debug.heartbeatMs);
+    Serial.print(debugConfig_.heartbeatMs);
     Serial.println("}}");
     return;
   }
@@ -496,9 +478,11 @@ void ApiService::processCommand(const String &command) {
     // Validar en candidatos antes de aplicar
     NetworkConfig netCandidate = networkConfig_;
     GpioConfig gpioCandidate = gpioConfig_;
+    MicrophoneConfig micCandidate = microphoneConfig_;
+    DebugConfig debugCandidate = debugConfig_;
 
     String netPayload;
-    { JsonDocument d; d["network"] = root["network"]; d["debug"] = root["debug"]; d["microphone"] = root["microphone"]; serializeJson(d, netPayload); }
+    { JsonDocument d; d["network"] = root["network"]; serializeJson(d, netPayload); }
     String error;
     netCandidate.applyPatchJson(netPayload, &error);
     if (!error.isEmpty()) {
@@ -514,10 +498,27 @@ void ApiService::processCommand(const String &command) {
       return;
     }
 
+    String micPayload;
+    { JsonDocument d; d["microphone"] = root["microphone"]; serializeJson(d, micPayload); }
+    micCandidate.applyPatchJson(micPayload, &error);
+    if (!error.isEmpty()) {
+      Serial.print("{\"error\":\"microphone_"); Serial.print(error); Serial.println("\"}");
+      return;
+    }
+
+    String debugPayload;
+    { JsonDocument d; d["debug"] = root["debug"]; serializeJson(d, debugPayload); }
+    debugCandidate.applyPatchJson(debugPayload, &error);
+    if (!error.isEmpty()) {
+      Serial.print("{\"error\":\"debug_"); Serial.print(error); Serial.println("\"}");
+      return;
+    }
+
     networkConfig_ = netCandidate;
     gpioConfig_ = gpioCandidate;
-    persistenceSchedulerService_.requestSaveNetwork();
-    persistenceSchedulerService_.requestSaveGpio();
+    microphoneConfig_ = micCandidate;
+    debugConfig_ = debugCandidate;
+    persistenceSchedulerService_.requestSaveConfig();
     profileService_.syncDefaultProfileFromActiveConfig();
     wifiService_.applyConfig();
 
@@ -591,7 +592,7 @@ void ApiService::setupHttpRoutes() {
     httpServer_.send(200, "text/html", buildApiHardwareHtml());
   });
 
-  httpServer_.on("/api/profiles/gpio", HTTP_GET, [this]() {
+  httpServer_.on("/api/profiles", HTTP_GET, [this]() {
     httpServer_.send(200, "text/html", buildApiProfilesHtml());
   });
 
@@ -619,24 +620,32 @@ void ApiService::setupHttpRoutes() {
     handleHttpGpioRoute();
   });
 
-  httpServer_.on("/api/v1/profiles/gpio", HTTP_ANY, [this]() {
-    handleHttpGpioProfilesRoute();
+  httpServer_.on("/api/v1/profiles", HTTP_ANY, [this]() {
+    handleHttpProfilesRoute();
   });
 
-  httpServer_.on("/api/v1/profiles/gpio/save", HTTP_ANY, [this]() {
-    handleHttpGpioProfilesSaveRoute();
+  httpServer_.on("/api/v1/profiles/save", HTTP_ANY, [this]() {
+    handleHttpProfilesSaveRoute();
   });
 
-  httpServer_.on("/api/v1/profiles/gpio/apply", HTTP_ANY, [this]() {
-    handleHttpGpioProfilesApplyRoute();
+  httpServer_.on("/api/v1/profiles/apply", HTTP_ANY, [this]() {
+    handleHttpProfilesApplyRoute();
   });
 
-  httpServer_.on("/api/v1/profiles/gpio/default", HTTP_ANY, [this]() {
-    handleHttpGpioProfilesDefaultRoute();
+  httpServer_.on("/api/v1/profiles/default", HTTP_ANY, [this]() {
+    handleHttpProfilesDefaultRoute();
   });
 
-  httpServer_.on("/api/v1/profiles/gpio/delete", HTTP_ANY, [this]() {
-    handleHttpGpioProfilesDeleteRoute();
+  httpServer_.on("/api/v1/profiles/delete", HTTP_ANY, [this]() {
+    handleHttpProfilesDeleteRoute();
+  });
+
+  httpServer_.on("/api/v1/profiles/clone", HTTP_ANY, [this]() {
+    handleHttpProfilesCloneRoute();
+  });
+
+  httpServer_.on("/api/v1/profiles/get", HTTP_ANY, [this]() {
+    handleHttpProfilesGetRoute();
   });
 
   httpServer_.on("/api/v1/effects", HTTP_ANY, [this]() {
@@ -661,6 +670,18 @@ void ApiService::setupHttpRoutes() {
 
   httpServer_.on("/api/v1/palettes/apply", HTTP_ANY, [this]() {
     handleHttpPalettesApplyRoute();
+  });
+
+  httpServer_.on("/api/v1/palettes/save", HTTP_ANY, [this]() {
+    handleHttpPalettesSaveRoute();
+  });
+
+  httpServer_.on("/api/v1/palettes/delete", HTTP_ANY, [this]() {
+    handleHttpPalettesDeleteRoute();
+  });
+
+  httpServer_.on("/config/palettes", HTTP_GET, [this]() {
+    httpServer_.send(200, "text/html", buildPalettesConfigHtml());
   });
 
   httpServer_.on("/api/v1/system/restart", HTTP_ANY, [this]() {
@@ -762,7 +783,7 @@ void ApiService::handleHttpNetworkRoute() {
     }
 
     if (changed) {
-      persistenceSchedulerService_.requestSaveNetwork();
+      persistenceSchedulerService_.requestSaveConfig();
     }
 
     if (changed && !wifiService_.applyConfig()) {
@@ -786,7 +807,7 @@ void ApiService::handleHttpMicrophoneRoute() {
   const HTTPMethod method = httpServer_.method();
 
   if (method == HTTP_GET) {
-    httpServer_.send(200, "application/json", buildMicrophoneJson(networkConfig_));
+    httpServer_.send(200, "application/json", buildMicrophoneJson(microphoneConfig_));
     return;
   }
 
@@ -797,27 +818,8 @@ void ApiService::handleHttpMicrophoneRoute() {
       return;
     }
 
-    JsonDocument parsed;
-    const DeserializationError parseResult = deserializeJson(parsed, payload);
-    if (parseResult) {
-      httpServer_.send(400, "application/json", "{\"error\":\"invalid_json\"}");
-      return;
-    }
-
-    JsonObjectConst incoming = parsed.as<JsonObjectConst>();
-    JsonDocument patchDoc;
-    JsonObject patchRoot = patchDoc.to<JsonObject>();
-    if (!incoming["microphone"].isNull()) {
-      patchRoot["microphone"] = incoming["microphone"];
-    } else {
-      patchRoot["microphone"] = incoming;
-    }
-
-    String normalizedPayload;
-    serializeJson(patchDoc, normalizedPayload);
-
     String error;
-    const bool changed = networkConfig_.applyPatchJson(normalizedPayload, &error);
+    const bool changed = microphoneConfig_.applyPatchJson(payload, &error);
     if (!error.isEmpty()) {
       String response = "{\"error\":\"";
       response += error;
@@ -827,15 +829,12 @@ void ApiService::handleHttpMicrophoneRoute() {
     }
 
     if (changed) {
-      persistenceSchedulerService_.requestSaveNetwork();
+      persistenceSchedulerService_.requestSaveConfig();
     }
-
-    JsonDocument current;
-    deserializeJson(current, networkConfig_.toJson());
 
     JsonDocument responseDoc;
     responseDoc["updated"] = changed;
-    responseDoc["microphone"] = current["microphone"];
+    { JsonDocument d; deserializeJson(d, microphoneConfig_.toJson()); responseDoc["microphone"] = d["microphone"]; }
     String response;
     serializeJson(responseDoc, response);
     httpServer_.send(200, "application/json", response);
@@ -871,7 +870,7 @@ void ApiService::handleHttpGpioRoute() {
     }
 
     if (changed) {
-      persistenceSchedulerService_.requestSaveGpio();
+      persistenceSchedulerService_.requestSaveConfig();
     }
 
     if (changed) {
@@ -898,7 +897,7 @@ void ApiService::handleHttpGpioRoute() {
   httpServer_.send(405, "application/json", "{\"error\":\"method_not_allowed\"}");
 }
 
-void ApiService::handleHttpGpioProfilesRoute() {
+void ApiService::handleHttpProfilesRoute() {
   if (httpServer_.method() == HTTP_GET) {
     httpServer_.send(200, "application/json", profileService_.listProfilesJson());
     return;
@@ -907,7 +906,7 @@ void ApiService::handleHttpGpioProfilesRoute() {
   httpServer_.send(405, "application/json", "{\"error\":\"method_not_allowed\"}");
 }
 
-void ApiService::handleHttpGpioProfilesSaveRoute() {
+void ApiService::handleHttpProfilesSaveRoute() {
   const HTTPMethod method = httpServer_.method();
   if (method != HTTP_POST && method != HTTP_PATCH) {
     httpServer_.send(405, "application/json", "{\"error\":\"method_not_allowed\"}");
@@ -933,7 +932,7 @@ void ApiService::handleHttpGpioProfilesSaveRoute() {
   httpServer_.send(200, "application/json", response);
 }
 
-void ApiService::handleHttpGpioProfilesApplyRoute() {
+void ApiService::handleHttpProfilesApplyRoute() {
   const HTTPMethod method = httpServer_.method();
   if (method != HTTP_POST && method != HTTP_PATCH) {
     httpServer_.send(405, "application/json", "{\"error\":\"method_not_allowed\"}");
@@ -959,7 +958,7 @@ void ApiService::handleHttpGpioProfilesApplyRoute() {
   httpServer_.send(200, "application/json", response);
 }
 
-void ApiService::handleHttpGpioProfilesDefaultRoute() {
+void ApiService::handleHttpProfilesDefaultRoute() {
   const HTTPMethod method = httpServer_.method();
   if (method != HTTP_POST && method != HTTP_PATCH) {
     httpServer_.send(405, "application/json", "{\"error\":\"method_not_allowed\"}");
@@ -985,7 +984,7 @@ void ApiService::handleHttpGpioProfilesDefaultRoute() {
   httpServer_.send(200, "application/json", response);
 }
 
-void ApiService::handleHttpGpioProfilesDeleteRoute() {
+void ApiService::handleHttpProfilesDeleteRoute() {
   const HTTPMethod method = httpServer_.method();
   if (method != HTTP_POST && method != HTTP_PATCH) {
     httpServer_.send(405, "application/json", "{\"error\":\"method_not_allowed\"}");
@@ -1005,6 +1004,53 @@ void ApiService::handleHttpGpioProfilesDeleteRoute() {
     out += error;
     out += "\"}";
     httpServer_.send(400, "application/json", out);
+    return;
+  }
+
+  httpServer_.send(200, "application/json", response);
+}
+
+void ApiService::handleHttpProfilesCloneRoute() {
+  const HTTPMethod method = httpServer_.method();
+  if (method != HTTP_POST && method != HTTP_PATCH) {
+    httpServer_.send(405, "application/json", "{\"error\":\"method_not_allowed\"}");
+    return;
+  }
+
+  const String payload = httpServer_.arg("plain");
+  if (payload.isEmpty()) {
+    httpServer_.send(400, "application/json", "{\"error\":\"invalid_payload\"}");
+    return;
+  }
+
+  String response;
+  String error;
+  if (!profileService_.cloneProfileFromJson(payload, &response, &error)) {
+    String out = "{\"error\":\"";
+    out += error;
+    out += "\"}";
+    httpServer_.send(400, "application/json", out);
+    return;
+  }
+
+  httpServer_.send(200, "application/json", response);
+}
+
+void ApiService::handleHttpProfilesGetRoute() {
+  if (httpServer_.method() != HTTP_GET) {
+    httpServer_.send(405, "application/json", "{\"error\":\"method_not_allowed\"}");
+    return;
+  }
+
+  const String id = httpServer_.arg("id");
+  if (id.isEmpty()) {
+    httpServer_.send(400, "application/json", "{\"error\":\"missing_id\"}");
+    return;
+  }
+
+  const String response = profileService_.getProfileConfigJson(id);
+  if (response.isEmpty()) {
+    httpServer_.send(404, "application/json", "{\"error\":\"profile_not_found\"}");
     return;
   }
 
@@ -1120,10 +1166,7 @@ void ApiService::handleHttpEffectsSequenceDeleteRoute() {
 
 void ApiService::handleHttpPalettesRoute() {
   if (httpServer_.method() == HTTP_GET) {
-    String response = "{\"palettes\":";
-    response += PaletteRegistry::toJsonArray();
-    response += "}";
-    httpServer_.send(200, "application/json", response);
+    httpServer_.send(200, "application/json", userPaletteService_.listAllJson());
     return;
   }
 
@@ -1175,6 +1218,56 @@ void ApiService::handleHttpPalettesApplyRoute() {
   httpServer_.send(200, "application/json", response);
 }
 
+void ApiService::handleHttpPalettesSaveRoute() {
+  if (httpServer_.method() != HTTP_POST) {
+    httpServer_.send(405, "application/json", "{\"error\":\"method_not_allowed\"}");
+    return;
+  }
+
+  const String payload = httpServer_.arg("plain");
+  if (payload.isEmpty()) {
+    httpServer_.send(400, "application/json", "{\"error\":\"invalid_payload\"}");
+    return;
+  }
+
+  String response;
+  String error;
+  const bool ok = userPaletteService_.saveFromJson(payload, &response, &error);
+  if (!ok) {
+    String errJson = "{\"error\":\"";
+    errJson += error;
+    errJson += "\"}";
+    httpServer_.send(400, "application/json", errJson);
+    return;
+  }
+  httpServer_.send(200, "application/json", response.isEmpty() ? "{\"saved\":true}" : response);
+}
+
+void ApiService::handleHttpPalettesDeleteRoute() {
+  if (httpServer_.method() != HTTP_POST) {
+    httpServer_.send(405, "application/json", "{\"error\":\"method_not_allowed\"}");
+    return;
+  }
+
+  const String payload = httpServer_.arg("plain");
+  if (payload.isEmpty()) {
+    httpServer_.send(400, "application/json", "{\"error\":\"invalid_payload\"}");
+    return;
+  }
+
+  String response;
+  String error;
+  const bool ok = userPaletteService_.deleteFromJson(payload, &response, &error);
+  if (!ok) {
+    String errJson = "{\"error\":\"";
+    errJson += error;
+    errJson += "\"}";
+    httpServer_.send(400, "application/json", errJson);
+    return;
+  }
+  httpServer_.send(200, "application/json", response.isEmpty() ? "{\"deleted\":true}" : response);
+}
+
 void ApiService::handleHttpRestartRoute() {
   const HTTPMethod method = httpServer_.method();
   if (method != HTTP_POST && method != HTTP_PATCH) {
@@ -1192,9 +1285,9 @@ void ApiService::handleHttpDebugRoute() {
 
   if (method == HTTP_GET) {
     String response = "{\"debug\":{\"enabled\":";
-    response += networkConfig_.debug.enabled ? "true" : "false";
+    response += debugConfig_.enabled ? "true" : "false";
     response += ",\"heartbeatMs\":";
-    response += networkConfig_.debug.heartbeatMs;
+    response += debugConfig_.heartbeatMs;
     response += "}}";
     httpServer_.send(200, "application/json", response);
     return;
@@ -1207,27 +1300,8 @@ void ApiService::handleHttpDebugRoute() {
       return;
     }
 
-    JsonDocument parsed;
-    const DeserializationError parseResult = deserializeJson(parsed, payload);
-    if (parseResult) {
-      httpServer_.send(400, "application/json", "{\"error\":\"invalid_json\"}");
-      return;
-    }
-
-    JsonObjectConst incoming = parsed.as<JsonObjectConst>();
-    JsonDocument patchDoc;
-    JsonObject patchRoot = patchDoc.to<JsonObject>();
-    if (!incoming["debug"].isNull()) {
-      patchRoot["debug"] = incoming["debug"];
-    } else {
-      patchRoot["debug"] = incoming;
-    }
-
-    String normalizedPayload;
-    serializeJson(patchDoc, normalizedPayload);
-
     String error;
-    const bool changed = networkConfig_.applyPatchJson(normalizedPayload, &error);
+    const bool changed = debugConfig_.applyPatchJson(payload, &error);
     if (!error.isEmpty()) {
       String response = "{\"error\":\"";
       response += error;
@@ -1237,15 +1311,15 @@ void ApiService::handleHttpDebugRoute() {
     }
 
     if (changed) {
-      persistenceSchedulerService_.requestSaveNetwork();
+      persistenceSchedulerService_.requestSaveConfig();
     }
 
     String response = "{\"updated\":";
     response += changed ? "true" : "false";
     response += ",\"debug\":{\"enabled\":";
-    response += networkConfig_.debug.enabled ? "true" : "false";
+    response += debugConfig_.enabled ? "true" : "false";
     response += ",\"heartbeatMs\":";
-    response += networkConfig_.debug.heartbeatMs;
+    response += debugConfig_.heartbeatMs;
     response += "}}";
     httpServer_.send(200, "application/json", response);
     return;
@@ -1292,17 +1366,10 @@ void ApiService::handleHttpDiagRoute() {
 String ApiService::buildFullConfigJson() const {
   JsonDocument doc;
 
-  // Merge networkConfig
-  JsonDocument netDoc;
-  deserializeJson(netDoc, networkConfig_.toJson());
-  doc["network"] = netDoc["network"];
-  doc["debug"] = netDoc["debug"];
-  doc["microphone"] = netDoc["microphone"];
-
-  // Merge gpioConfig
-  JsonDocument gpioDoc;
-  deserializeJson(gpioDoc, gpioConfig_.toJson());
-  doc["gpio"] = gpioDoc["gpio"];
+  { JsonDocument d; deserializeJson(d, networkConfig_.toJson());    doc["network"]    = d["network"]; }
+  { JsonDocument d; deserializeJson(d, gpioConfig_.toJson());       doc["gpio"]       = d["gpio"]; }
+  { JsonDocument d; deserializeJson(d, microphoneConfig_.toJson()); doc["microphone"] = d["microphone"]; }
+  { JsonDocument d; deserializeJson(d, debugConfig_.toJson());      doc["debug"]      = d["debug"]; }
 
   String out;
   serializeJsonPretty(doc, out);
@@ -1335,9 +1402,11 @@ void ApiService::handleHttpConfigAllRoute() {
     // Validar todo en candidatos antes de tocar la config real
     NetworkConfig netCandidate = networkConfig_;
     GpioConfig gpioCandidate = gpioConfig_;
+    MicrophoneConfig micCandidate = microphoneConfig_;
+    DebugConfig debugCandidate = debugConfig_;
 
     String netPayload;
-    { JsonDocument d; d["network"] = root["network"]; d["debug"] = root["debug"]; d["microphone"] = root["microphone"]; serializeJson(d, netPayload); }
+    { JsonDocument d; d["network"] = root["network"]; serializeJson(d, netPayload); }
     String error;
     netCandidate.applyPatchJson(netPayload, &error);
     if (!error.isEmpty()) {
@@ -1359,12 +1428,35 @@ void ApiService::handleHttpConfigAllRoute() {
       return;
     }
 
-    // Todo válido — aplicar
+    String micPayload;
+    { JsonDocument d; d["microphone"] = root["microphone"]; serializeJson(d, micPayload); }
+    micCandidate.applyPatchJson(micPayload, &error);
+    if (!error.isEmpty()) {
+      String response = "{\"error\":\"microphone_";
+      response += error;
+      response += "\"}";
+      httpServer_.send(400, "application/json", response);
+      return;
+    }
+
+    String debugPayload;
+    { JsonDocument d; d["debug"] = root["debug"]; serializeJson(d, debugPayload); }
+    debugCandidate.applyPatchJson(debugPayload, &error);
+    if (!error.isEmpty()) {
+      String response = "{\"error\":\"debug_";
+      response += error;
+      response += "\"}";
+      httpServer_.send(400, "application/json", response);
+      return;
+    }
+
+    // Todo valido -- aplicar
     networkConfig_ = netCandidate;
     gpioConfig_ = gpioCandidate;
+    microphoneConfig_ = micCandidate;
+    debugConfig_ = debugCandidate;
 
-    persistenceSchedulerService_.requestSaveNetwork();
-    persistenceSchedulerService_.requestSaveGpio();
+    persistenceSchedulerService_.requestSaveConfig();
 
     String syncError;
     if (!profileService_.syncDefaultProfileFromActiveConfig(&syncError)) {
@@ -1434,24 +1526,30 @@ String ApiService::buildOpenApiJson() const {
   gpioPath["patch"]["summary"] = "Actualizar GPIO (outputs: pin, ledCount, ledType, colorOrder)";
   gpioPath["post"]["summary"] = "Alias de PATCH para clientes limitados";
 
-  JsonObject profilesPath = paths["/api/v1/profiles/gpio"].to<JsonObject>();
-  profilesPath["get"]["summary"] = "Listar perfiles GPIO guardados e integrados";
+  JsonObject profilesPath = paths["/api/v1/profiles"].to<JsonObject>();
+  profilesPath["get"]["summary"] = "Listar perfiles guardados e integrados";
 
-  JsonObject profilesSavePath = paths["/api/v1/profiles/gpio/save"].to<JsonObject>();
-  profilesSavePath["post"]["summary"] = "Guardar o actualizar un perfil GPIO de usuario";
+  JsonObject profilesSavePath = paths["/api/v1/profiles/save"].to<JsonObject>();
+  profilesSavePath["post"]["summary"] = "Guardar o actualizar un perfil de usuario";
   profilesSavePath["patch"]["summary"] = "Alias de POST para guardar perfil GPIO";
 
-  JsonObject profilesApplyPath = paths["/api/v1/profiles/gpio/apply"].to<JsonObject>();
-  profilesApplyPath["post"]["summary"] = "Aplicar un perfil GPIO y copiarlo en DEFAULT";
+  JsonObject profilesApplyPath = paths["/api/v1/profiles/apply"].to<JsonObject>();
+  profilesApplyPath["post"]["summary"] = "Aplicar un perfil y copiarlo en DEFAULT";
   profilesApplyPath["patch"]["summary"] = "Alias de POST para aplicar perfil GPIO";
 
-  JsonObject profilesDefaultPath = paths["/api/v1/profiles/gpio/default"].to<JsonObject>();
+  JsonObject profilesDefaultPath = paths["/api/v1/profiles/default"].to<JsonObject>();
   profilesDefaultPath["post"]["summary"] = "Alias de aplicar: copia el perfil elegido en DEFAULT";
   profilesDefaultPath["patch"]["summary"] = "Alias de POST para copiar el perfil en DEFAULT";
 
-  JsonObject profilesDeletePath = paths["/api/v1/profiles/gpio/delete"].to<JsonObject>();
-  profilesDeletePath["post"]["summary"] = "Eliminar un perfil GPIO de usuario";
-  profilesDeletePath["patch"]["summary"] = "Alias de POST para eliminar perfil GPIO";
+  JsonObject profilesDeletePath = paths["/api/v1/profiles/delete"].to<JsonObject>();
+  profilesDeletePath["post"]["summary"] = "Eliminar un perfil de usuario";
+  profilesDeletePath["patch"]["summary"] = "Alias de POST para eliminar perfil";
+
+  JsonObject profilesClonePath = paths["/api/v1/profiles/clone"].to<JsonObject>();
+  profilesClonePath["post"]["summary"] = "Clonar un perfil existente con nuevo id y nombre";
+
+  JsonObject profilesGetPath = paths["/api/v1/profiles/get"].to<JsonObject>();
+  profilesGetPath["get"]["summary"] = "Obtener la configuracion completa de un perfil por id";
 
   JsonObject restartPath = paths["/api/v1/system/restart"].to<JsonObject>();
   restartPath["post"]["summary"] = "Reiniciar la placa";
@@ -1509,8 +1607,8 @@ String ApiService::buildOpenApiJson() const {
   JsonObject apiConfigGpioUiPath = paths["/api/config/gpio"].to<JsonObject>();
   apiConfigGpioUiPath["get"]["summary"] = "UI API para configuracion GPIO";
 
-  JsonObject apiProfilesUiPath = paths["/api/profiles/gpio"].to<JsonObject>();
-  apiProfilesUiPath["get"]["summary"] = "UI API para perfiles GPIO";
+  JsonObject apiProfilesUiPath = paths["/api/profiles"].to<JsonObject>();
+  apiProfilesUiPath["get"]["summary"] = "UI API para perfiles";
 
   JsonObject apiHardwareUiPath = paths["/api/hardware"].to<JsonObject>();
   apiHardwareUiPath["get"]["summary"] = "UI API para hardware runtime";
@@ -1563,6 +1661,106 @@ String ApiService::buildOpenApiJson() const {
   return out;
 }
 
+// ---------------------------------------------------------------------------
+// Shared navigation bar — included verbatim in every page builder.
+// CSS uses .gen-* prefix to avoid collision with per-page styles.
+// ---------------------------------------------------------------------------
+String ApiService::buildNavHtml() const {
+  return R"HTML(
+<style>
+  /* ── Outer page box: 90% wide, contains nav + content ── */
+  .gen-page-outer{width:90%;max-width:940px;margin:20px auto;border-radius:16px;box-shadow:0 12px 36px rgba(10,30,20,.15);overflow:hidden;background:var(--card,#fff);}
+  .gen-page-outer>main{max-width:100%!important;width:100%!important;margin:0!important;box-sizing:border-box;}
+  /* ── Nav: flush inside box, no own radius ── */
+  .gen-nav{display:flex;align-items:center;background:linear-gradient(135deg,#0a3d4a 0%,#0f6a7a 100%);min-height:52px;border-radius:0;box-shadow:none;padding:0 16px;position:relative;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;margin:0;width:100%;}
+  .gen-logo{display:flex;align-items:center;gap:8px;flex-shrink:0;margin-right:auto;text-decoration:none;}
+  .gen-logo-text{color:#e8f6f8;font-size:18px;font-weight:600;white-space:nowrap;letter-spacing:.01em;}
+  .gen-hamburger{display:none;background:none;border:none;cursor:pointer;grid-template-columns:1fr 1fr;gap:3px;padding:4px;}
+  .gen-hamburger span{display:block;background:#e8f6f8;width:8px;height:8px;border-radius:2px;}
+  .gen-nav>ul{display:flex;justify-content:center;flex:1;list-style:none;margin:0;padding:0;}
+  .gen-nav>ul>li{position:relative;}
+  .gen-nav>ul>li>a{display:flex;align-items:center;gap:4px;padding:0 16px;height:52px;color:#e8f6f8;font-size:14px;font-weight:500;text-decoration:none;transition:background .2s;}
+  .gen-nav>ul>li>a:hover{background:rgba(255,255,255,.12);color:#fff;}
+  .gen-nav>ul>li>ul{display:none;position:absolute;top:100%;left:0;background:#083040;min-width:170px;border-radius:0 0 8px 8px;box-shadow:0 8px 24px rgba(8,48,64,.28);z-index:1000;list-style:none;margin:0;padding:0;}
+  .gen-nav>ul>li:hover>ul{display:block;}
+  .gen-nav>ul>li>ul>li>a{display:block;padding:10px 18px;color:#b2e4ec;font-size:13px;text-decoration:none;white-space:nowrap;}
+  .gen-nav>ul>li>ul>li>a:hover{background:rgba(255,255,255,.1);color:#fff;}
+  @media(max-width:768px){
+    .gen-hamburger{display:grid;}
+    .gen-nav>ul{display:none;position:absolute;top:100%;left:0;right:0;flex-direction:column;background:linear-gradient(135deg,#0a3d4a 0%,#0f6a7a 100%);z-index:9999;border-radius:0;}
+    .gen-nav>ul.open{display:flex;}
+    .gen-nav>ul>li>ul{display:block;position:static;background:rgba(0,0,0,.18);box-shadow:none;border-radius:0;}
+    .gen-page-outer{width:100%;margin:0;border-radius:0;}
+  }
+</style>
+<nav class='gen-nav' id='gen-nav'>
+  <a class='gen-logo' href='/'>
+    <svg width='32' height='32' viewBox='0 0 100 100' fill='none' xmlns='http://www.w3.org/2000/svg'>
+      <polygon points='50,4 61,35 95,35 68,57 79,91 50,70 21,91 32,57 5,35 39,35' fill='#facc15' stroke='#ca8a04' stroke-width='3'/>
+    </svg>
+    <span class='gen-logo-text'>DUXMAN-LED-NEXT</span>
+  </a>
+  <button class='gen-hamburger' id='gen-ham' aria-label='Menu'>
+    <span></span><span></span><span></span><span></span>
+  </button>
+  <ul id='gen-menu'>
+    <li><a href='/'>Home</a></li>
+    <li>
+      <a href='/config'>Config &#9660;</a>
+      <ul>
+        <li><a href='/config/network'>Network</a></li>
+        <li><a href='/config/microphone'>Microphone</a></li>
+        <li><a href='/config/gpio'>GPIO</a></li>
+        <li><a href='/config/profiles'>Profiles</a></li>
+        <li><a href='/config/palettes'>Paletas</a></li>
+        <li><a href='/config/debug'>Debug</a></li>
+        <li><a href='/config/manual'>Manual JSON</a></li>
+      </ul>
+    </li>
+    <li>
+      <a href='/api'>API &#9660;</a>
+      <ul>
+        <li><a href='/api/state'>State</a></li>
+        <li><a href='/api/config/network'>Network</a></li>
+        <li><a href='/api/config/microphone'>Microphone</a></li>
+        <li><a href='/api/config/gpio'>GPIO</a></li>
+        <li><a href='/api/config/debug'>Debug</a></li>
+        <li><a href='/api/profiles'>Profiles</a></li>
+        <li><a href='/api/hardware'>Hardware</a></li>
+        <li><a href='/api/release'>Release</a></li>
+        <li><a href='/api/config/all'>Config All</a></li>
+      </ul>
+    </li>
+    <li>
+      <a href='#'>Sobre &#9660;</a>
+      <ul>
+        <li><a href='/version'>Version</a></li>
+      </ul>
+    </li>
+  </ul>
+</nav>
+<script>
+  (function(){
+    var ham=document.getElementById('gen-ham');
+    var nav=document.getElementById('gen-nav');
+    var menu=document.getElementById('gen-menu');
+    if(ham){
+      ham.addEventListener('click',function(){
+        var open=menu.classList.toggle('open');
+        nav.classList.toggle('mobile-open',open);
+      });
+      document.addEventListener('click',function(e){
+        if(!nav.contains(e.target)&&menu.classList.contains('open')){
+          menu.classList.remove('open');
+          nav.classList.remove('mobile-open');
+        }
+      });
+    }
+  })();
+</script>
+)HTML";
+}
+
 String ApiService::buildHomeHtml() const {
   String html = R"HTML(
 <!doctype html>
@@ -1592,18 +1790,13 @@ String ApiService::buildHomeHtml() const {
         radial-gradient(1000px 420px at -5% -5%, #efd9bc 0%, rgba(239,217,188,0) 70%),
         radial-gradient(900px 460px at 110% 0%, #d8e9f1 0%, rgba(216,233,241,0) 65%),
         linear-gradient(180deg, var(--bg) 0%, var(--bg2) 100%);
-      display:grid;
-      place-items:center;
       padding:16px;
     }
-    main { width:min(920px, 100%); }
+    main { width:100%; }
     .hero {
       background:var(--card);
-      border:1px solid var(--line);
-      border-radius:16px;
-      box-shadow:0 16px 34px rgba(31,22,14,.1);
       padding:22px;
-      margin-bottom:12px;
+      margin-bottom:0;
       display:grid;
       gap:14px;
     }
@@ -1933,6 +2126,10 @@ String ApiService::buildHomeHtml() const {
       font-size:12px;
       line-height:1.45;
     }
+    .json-debug { display:none; }
+    .json-card { display:none; }
+    body.show-json .json-debug { display:block; }
+    body.show-json .json-card { display:block; }
     .item {
       display:grid;
       gap:4px;
@@ -1964,6 +2161,8 @@ String ApiService::buildHomeHtml() const {
   </style>
 </head>
 <body>
+<div class='gen-page-outer'>
+__NAV__
   <main>
     <section class='hero'>
       <div>
@@ -1974,20 +2173,6 @@ String ApiService::buildHomeHtml() const {
       <p>Control rapido de efectos fijos y navegacion principal.</p>
       </div>
 
-      <div class='menu'>
-        <a class='item' href='/config'>
-          <h2>Configuracion</h2>
-          <span>Acceso a secciones configurables del dispositivo.</span>
-        </a>
-        <a class='item' href='/api'>
-          <h2>API</h2>
-          <span>Documentacion y tester HTTP/Serial.</span>
-        </a>
-        <a class='item version' href='/version'>
-          <h2>Version</h2>
-          <span>Informacion de release y metadatos del firmware.</span>
-        </a>
-      </div>
 
       <div class='panel'>
         <section class='controls'>
@@ -2078,7 +2263,7 @@ String ApiService::buildHomeHtml() const {
 
                 <label style='display:flex; align-items:center; gap:10px; opacity:0.9;'>
                   <input id='reactiveToAudio' type='checkbox' style='width:auto; flex-shrink:0;' disabled>
-                  <span id='reactiveToAudioLabel'>Audio del micrófono: automático según el efecto</span>
+                  <span id='reactiveToAudioLabel'>Audio del microfono: automatico segun el efecto</span>
                 </label>
 
                 <div id='effectModeBanner' class='badge' style='display:inline-flex; align-items:center; gap:8px;'>Tipo de efecto: cargando...</div>
@@ -2154,13 +2339,13 @@ String ApiService::buildHomeHtml() const {
                 <div class='empty-note'>No hay efectos guardados en la secuencia.</div>
               </div>
 
-              <pre id='effectsOut'>Sin datos aun.</pre>
+              <pre id='effectsOut' class='json-debug'>Sin datos aun.</pre>
             </section>
           </div>
         </section>
       </div>
 
-      <section class='runtime-card'>
+      <section class='runtime-card json-card'>
         <div class='runtime-head'>
           <div class='runtime-copy'>
             <h2>Estado runtime <span class='runtime-pill'>live json</span></h2>
@@ -2175,6 +2360,8 @@ String ApiService::buildHomeHtml() const {
     </section>
   </main>
   <script>
+    if(localStorage.getItem('dux_show_json')==='1') document.body.classList.add('show-json');
+
     const out = document.getElementById('stateOut');
     const status = document.getElementById('status');
     const brightness = document.getElementById('brightness');
@@ -2231,7 +2418,7 @@ String ApiService::buildHomeHtml() const {
         const selected = pid === currentPaletteId ? ' selected' : '';
         const style = palette.style || 'custom';
         const label = palette.label || palette.key || ('Palette ' + pid);
-        options.push("<option value='" + pid + "'" + selected + ">" + label + " · " + style + "</option>");
+        options.push("<option value='" + pid + "'" + selected + ">" + label + " - " + style + "</option>");
       });
       paletteIdSelect.innerHTML = options.join('');
 
@@ -2346,8 +2533,8 @@ String ApiService::buildHomeHtml() const {
       const usesAudio = selectedEffectUsesAudio();
       reactiveToAudio.checked = usesAudio;
       reactiveToAudioLabel.textContent = usesAudio
-        ? 'Audio del micrófono: activado automáticamente para este efecto'
-        : 'Audio del micrófono: desactivado en efectos visuales';
+        ? 'Audio del microfono: activado automaticamente para este efecto'
+        : 'Audio del microfono: desactivado en efectos visuales';
       effectModeBanner.textContent = 'Tipo de efecto: ' + (usesAudio ? 'AUDIO REACTIVO' : 'VISUAL');
     }
 
@@ -2446,8 +2633,8 @@ String ApiService::buildHomeHtml() const {
           return "<article class='sequence-item'>"
             + "<div class='sequence-head'>"
             + "<div class='sequence-title'>"
-            + "<strong>#" + entry.id + " · " + effectTypeBadgeHtml(config) + " " + (config.effectLabel || config.effect || 'Efecto') + "</strong>"
-            + "<span class='sequence-meta'>Duracion " + (entry.durationSec ?? 0) + " s · " + describeConfig(config) + "</span>"
+            + "<strong>#" + entry.id + " - " + effectTypeBadgeHtml(config) + " " + (config.effectLabel || config.effect || 'Efecto') + "</strong>"
+            + "<span class='sequence-meta'>Duracion " + (entry.durationSec ?? 0) + " s - " + describeConfig(config) + "</span>"
             + "</div>"
             + "<button class='delete-btn' type='button' onclick='deleteSequenceEntry(" + entry.id + ")'>Eliminar</button>"
             + "</div>"
@@ -2611,6 +2798,7 @@ String ApiService::buildHomeHtml() const {
     setRuntimeVisible(window.matchMedia('(min-width: 761px)').matches);
     Promise.all([loadState(), loadEffectsPersistence()]);
   </script>
+</div>
 </body>
 </html>
 )HTML";
@@ -2620,9 +2808,343 @@ String ApiService::buildHomeHtml() const {
   html.replace("__FW_VERSION__", versionLabel);
   html.replace("__BOOTED_AT__", bootedAtLabel);
   html.replace("__EFFECT_OPTIONS__", EffectRegistry::buildHtmlOptions(stateSnapshot.effectId));
+  html.replace("__NAV__", buildNavHtml());
   return html;
 }
 
+String ApiService::buildPalettesConfigHtml() const {
+  String html = R"HTML(
+<!doctype html>
+<html>
+<head>
+  <meta charset='utf-8'>
+  <meta name='viewport' content='width=device-width,initial-scale=1'>
+  <title>DUXMAN - Editor de Paletas</title>
+  <style>
+    :root { --bg:#f2f6f4; --card:#fff; --line:#d6e0db; --text:#183025; --muted:#4e6a5c; --primary:#1d6a4e; }
+    body { margin:0; font-family:Trebuchet MS,Segoe UI,sans-serif; color:var(--text);
+      background:radial-gradient(700px 320px at 100% 0%,#deefe7 0%,rgba(222,239,231,0) 65%),var(--bg); padding:16px; }
+    main { max-width:940px; margin:0 auto; }
+    .card { background:var(--card); border:1px solid var(--line); border-radius:14px;
+      padding:16px; box-shadow:0 10px 28px rgba(20,35,28,.08); margin-bottom:16px; }
+    h1,h2,h3 { margin:0 0 6px 0; }
+    p { margin:0; color:var(--muted); }
+    .topnav { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:12px; }
+    .topnav a { color:#0b5e91; text-decoration:none; font-weight:600; }
+    .badge { font-size:.7rem; border-radius:6px; padding:2px 6px; font-weight:600; margin-left:4px; vertical-align:middle; }
+    .badge-sys { background:#e8f5e9; color:#1b5e20; border:1px solid #a5d6a7; }
+    .badge-user { background:#e3f2fd; color:#0d47a1; border:1px solid #90caf9; }
+    .palettes-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(190px,1fr)); gap:10px; margin-top:10px; }
+    .pal-card { border:1px solid var(--line); border-radius:10px; padding:10px; background:var(--bg);
+      transition:box-shadow .15s; }
+    .pal-card.editing { border-color:var(--primary); box-shadow:0 0 0 2px rgba(29,106,78,.25); }
+    .pal-card h3 { font-size:.9rem; margin:0 0 4px 0; }
+    .swatches { display:flex; gap:3px; margin:6px 0; }
+    .swatch { width:24px; height:16px; border-radius:3px; border:1px solid rgba(0,0,0,.1); }
+    .pal-actions { display:flex; gap:5px; flex-wrap:wrap; margin-top:6px; }
+    .btn { padding:4px 10px; border-radius:6px; border:none; cursor:pointer; font-size:.78rem; font-weight:600; }
+    .btn-primary { background:var(--primary); color:#fff; }
+    .btn-ghost { background:transparent; border:1px solid var(--line); color:var(--text); }
+    .btn-danger { background:#dc3545; color:#fff; }
+    .btn-sm { padding:3px 8px; font-size:.73rem; }
+    .btn:hover { opacity:.85; }
+    /* panel de edicion inline */
+    .edit-panel { margin-top:14px; padding:14px; background:#f8fdfb; border:1px solid var(--line);
+      border-radius:10px; border-left:4px solid var(--primary); }
+    .edit-panel h3 { color:var(--primary); margin:0 0 10px 0; font-size:.95rem; }
+    .form-row { display:flex; flex-wrap:wrap; gap:10px; margin-bottom:8px; }
+    .form-group { display:flex; flex-direction:column; gap:3px; flex:1; min-width:130px; }
+    .form-label { font-size:.76rem; font-weight:600; color:var(--muted); }
+    input[type=text], select { padding:6px 8px; border:1px solid var(--line); border-radius:6px;
+      font-size:.86rem; background:#fff; color:var(--text); width:100%; box-sizing:border-box; }
+    /* color pickers compactos */
+    .colors-row { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:8px; }
+    .color-slot { display:flex; flex-direction:column; gap:3px; align-items:flex-start; }
+    .color-slot .form-label { font-size:.72rem; }
+    .color-pair { display:flex; align-items:center; gap:4px; }
+    input[type=color] { width:28px; height:22px; border:1px solid var(--line); border-radius:4px;
+      cursor:pointer; padding:1px; }
+    .color-hex { width:72px; font-family:monospace; font-size:.8rem; padding:4px 6px; }
+    .form-actions { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:10px; }
+    .hint { font-size:.76rem; }
+    .hint.ok { color:#1d6a4e; }
+    .hint.err { color:#c0392b; }
+    .section-hdr { display:flex; align-items:center; gap:8px; margin-bottom:4px; }
+    .no-palettes { color:var(--muted); font-style:italic; font-size:.85rem; }
+    /* debug JSON */
+    .json-debug { display:none; margin-top:10px; }
+    body.show-json .json-debug { display:block; }
+    pre.json-pre { background:#f1edf8; border:1px solid #ddd4ea; border-radius:6px;
+      padding:8px; font-size:.75rem; white-space:pre-wrap; overflow:auto; max-height:160px; margin:0; }
+  </style>
+</head>
+<body>
+<div class='gen-page-outer'>
+__NAV__
+<main>
+  <div class='card'>
+    <div class='section-hdr'>
+      <h1>Paletas del Sistema</h1>
+      <span class='badge badge-sys'>Sistema</span>
+    </div>
+    <p>Paletas de fabrica. Solo lectura.</p>
+    <div class='palettes-grid' id='systemGrid'><p class='no-palettes'>Cargando...</p></div>
+  </div>
+
+  <div class='card'>
+    <div class='section-hdr'>
+      <h1>Mis Paletas</h1>
+      <span class='badge badge-user'>Usuario</span>
+      <button class='btn btn-primary btn-sm' style='margin-left:auto' onclick='openNewForm()'>+ Nueva</button>
+    </div>
+    <p>Paletas propias. Edita o elimina desde cada tarjeta.</p>
+
+    <div class='palettes-grid' id='userGrid'><p class='no-palettes'>Cargando...</p></div>
+
+    <!-- editor inline -->
+    <div class='edit-panel' id='editPanel' style='display:none'>
+      <h3 id='editTitle'>Nueva Paleta</h3>
+      <div class='form-row'>
+        <div class='form-group'>
+          <span class='form-label'>ID (slug)</span>
+          <input type='text' id='inpId' placeholder='mi_paleta' pattern='[a-z0-9_-]+' maxlength='40'>
+        </div>
+        <div class='form-group'>
+          <span class='form-label'>Nombre visual</span>
+          <input type='text' id='inpLabel' placeholder='Mi paleta' maxlength='60'>
+        </div>
+        <div class='form-group' style='min-width:110px;max-width:140px'>
+          <span class='form-label'>Estilo</span>
+          <select id='inpStyle'>
+            <option value='warm'>Warm</option>
+            <option value='cold'>Cold</option>
+            <option value='neon'>Neon</option>
+            <option value='pastel'>Pastel</option>
+            <option value='high-contrast'>High Contrast</option>
+            <option value='party'>Party</option>
+            <option value='custom'>Custom</option>
+          </select>
+        </div>
+      </div>
+      <div class='form-group' style='margin-bottom:8px'>
+        <span class='form-label'>Descripcion (opcional)</span>
+        <input type='text' id='inpDesc' maxlength='80' placeholder=''>
+      </div>
+      <div class='colors-row'>
+        <div class='color-slot'>
+          <span class='form-label'>Color 1</span>
+          <div class='color-pair'>
+            <input type='color' id='c1picker' value='#ff0000' oninput='syncColor(1,"picker")'>
+            <input type='text' class='color-hex' id='c1hex' value='#ff0000' maxlength='7' oninput='syncColor(1,"hex")'>
+          </div>
+        </div>
+        <div class='color-slot'>
+          <span class='form-label'>Color 2</span>
+          <div class='color-pair'>
+            <input type='color' id='c2picker' value='#00ff00' oninput='syncColor(2,"picker")'>
+            <input type='text' class='color-hex' id='c2hex' value='#00ff00' maxlength='7' oninput='syncColor(2,"hex")'>
+          </div>
+        </div>
+        <div class='color-slot'>
+          <span class='form-label'>Color 3</span>
+          <div class='color-pair'>
+            <input type='color' id='c3picker' value='#0000ff' oninput='syncColor(3,"picker")'>
+            <input type='text' class='color-hex' id='c3hex' value='#0000ff' maxlength='7' oninput='syncColor(3,"hex")'>
+          </div>
+        </div>
+      </div>
+      <div class='form-actions'>
+        <button class='btn btn-primary' onclick='submitPalette()'>Guardar</button>
+        <button class='btn btn-ghost' onclick='closePanel()'>Cancelar</button>
+        <span id='formStatus' class='hint'></span>
+      </div>
+    </div>
+
+    <div class='json-debug'>
+      <p class='form-label' style='margin-bottom:4px'>Ultima respuesta API</p>
+      <pre class='json-pre' id='jsonOut'></pre>
+    </div>
+  </div>
+</main>
+<script>
+  var editingKey = null;
+
+  // Leer preferencia de localStorage
+  if (localStorage.getItem('dux_show_json') === '1') {
+    document.body.classList.add('show-json');
+  }
+
+  function colorToHex(c) {
+    if (!c) return '#000000';
+    if (typeof c === 'string') return c.startsWith('#') ? c : '#'+c;
+    if (typeof c === 'object' && c.r !== undefined)
+      return '#' + [c.r,c.g,c.b].map(function(v){ return v.toString(16).padStart(2,'0'); }).join('');
+    return '#000000';
+  }
+  function syncColor(idx, src) {
+    var picker = document.getElementById('c'+idx+'picker');
+    var hex = document.getElementById('c'+idx+'hex');
+    if (src==='picker') { hex.value = picker.value; }
+    else if (/^#[0-9a-fA-F]{6}$/.test(hex.value)) { picker.value = hex.value; }
+  }
+  function setColors(c1,c2,c3) {
+    [[1,c1],[2,c2],[3,c3]].forEach(function(x) {
+      var h = colorToHex(x[1]);
+      document.getElementById('c'+x[0]+'picker').value = h;
+      document.getElementById('c'+x[0]+'hex').value = h;
+    });
+  }
+  function setStatus(msg, isErr) {
+    var el = document.getElementById('formStatus');
+    el.textContent = msg;
+    el.className = isErr ? 'hint err' : 'hint ok';
+  }
+  function showJson(obj) {
+    document.getElementById('jsonOut').textContent = JSON.stringify(obj, null, 2);
+  }
+  function openNewForm() {
+    editingKey = null;
+    document.querySelectorAll('.pal-card').forEach(function(c){ c.classList.remove('editing'); });
+    document.getElementById('editTitle').textContent = 'Nueva Paleta';
+    document.getElementById('inpId').value = '';
+    document.getElementById('inpId').readOnly = false;
+    document.getElementById('inpLabel').value = '';
+    document.getElementById('inpStyle').value = 'custom';
+    document.getElementById('inpDesc').value = '';
+    setColors('#ff0000','#00ff00','#0000ff');
+    setStatus('','');
+    document.getElementById('editPanel').style.display = '';
+    document.getElementById('editPanel').scrollIntoView({behavior:'smooth', block:'nearest'});
+  }
+  function closePanel() {
+    document.getElementById('editPanel').style.display = 'none';
+    document.querySelectorAll('.pal-card').forEach(function(c){ c.classList.remove('editing'); });
+    editingKey = null;
+  }
+  function editPalette(p, cardEl) {
+    editingKey = p.key;
+    document.querySelectorAll('.pal-card').forEach(function(c){ c.classList.remove('editing'); });
+    if (cardEl) cardEl.classList.add('editing');
+    document.getElementById('editTitle').textContent = 'Editando: ' + p.label;
+    document.getElementById('inpId').value = p.key;
+    document.getElementById('inpId').readOnly = true;
+    document.getElementById('inpLabel').value = p.label;
+    document.getElementById('inpStyle').value = p.style || 'custom';
+    document.getElementById('inpDesc').value = p.description || '';
+    var pc = p.primaryColors || [];
+    setColors(pc[0]||'#ff0000', pc[1]||'#00ff00', pc[2]||'#0000ff');
+    setStatus('','');
+    document.getElementById('editPanel').style.display = '';
+    document.getElementById('editPanel').scrollIntoView({behavior:'smooth', block:'nearest'});
+  }
+  function applyPalette(key) {
+    fetch('/api/v1/palettes/apply', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({palette:key})
+    }).then(function(r){return r.json();}).then(function(d){
+      showJson(d);
+      setStatus('Aplicada: '+key, false);
+    }).catch(function(e){setStatus('Error: '+e, true);});
+  }
+  function deletePalette(key) {
+    if (!confirm('Eliminar paleta "'+key+'"?')) return;
+    fetch('/api/v1/palettes/delete', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({key:key})
+    }).then(function(r){return r.json();}).then(function(d){
+      showJson(d);
+      if (d.error) { alert('Error: '+d.error); return; }
+      if (editingKey === key) closePanel();
+      loadPalettes();
+    }).catch(function(e){alert('Error: '+e);});
+  }
+  function submitPalette() {
+    var key = document.getElementById('inpId').value.trim();
+    if (!key) { setStatus('El ID es obligatorio', true); return; }
+    if (!/^[a-z0-9_-]+$/.test(key)) { setStatus('ID solo puede contener a-z, 0-9, _ -', true); return; }
+    var label = document.getElementById('inpLabel').value.trim();
+    if (!label) { setStatus('El nombre es obligatorio', true); return; }
+    var body = {
+      key: key, label: label,
+      style: document.getElementById('inpStyle').value,
+      description: document.getElementById('inpDesc').value.trim(),
+      colors: {
+        color1: document.getElementById('c1hex').value,
+        color2: document.getElementById('c2hex').value,
+        color3: document.getElementById('c3hex').value
+      }
+    };
+    fetch('/api/v1/palettes/save', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(body)
+    }).then(function(r){return r.json();}).then(function(d){
+      showJson(d);
+      if (d.error) { setStatus('Error: '+d.error, true); return; }
+      setStatus('Guardada correctamente.', false);
+      closePanel();
+      loadPalettes();
+    }).catch(function(e){setStatus('Error: '+e, true);});
+  }
+  function makeSwatch(color) {
+    var h = colorToHex(color);
+    var div = document.createElement('div');
+    div.className = 'swatch'; div.style.background = h; div.title = h;
+    return div;
+  }
+  function renderPaletteCard(p, container) {
+    var div = document.createElement('div');
+    div.className = 'pal-card';
+    var pc = p.primaryColors || [];
+    var isUser = p.source === 'user';
+    var desc = (p.style||'') + (p.description ? ' \u2014 '+p.description : '');
+    div.innerHTML = '<h3>' + p.label + '</h3>' +
+      (desc ? '<small style="color:var(--muted);font-size:.75rem">' + desc + '</small>' : '');
+    var sw = document.createElement('div'); sw.className = 'swatches';
+    sw.appendChild(makeSwatch(pc[0]));
+    sw.appendChild(makeSwatch(pc[1]));
+    sw.appendChild(makeSwatch(pc[2]));
+    div.appendChild(sw);
+    var act = document.createElement('div'); act.className = 'pal-actions';
+    var ab = document.createElement('button');
+    ab.className = 'btn btn-primary btn-sm'; ab.textContent = 'Aplicar';
+    ab.onclick = function(){ applyPalette(p.key); }; act.appendChild(ab);
+    if (isUser) {
+      var eb = document.createElement('button');
+      eb.className = 'btn btn-ghost btn-sm'; eb.textContent = 'Editar';
+      eb.onclick = function(){ editPalette(p, div); }; act.appendChild(eb);
+      var db = document.createElement('button');
+      db.className = 'btn btn-danger btn-sm'; db.textContent = 'x';
+      db.title = 'Eliminar'; db.onclick = function(){ deletePalette(p.key); }; act.appendChild(db);
+    }
+    div.appendChild(act);
+    container.appendChild(div);
+  }
+  function loadPalettes() {
+    fetch('/api/v1/palettes').then(function(r){return r.json();}).then(function(data){
+      showJson(data);
+      var palettes = data.palettes || [];
+      var sysGrid = document.getElementById('systemGrid');
+      var userGrid = document.getElementById('userGrid');
+      sysGrid.innerHTML = ''; userGrid.innerHTML = '';
+      var sysl = palettes.filter(function(p){return p.source==='system';});
+      var usrl = palettes.filter(function(p){return p.source==='user';});
+      if (!sysl.length) sysGrid.innerHTML = '<p class="no-palettes">Sin paletas del sistema.</p>';
+      else sysl.forEach(function(p){ renderPaletteCard(p, sysGrid); });
+      if (!usrl.length) userGrid.innerHTML = '<p class="no-palettes">Sin paletas propias aun.</p>';
+      else usrl.forEach(function(p){ renderPaletteCard(p, userGrid); });
+    }).catch(function(){
+      document.getElementById('systemGrid').innerHTML = '<p class="no-palettes">Error al cargar.</p>';
+    });
+  }
+  window.addEventListener('DOMContentLoaded', loadPalettes);
+</script>
+</div>
+</body>
+</html>
+)HTML";
+  html.replace("__NAV__", buildNavHtml());
+  return html;
+}
 String ApiService::buildConfigIndexHtml() const {
   String html = R"HTML(
 <!doctype html>
@@ -2682,14 +3204,10 @@ String ApiService::buildConfigIndexHtml() const {
   </style>
 </head>
 <body>
+<div class='gen-page-outer'>
+__NAV__
   <main>
-    <div class='topnav'>
-      <a href='/'>Inicio</a>
-      <a href='/api'>API</a>
-      <a href='/version'>Version</a>
-    </div>
-
-    <section class='card'>
+      <section class='card'>
       <h1>Configuracion</h1>
       <p>Selecciona la seccion de configuracion que quieres editar.</p>
       <div class='grid'>
@@ -2709,6 +3227,10 @@ String ApiService::buildConfigIndexHtml() const {
           <h2>Profiles</h2>
           <p>Guardar, aplicar y fijar perfiles GPIO por defecto.</p>
         </a>
+        <a class='box' href='/config/palettes'>
+          <h2>Paletas</h2>
+          <p>Crear, editar y guardar paletas de colores personalizadas.</p>
+        </a>
         <a class='box' href='/config/debug'>
           <h2>Debug</h2>
           <p>Habilitar debug y ajustar intervalo de heartbeat.</p>
@@ -2720,9 +3242,11 @@ String ApiService::buildConfigIndexHtml() const {
       </div>
     </section>
   </main>
+</div>
 </body>
 </html>
 )HTML";
+  html.replace("__NAV__", buildNavHtml());
   return html;
 }
 
@@ -2749,13 +3273,9 @@ String ApiService::buildDocsHtml() const {
   </style>
 </head>
 <body>
+<div class='gen-page-outer'>
+__NAV__
   <main>
-    <div class='nav'>
-      <a href='/'>Inicio</a>
-      <a href='/config'>Configuracion</a>
-      <a href='/version'>Version</a>
-    </div>
-
     <div class='card'>
       <h1>API</h1>
       <p>Indice de secciones API. Cada bloque tiene su propia UI para pruebas.</p>
@@ -2800,9 +3320,11 @@ String ApiService::buildDocsHtml() const {
       <a class='spec' href='/api/v1/openapi.json'>Abrir /api/v1/openapi.json</a>
     </div>
   </main>
+</div>
 </body>
 </html>
 )HTML";
+  html.replace("__NAV__", buildNavHtml());
   return html;
 }
 
@@ -2826,8 +3348,9 @@ String ApiService::buildApiStateHtml() const {
   </style>
 </head>
 <body>
+<div class='gen-page-outer'>
+__NAV__
   <main>
-    <div class='nav'><a href='/'>Inicio</a><a href='/api'>API</a><a href='/api/config/network'>Config Network</a><a href='/api/config/gpio'>Config GPIO</a><a href='/api/config/debug'>Config Debug</a><a href='/api/profiles/gpio'>Profiles</a><a href='/api/hardware'>Hardware</a><a href='/api/release'>Release</a></div>
     <div class='card'>
       <h1>API State</h1>
       <button onclick='getState()'>GET /api/v1/state</button>
@@ -2850,9 +3373,11 @@ String ApiService::buildApiStateHtml() const {
     function patchState() { callApi('PATCH', document.getElementById('payload').value); }
     getState();
   </script>
+</div>
 </body>
 </html>
 )HTML";
+  html.replace("__NAV__", buildNavHtml());
   return html;
 }
 
@@ -2876,8 +3401,9 @@ String ApiService::buildApiConfigNetworkHtml() const {
   </style>
 </head>
 <body>
+<div class='gen-page-outer'>
+__NAV__
   <main>
-    <div class='nav'><a href='/'>Inicio</a><a href='/api'>API</a><a href='/api/state'>State</a><a href='/api/config/gpio'>Config GPIO</a><a href='/api/config/debug'>Config Debug</a><a href='/api/release'>Release</a></div>
     <div class='card'>
       <h1>API Config Network</h1>
       <button onclick='getCfg()'>GET /api/v1/config/network</button>
@@ -2900,9 +3426,11 @@ String ApiService::buildApiConfigNetworkHtml() const {
     function patchCfg() { callApi('PATCH', document.getElementById('payload').value); }
     getCfg();
   </script>
+</div>
 </body>
 </html>
 )HTML";
+  html.replace("__NAV__", buildNavHtml());
   return html;
 }
 
@@ -2926,8 +3454,9 @@ String ApiService::buildApiReleaseHtml() const {
   </style>
 </head>
 <body>
+<div class='gen-page-outer'>
+__NAV__
   <main>
-    <div class='nav'><a href='/'>Inicio</a><a href='/api'>API</a><a href='/api/state'>State</a><a href='/api/config/network'>Config Network</a><a href='/api/config/gpio'>Config GPIO</a><a href='/api/config/debug'>Config Debug</a></div>
     <div class='card'>
       <h1>API Release</h1>
       <button onclick='getRelease()'>GET /api/v1/release</button>
@@ -2944,9 +3473,11 @@ String ApiService::buildApiReleaseHtml() const {
     }
     getRelease();
   </script>
+</div>
 </body>
 </html>
 )HTML";
+  html.replace("__NAV__", buildNavHtml());
   return html;
 }
 
@@ -3033,23 +3564,21 @@ String ApiService::buildNetworkConfigHtml() const {
     .ok { color:#1f6a39; }
     .err { color:#9f1c1c; }
     @media (max-width:700px) {
-      h1 { font-size:22px; }
+      .json-card { display:none; }
+      body.show-json .json-card { display:block; }
+      @media (max-width: 760px) {
       main { padding:10px; }
     }
   </style>
 </head>
 <body>
+<div class='gen-page-outer'>
+__NAV__
   <main>
     <div class='card'>
       <h1>Configuracion de Red</h1>
       <p class='hint'>Edita WiFi/AP/STA y guarda en el dispositivo. Los cambios se aplican al momento.</p>
       <div class='actions'>
-        <a href='/' class='btn ghost' style='text-decoration:none;display:inline-block;'>Inicio</a>
-        <a href='/config' class='btn ghost' style='text-decoration:none;display:inline-block;'>Config</a>
-        <a href='/config/gpio' class='btn ghost' style='text-decoration:none;display:inline-block;'>GPIO</a>
-        <a href='/config/debug' class='btn ghost' style='text-decoration:none;display:inline-block;'>Debug</a>
-        <a href='/api' class='btn ghost' style='text-decoration:none;display:inline-block;'>API</a>
-        <a href='/version' class='btn ghost' style='text-decoration:none;display:inline-block;'>Version</a>
         <button class='btn alt' onclick='loadConfig()'>Recargar</button>
         <button class='btn' onclick='saveConfig()'>Guardar Configuracion</button>
       </div>
@@ -3173,7 +3702,7 @@ String ApiService::buildNetworkConfigHtml() const {
       </div>
     </div>
 
-    <div class='card'>
+    <div class='card json-card'>
       <h2>Payload / Respuesta</h2>
       <h3>Payload Enviado</h3>
       <pre id='payloadOut'>{}</pre>
@@ -3183,6 +3712,8 @@ String ApiService::buildNetworkConfigHtml() const {
   </main>
 
   <script>
+    if(localStorage.getItem('dux_show_json')==='1') document.body.classList.add('show-json');
+
     function byId(id) { return document.getElementById(id); }
 
     function setStatus(message, isError) {
@@ -3308,9 +3839,11 @@ String ApiService::buildNetworkConfigHtml() const {
 
     loadConfig();
   </script>
+</div>
 </body>
 </html>
 )HTML";
+  html.replace("__NAV__", buildNavHtml());
   return html;
 }
 
@@ -3348,20 +3881,18 @@ String ApiService::buildMicrophoneConfigHtml() const {
     .hint { color:var(--muted); font-size:13px; }
     .ok { color:#1f6a39; }
     .err { color:#9f1c1c; }
+    .json-card { display:none; }
+    body.show-json .json-card { display:block; }
   </style>
 </head>
 <body>
+<div class='gen-page-outer'>
+__NAV__
   <main>
     <div class='card'>
       <h1>Configuracion de Microfono</h1>
       <p class='hint'>Perfil actual soportado: <strong>generic_i2c</strong> con pines GLEDOPTO (SD=26, WS=5, SCK=21).</p>
       <div class='actions'>
-        <a href='/' class='btn ghost'>Inicio</a>
-        <a href='/config' class='btn ghost'>Config</a>
-        <a href='/config/network' class='btn ghost'>Network</a>
-        <a href='/config/gpio' class='btn ghost'>GPIO</a>
-        <a href='/config/profiles' class='btn ghost'>Profiles</a>
-        <a href='/api/config/microphone' class='btn ghost'>API Microphone</a>
         <button class='btn alt' onclick='loadConfig()'>Recargar</button>
         <button class='btn' onclick='saveConfig()'>Guardar</button>
       </div>
@@ -3436,7 +3967,7 @@ String ApiService::buildMicrophoneConfigHtml() const {
       </div>
     </div>
 
-    <div class='card'>
+    <div class='card json-card'>
       <h3>Payload</h3>
       <pre id='payloadOut'>{}</pre>
       <h3>Respuesta</h3>
@@ -3445,6 +3976,8 @@ String ApiService::buildMicrophoneConfigHtml() const {
   </main>
 
   <script>
+    if(localStorage.getItem('dux_show_json')==='1') document.body.classList.add('show-json');
+
     function byId(id) { return document.getElementById(id); }
     function setStatus(message, isError) {
       const el = byId('status');
@@ -3533,9 +4066,11 @@ String ApiService::buildMicrophoneConfigHtml() const {
 
     loadConfig();
   </script>
+</div>
 </body>
 </html>
 )HTML";
+  html.replace("__NAV__", buildNavHtml());
   return html;
 }
 
@@ -3571,19 +4106,18 @@ String ApiService::buildDebugConfigHtml() const {
     .hint { color:var(--muted); }
     .ok { color:#1f6a39; }
     .err { color:#9f1c1c; }
+    .json-card { display:none; }
+    body.show-json .json-card { display:block; }
   </style>
 </head>
 <body>
+<div class='gen-page-outer'>
+__NAV__
   <main>
     <div class='card'>
       <h1>Configuracion Debug</h1>
       <p class='hint'>Controla trazas debug y el intervalo del heartbeat serial.</p>
       <div class='actions'>
-        <a href='/' class='btn ghost'>Inicio</a>
-        <a href='/config' class='btn ghost'>Config</a>
-        <a href='/config/network' class='btn ghost'>Network</a>
-        <a href='/config/gpio' class='btn ghost'>GPIO</a>
-        <a href='/api/config/debug' class='btn ghost'>API Debug</a>
         <button class='btn alt' onclick='loadDebug()'>Recargar</button>
         <button class='btn' onclick='saveDebug()'>Guardar</button>
       </div>
@@ -3601,6 +4135,17 @@ String ApiService::buildDebugConfigHtml() const {
     </div>
 
     <div class='card'>
+      <h3>Preferencias UI</h3>
+      <div class='field'>
+        <label style='display:flex;align-items:center;gap:8px;cursor:pointer'>
+          <input id='showJsonChk' type='checkbox' onchange='toggleJson(this.checked)'>
+          <span>Mostrar respuestas JSON en las paginas de configuracion</span>
+        </label>
+        <p class='hint' style='margin-top:4px'>Se guarda en el navegador (localStorage). Por defecto desactivado.</p>
+      </div>
+    </div>
+
+    <div class='card json-card'>
       <h3>Payload</h3>
       <pre id='payloadOut'>{}</pre>
       <h3>Respuesta</h3>
@@ -3616,6 +4161,11 @@ String ApiService::buildDebugConfigHtml() const {
       el.className = isError ? 'hint err' : 'hint ok';
     }
 
+    function toggleJson(checked) {
+      localStorage.setItem('dux_show_json', checked ? '1' : '0');
+      document.body.classList.toggle('show-json', checked);
+    }
+
     function buildPayload() {
       return {
         debug: {
@@ -3626,6 +4176,11 @@ String ApiService::buildDebugConfigHtml() const {
     }
 
     async function loadDebug() {
+      // leer preferencia del browser
+      const showJson = localStorage.getItem('dux_show_json') === '1';
+      byId('showJsonChk').checked = showJson;
+      document.body.classList.toggle('show-json', showJson);
+
       setStatus('Leyendo configuracion debug...', false);
       try {
         const res = await fetch('/api/v1/config/debug');
@@ -3664,9 +4219,11 @@ String ApiService::buildDebugConfigHtml() const {
 
     loadDebug();
   </script>
+</div>
 </body>
 </html>
 )HTML";
+  html.replace("__NAV__", buildNavHtml());
   return html;
 }
 
@@ -3690,8 +4247,9 @@ String ApiService::buildApiConfigMicrophoneHtml() const {
   </style>
 </head>
 <body>
+<div class='gen-page-outer'>
+__NAV__
   <main>
-    <div class='nav'><a href='/'>Inicio</a><a href='/api'>API</a><a href='/api/state'>State</a><a href='/api/config/network'>Config Network</a><a href='/api/config/gpio'>Config GPIO</a><a href='/api/config/debug'>Config Debug</a><a href='/api/release'>Release</a></div>
     <div class='card'>
       <h1>API Config Microphone</h1>
       <button onclick='getCfg()'>GET /api/v1/config/microphone</button>
@@ -3714,9 +4272,11 @@ String ApiService::buildApiConfigMicrophoneHtml() const {
     function patchCfg() { callApi('PATCH', document.getElementById('payload').value); }
     getCfg();
   </script>
+</div>
 </body>
 </html>
 )HTML";
+  html.replace("__NAV__", buildNavHtml());
   return html;
 }
 
@@ -3740,8 +4300,9 @@ String ApiService::buildApiConfigDebugHtml() const {
   </style>
 </head>
 <body>
+<div class='gen-page-outer'>
+__NAV__
   <main>
-    <div class='nav'><a href='/'>Inicio</a><a href='/api'>API</a><a href='/api/state'>State</a><a href='/api/config/network'>Config Network</a><a href='/api/config/gpio'>Config GPIO</a><a href='/api/release'>Release</a></div>
     <div class='card'>
       <h1>API Config Debug</h1>
       <button onclick='getCfg()'>GET /api/v1/config/debug</button>
@@ -3764,9 +4325,11 @@ String ApiService::buildApiConfigDebugHtml() const {
     function patchCfg() { callApi('PATCH', document.getElementById('payload').value); }
     getCfg();
   </script>
+</div>
 </body>
 </html>
 )HTML";
+  html.replace("__NAV__", buildNavHtml());
   return html;
 }
 
@@ -3807,6 +4370,8 @@ String ApiService::buildGpioConfigHtml() const {
     .hint { font-size:13px; color:var(--muted); }
     .ok { color:#1f6a39; }
     .err { color:#9f1c1c; }
+    .json-card { display:none; }
+    body.show-json .json-card { display:block; }
     .warn { background:#fff8e0; border:1px solid #e8d48a; border-radius:8px; padding:10px; margin-top:8px; font-size:13px; color:#6b5a10; }
     table { width:100%; border-collapse:collapse; font-size:13px; margin-top:8px; }
     th,td { text-align:left; padding:6px 8px; border-bottom:1px solid var(--line); }
@@ -3818,17 +4383,13 @@ String ApiService::buildGpioConfigHtml() const {
   </style>
 </head>
 <body>
+<div class='gen-page-outer'>
+__NAV__
   <main>
     <div class='card'>
       <h1>Configuracion LED (GPIO)</h1>
       <p class='hint'>Configura las salidas LED del controlador. Max __MAX_OUTPUTS__ salidas.</p>
       <div class='actions'>
-        <a href='/' class='btn ghost'>Inicio</a>
-        <a href='/config' class='btn ghost'>Config</a>
-        <a href='/config/network' class='btn ghost'>Network</a>
-        <a href='/config/debug' class='btn ghost'>Debug</a>
-        <a href='/config/profiles' class='btn ghost'>Profiles</a>
-        <a href='/api/config/gpio' class='btn ghost'>API GPIO</a>
         <button class='btn alt' onclick='loadGpio()'>Recargar</button>
         <button class='btn' onclick='saveGpio()'>Guardar</button>
       </div>
@@ -3854,7 +4415,7 @@ String ApiService::buildGpioConfigHtml() const {
       </table>
     </div>
 
-    <div class='card'>
+    <div class='card json-card'>
       <h3>Payload</h3>
       <pre id='payloadOut'>{}</pre>
       <h3>Respuesta</h3>
@@ -3863,6 +4424,8 @@ String ApiService::buildGpioConfigHtml() const {
   </main>
 
   <script>
+    if(localStorage.getItem('dux_show_json')==='1') document.body.classList.add('show-json');
+
     const MAX_OUTPUTS = __MAX_OUTPUTS__;
     const INPUT_ONLY = [34,35,36,39];
     const STRAPPING_C3 = [0,1,2,3,4,5];
@@ -4022,6 +4585,7 @@ String ApiService::buildGpioConfigHtml() const {
 
     loadGpio();
   </script>
+</div>
 </body>
 </html>
 )HTML";
@@ -4031,6 +4595,7 @@ String ApiService::buildGpioConfigHtml() const {
   html.replace("__BUILD_PIN__", buildPin);
   html.replace("__BUILD_COUNT__", buildCount);
   html.replace("__MAX_OUTPUTS__", maxOutputs);
+  html.replace("__NAV__", buildNavHtml());
   return html;
 }
 
@@ -4054,8 +4619,9 @@ String ApiService::buildApiConfigGpioHtml() const {
   </style>
 </head>
 <body>
+<div class='gen-page-outer'>
+__NAV__
   <main>
-    <div class='nav'><a href='/'>Inicio</a><a href='/api'>API</a><a href='/api/state'>State</a><a href='/api/config/network'>Config Network</a><a href='/api/config/gpio'>Config GPIO</a><a href='/api/config/debug'>Config Debug</a><a href='/api/release'>Release</a></div>
     <div class='card'>
       <h1>API Config GPIO</h1>
       <button onclick='getCfg()'>GET /api/v1/config/gpio</button>
@@ -4078,9 +4644,11 @@ String ApiService::buildApiConfigGpioHtml() const {
     function patchCfg() { callApi('PATCH', document.getElementById('payload').value); }
     getCfg();
   </script>
+</div>
 </body>
 </html>
 )HTML";
+  html.replace("__NAV__", buildNavHtml());
   return html;
 }
 
@@ -4148,18 +4716,9 @@ String ApiService::buildVersionHtml() const {
   </style>
 </head>
 <body>
+<div class='gen-page-outer'>
+__NAV__
   <main>
-    <div class='nav'>
-      <a href='/'>Inicio</a>
-      <a href='/config'>Configuracion</a>
-      <a href='/config/network'>Network</a>
-      <a href='/config/gpio'>GPIO</a>
-      <a href='/config/profiles'>Profiles</a>
-      <a href='/config/debug'>Debug</a>
-      <a href='/api/hardware'>Hardware</a>
-      <a href='/api'>API</a>
-    </div>
-
     <section class='card'>
       <h1>Informacion de Version</h1>
       <p>Datos obtenidos desde /api/v1/release y /api/v1/hardware.</p>
@@ -4207,9 +4766,11 @@ String ApiService::buildVersionHtml() const {
     loadRelease();
     loadHardware();
   </script>
+</div>
 </body>
 </html>
 )HTML";
+  html.replace("__NAV__", buildNavHtml());
   return html;
 }
 
@@ -4242,18 +4803,18 @@ String ApiService::buildProfilesConfigHtml() const {
     .hint { font-size:13px; color:var(--muted); }
     .ok { color:#1f6a39; }
     .err { color:#9f1c1c; }
+    .json-card { display:none; }
+    body.show-json .json-card { display:block; }
   </style>
 </head>
 <body>
+<div class='gen-page-outer'>
+__NAV__
   <main>
     <div class='card'>
       <h1>Perfiles GPIO</h1>
       <p class='hint'>Gestiona presets integrados y perfiles guardados de usuario. La configuracion GPIO activa siempre se refleja en el profile DEFAULT. El borrado esta abierto temporalmente para limpieza, salvo DEFAULT.</p>
       <div class='actions'>
-        <a href='/' class='btn ghost'>Inicio</a>
-        <a href='/config' class='btn ghost'>Config</a>
-        <a href='/config/gpio' class='btn ghost'>GPIO</a>
-        <a href='/api/profiles/gpio' class='btn ghost'>API Profiles</a>
         <button class='btn alt' onclick='loadProfiles()'>Recargar</button>
         <button class='btn' onclick='saveProfile()'>Guardar perfil</button>
         <button class='btn alt' onclick='applySelected()'>Aplicar</button>
@@ -4286,12 +4847,14 @@ String ApiService::buildProfilesConfigHtml() const {
       <div class='field'><label for='microphonePayload'>Microphone JSON</label><textarea id='microphonePayload'>{"enabled":false,"source":"generic_i2c","profileId":"DEFAULT","sampleRate":16000,"fftSize":512,"gainPercent":100,"noiseFloorPercent":8,"pins":{"bclk":-1,"ws":-1,"din":-1}}</textarea></div>
     </div>
 
-    <div class='card'>
+    <div class='card json-card'>
       <h3>Respuesta</h3>
       <pre id='resultOut'>Sin llamadas aun.</pre>
     </div>
   </main>
   <script>
+    if(localStorage.getItem('dux_show_json')==='1') document.body.classList.add('show-json');
+
     let profiles = [];
     let selectedProfileId = '';
 
@@ -4436,9 +4999,11 @@ String ApiService::buildProfilesConfigHtml() const {
     }
     loadProfiles();
   </script>
+</div>
 </body>
 </html>
 )HTML";
+  html.replace("__NAV__", buildNavHtml());
   return html;
 }
 
@@ -4462,8 +5027,9 @@ String ApiService::buildApiProfilesHtml() const {
   </style>
 </head>
 <body>
+<div class='gen-page-outer'>
+__NAV__
   <main>
-    <div class='nav'><a href='/'>Inicio</a><a href='/api'>API</a><a href='/config/profiles'>Config Profiles</a><a href='/api/hardware'>Hardware</a><a href='/api/release'>Release</a></div>
     <div class='card'>
       <h1>API Profiles GPIO</h1>
       <p>Aplicar un profile y copiarlo en DEFAULT es ahora el comportamiento normal.</p>
@@ -4488,9 +5054,11 @@ String ApiService::buildApiProfilesHtml() const {
     }
     callApi('GET', '/api/v1/profiles/gpio');
   </script>
+</div>
 </body>
 </html>
 )HTML";
+  html.replace("__NAV__", buildNavHtml());
   return html;
 }
 
@@ -4514,8 +5082,9 @@ String ApiService::buildApiHardwareHtml() const {
   </style>
 </head>
 <body>
+<div class='gen-page-outer'>
+__NAV__
   <main>
-    <div class='nav'><a href='/'>Inicio</a><a href='/api'>API</a><a href='/api/profiles/gpio'>Profiles</a><a href='/api/release'>Release</a><a href='/version'>Version</a></div>
     <div class='card'>
       <h1>API Hardware</h1>
       <button onclick='getHardware()'>GET /api/v1/hardware</button>
@@ -4532,9 +5101,11 @@ String ApiService::buildApiHardwareHtml() const {
     }
     getHardware();
   </script>
+</div>
 </body>
 </html>
 )HTML";
+  html.replace("__NAV__", buildNavHtml());
   return html;
 }
 
@@ -4574,21 +5145,17 @@ String ApiService::buildManualConfigHtml() const {
     pre { background:#f0ece4; border:1px solid var(--line); border-radius:8px; padding:10px; white-space:pre-wrap; overflow:auto; font-family:Consolas,monospace; font-size:12px; }
     .file-row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
     input[type=file] { font-size:14px; }
+    .json-card { display:none; }
+    body.show-json .json-card { display:block; }
   </style>
 </head>
 <body>
+<div class='gen-page-outer'>
+__NAV__
   <main>
     <div class='card'>
       <h1>Configuracion Manual</h1>
       <p class='hint'>Edita, exporta o importa toda la configuracion del dispositivo como JSON. La importacion solo se aplica si el JSON es completamente valido.</p>
-      <div class='actions'>
-        <a href='/' class='btn ghost'>Inicio</a>
-        <a href='/config' class='btn ghost'>Config</a>
-        <a href='/config/network' class='btn ghost'>Network</a>
-        <a href='/config/gpio' class='btn ghost'>GPIO</a>
-        <a href='/config/debug' class='btn ghost'>Debug</a>
-        <a href='/api/config/all' class='btn ghost'>API Config All</a>
-      </div>
       <p id='status' class='hint'>Cargando...</p>
     </div>
 
@@ -4612,13 +5179,15 @@ String ApiService::buildManualConfigHtml() const {
       <p class='hint'>Carga un archivo .json en el editor. Luego pulsa "Aplicar al dispositivo" para importarlo.</p>
     </div>
 
-    <div class='card'>
+    <div class='card json-card'>
       <h2>Resultado</h2>
       <pre id='resultOut'>Sin operaciones aun.</pre>
     </div>
   </main>
 
   <script>
+    if(localStorage.getItem('dux_show_json')==='1') document.body.classList.add('show-json');
+
     function byId(id) { return document.getElementById(id); }
     function setStatus(msg, isErr) {
       const el = byId('status');
@@ -4721,9 +5290,11 @@ String ApiService::buildManualConfigHtml() const {
 
     loadConfig();
   </script>
+</div>
 </body>
 </html>
 )HTML";
+  html.replace("__NAV__", buildNavHtml());
   return html;
 }
 
@@ -4747,8 +5318,9 @@ String ApiService::buildApiConfigAllHtml() const {
   </style>
 </head>
 <body>
+<div class='gen-page-outer'>
+__NAV__
   <main>
-    <div class='nav'><a href='/'>Inicio</a><a href='/api'>API</a><a href='/api/state'>State</a><a href='/api/config/network'>Config Network</a><a href='/api/config/gpio'>Config GPIO</a><a href='/api/config/debug'>Config Debug</a><a href='/api/config/all'>Config All</a><a href='/api/release'>Release</a></div>
     <div class='card'>
       <h1>API Config All</h1>
       <p>Exportar e importar toda la configuracion del dispositivo.</p>
@@ -4775,8 +5347,10 @@ String ApiService::buildApiConfigAllHtml() const {
     function postCfg() { callApi('POST', document.getElementById('payload').value); }
     getCfg();
   </script>
+</div>
 </body>
 </html>
 )HTML";
+  html.replace("__NAV__", buildNavHtml());
   return html;
 }

@@ -14,6 +14,7 @@
 #include "services/PersistenceSchedulerService.h"
 #include "services/ProfileService.h"
 #include "services/StorageService.h"
+#include "services/UserPaletteService.h"
 #include "services/WatchdogService.h"
 #include "services/WifiService.h"
 
@@ -21,18 +22,21 @@ namespace {
 CoreState state = CoreState::defaults();
 NetworkConfig networkConfig = NetworkConfig::defaults();
 GpioConfig gpioConfig = GpioConfig::defaults();
+MicrophoneConfig microphoneConfig = MicrophoneConfig::defaults();
+DebugConfig debugConfig = DebugConfig::defaults();
 DefaultLedDriver ledDriver;
 EffectManager effectManager(state, ledDriver);
-StorageService storageService(state, networkConfig, gpioConfig);
+StorageService storageService(state, networkConfig, gpioConfig, microphoneConfig, debugConfig);
 PersistenceSchedulerService persistenceSchedulerService(storageService);
 EffectPersistenceService effectPersistenceService(state);
-ProfileService profileService(gpioConfig, networkConfig, storageService, persistenceSchedulerService, ledDriver);
-WifiService wifiService(networkConfig);
+ProfileService profileService(networkConfig, gpioConfig, microphoneConfig, debugConfig, storageService, persistenceSchedulerService, ledDriver);
+UserPaletteService userPaletteService(persistenceSchedulerService);
+WifiService wifiService(networkConfig, debugConfig);
 WatchdogService watchdogService;
-AudioService audioService(networkConfig, state);
-ApiService apiService(state, networkConfig, gpioConfig, storageService, wifiService,
+AudioService audioService(microphoneConfig, state);
+ApiService apiService(state, networkConfig, gpioConfig, microphoneConfig, debugConfig, storageService, wifiService,
                       persistenceSchedulerService,
-                      effectPersistenceService, profileService, watchdogService);
+                      effectPersistenceService, profileService, userPaletteService, watchdogService);
 
 SemaphoreHandle_t coreStateMutex = nullptr;
 TaskHandle_t controlTaskHandle = nullptr;
@@ -63,11 +67,12 @@ void controlTask(void *parameter) {
     wifiService.handle();
     audioService.handle(millis());
     profileService.processPendingPersistence();
+    userPaletteService.processPendingPersistence();
     persistenceSchedulerService.processPending();
 
     const unsigned long now = millis();
     effectPersistenceService.handle(now);
-    const unsigned long heartbeatIntervalMs = networkConfig.debug.heartbeatMs;
+    const unsigned long heartbeatIntervalMs = debugConfig.heartbeatMs;
     if (heartbeatIntervalMs > 0 && now - lastHeartbeatAtMs >= heartbeatIntervalMs) {
       lastHeartbeatAtMs = now;
       Serial.print("[hb] alive ms=");
@@ -101,6 +106,7 @@ void setup() {
   watchdogService.init(5, true);  // 5 second timeout, auto-reboot on timeout
   effectPersistenceService.begin();
   profileService.begin();
+  userPaletteService.begin();
   String appliedProfileId;
   String profileError;
   const bool startupProfileApplied = profileService.applyStartupProfile(&appliedProfileId, &profileError);
@@ -142,9 +148,9 @@ void setup() {
     Serial.println(o.colorOrder);
   }
   Serial.print("[boot] debug.enabled=");
-  Serial.print(networkConfig.debug.enabled ? "true" : "false");
+  Serial.print(debugConfig.enabled ? "true" : "false");
   Serial.print(" heartbeatMs=");
-  Serial.println(networkConfig.debug.heartbeatMs);
+  Serial.println(debugConfig.heartbeatMs);
 
   const BaseType_t controlTaskOk = xTaskCreatePinnedToCore(
       controlTask,

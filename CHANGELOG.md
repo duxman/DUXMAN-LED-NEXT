@@ -2,6 +2,32 @@
 
 Todos los cambios relevantes de este proyecto se documentan en este archivo.
 
+## [0.3.7-beta] - 2026-04-28
+
+### Added
+- Menú de navegación horizontal unificado (`buildNavHtml()`) compartido por las 20 páginas HTML embebidas. Colores teal coherentes con la paleta de la aplicación (`#0a3d4a → #0f6a7a`), dropdowns por sección (Config / API / Sobre) y hamburger responsive para móvil.
+- Envoltorio `gen-page-outer` (90% de ancho, centrado, con `border-radius` y sombra) que contiene el nav + contenido en todas las páginas.
+
+### Changed
+- Eliminados los botones de navegación (`btn ghost`) dentro de los formularios de configuración (Network, Microphone, GPIO, Debug, Profiles, Manual JSON). Las secciones de acción solo muestran los botones funcionales: Recargar, Guardar, Aplicar, etc.
+- La página principal ya no muestra el bloque de tiles de navegación (Config / API / Versión) redundante con el nuevo menú.
+- El nav deja de ser un elemento flotante sobre la página y pasa a ser el cabezal superior del `gen-page-outer`, sin radio propio y al 100% del ancho del contenedor.
+
+## [0.3.6-beta] - 2026-04-13
+
+### Added
+- `UserPaletteService`: servicio completo de paletas de usuario con CRUD, persistencia asíncrona en LittleFS (`/user-palettes.json`) y límite de 20 paletas.
+- Distinción explícita entre paletas del **sistema** (`source: "system"`, read-only, ids ≥ 0) y paletas de **usuario** (`source: "user"`, editables, ids codificados ≤ −100).
+- Endpoints `POST /api/v1/palettes/save` y `POST /api/v1/palettes/delete` para gestión de paletas de usuario.
+- `GET /api/v1/palettes` ahora devuelve la lista combinada sistema + usuario con campos `source` y `readOnly` por cada entrada.
+- Página de configuración embebida `/config/palettes`: editor visual con swatches de 3 colores, formulario de creación/edición (id slug, nombre, estilo, descripción, 3 color-pickers), y botones de aplicar / editar / eliminar por paleta.
+- Box "Paletas" añadido al índice `/config` para acceso directo al editor.
+
+### Changed
+- `ApiService` actualizado para inyectar `UserPaletteService` y enrutar los nuevos endpoints.
+- `handleHttpPalettesRoute()` delega el listado a `userPaletteService_.listAllJson()` en lugar de `PaletteRegistry::toJsonArray()`.
+- `saveFromJson()` acepta dos formatos de entrada: `colors.{color1,color2,color3}` (frontend) y `primaryColors[]` (API genérica).
+
 ## [0.3.5-beta] - 2026-04-12
 
 ### Added

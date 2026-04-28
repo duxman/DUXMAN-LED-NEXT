@@ -27,9 +27,30 @@ struct NetworkTimeConfig {
   String ntpServer = "europe.pool.ntp.org";
 };
 
+// Configuración de red (WiFi, IP, DNS, NTP).
+// Debug y Microphone son secciones independientes al mismo nivel.
+struct NetworkConfig {
+  NetworkWifiConfig wifi;
+  NetworkIpConfig ap;
+  NetworkIpConfig sta;
+  NetworkDnsConfig dns;
+  NetworkTimeConfig time;
+
+  static NetworkConfig defaults();
+  String toJson() const;
+  bool applyPatchJson(const String &payload, String *error = nullptr);
+  bool validate(String *error = nullptr) const;
+};
+
+// Configuración de depuración (heartbeat serial, nivel de log).
 struct DebugConfig {
   bool enabled = false;
   uint32_t heartbeatMs = 5000;
+
+  static DebugConfig defaults();
+  String toJson() const;
+  bool applyPatchJson(const String &payload, String *error = nullptr);
+  bool validate(String *error = nullptr) const;
 };
 
 struct MicrophoneI2sPins {
@@ -38,9 +59,10 @@ struct MicrophoneI2sPins {
   int8_t din = -1;
 };
 
+// Configuración del micrófono I2S.
 struct MicrophoneConfig {
   bool enabled = false;
-  String source = "i2s";
+  String source = "generic_i2c";
   String profileId = "DEFAULT";
   uint16_t sampleRate = 16000;
   uint16_t fftSize = 512;
@@ -77,26 +99,12 @@ struct LedOutput {
   String colorOrder = "GRB";
 };
 
+// Configuración de salidas LED (pines, tipo, orden de color).
 struct GpioConfig {
   LedOutput outputs[kMaxLedOutputs];
   uint8_t outputCount = 0;
 
   static GpioConfig defaults();
-  String toJson() const;
-  bool applyPatchJson(const String &payload, String *error = nullptr);
-  bool validate(String *error = nullptr) const;
-};
-
-struct NetworkConfig {
-  NetworkWifiConfig wifi;
-  NetworkIpConfig ap;
-  NetworkIpConfig sta;
-  NetworkDnsConfig dns;
-  NetworkTimeConfig time;
-  DebugConfig debug;
-  MicrophoneConfig microphone;
-
-  static NetworkConfig defaults();
   String toJson() const;
   bool applyPatchJson(const String &payload, String *error = nullptr);
   bool validate(String *error = nullptr) const;

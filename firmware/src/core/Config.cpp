@@ -578,10 +578,61 @@ NetworkConfig NetworkConfig::defaults() {
   config.dns.hostname = "duxman-led";
   config.time.syncOnBoot = true;
   config.time.ntpServer = "europe.pool.ntp.org";
-  config.debug.enabled = false;
-  config.debug.heartbeatMs = 5000;
-  config.microphone = MicrophoneConfig::defaults();
   return config;
+}
+
+// ── DebugConfig ─────────────────────────────────────────────────
+
+DebugConfig DebugConfig::defaults() {
+  DebugConfig config;
+  config.enabled = false;
+  config.heartbeatMs = 5000;
+  return config;
+}
+
+String DebugConfig::toJson() const {
+  JsonDocument doc;
+  JsonObject debug = doc["debug"].to<JsonObject>();
+  debug["enabled"] = enabled;
+  debug["heartbeatMs"] = heartbeatMs;
+  String out;
+  serializeJson(doc, out);
+  return out;
+}
+
+bool DebugConfig::validate(String *error) const {
+  if (heartbeatMs < kHeartbeatMinMs || heartbeatMs > kHeartbeatMaxMs) {
+    if (error != nullptr) {
+      *error = "invalid_debug_heartbeat_ms";
+    }
+    return false;
+  }
+  return true;
+}
+
+bool DebugConfig::applyPatchJson(const String &payload, String *error) {
+  JsonDocument doc;
+  if (deserializeJson(doc, payload)) {
+    if (error != nullptr) *error = "invalid_json";
+    return false;
+  }
+  JsonObjectConst root = doc.as<JsonObjectConst>();
+  JsonObjectConst debugObj = root["debug"].isNull() ? root : root["debug"].as<JsonObjectConst>();
+
+  DebugConfig candidate = *this;
+  setBoolIfPresent(debugObj, "enabled", candidate.enabled);
+  setUIntIfPresent(debugObj, "heartbeatMs", candidate.heartbeatMs);
+
+  String validationError;
+  if (!candidate.validate(&validationError)) {
+    if (error != nullptr) *error = validationError;
+    return false;
+  }
+
+  const bool changed = (candidate.toJson() != this->toJson());
+  *this = candidate;
+  if (error != nullptr) error->clear();
+  return changed;
 }
 
 String NetworkConfig::toJson() const {
@@ -617,24 +668,6 @@ String NetworkConfig::toJson() const {
   JsonObject time = network["time"].to<JsonObject>();
   time["syncOnBoot"] = this->time.syncOnBoot;
   time["ntpServer"] = this->time.ntpServer;
-
-  JsonObject debug = doc["debug"].to<JsonObject>();
-  debug["enabled"] = this->debug.enabled;
-  debug["heartbeatMs"] = this->debug.heartbeatMs;
-
-  JsonObject microphone = doc["microphone"].to<JsonObject>();
-  microphone["enabled"] = this->microphone.enabled;
-  microphone["source"] = this->microphone.source;
-  microphone["profileId"] = this->microphone.profileId;
-  microphone["sampleRate"] = this->microphone.sampleRate;
-  microphone["fftSize"] = this->microphone.fftSize;
-  microphone["gainPercent"] = this->microphone.gainPercent;
-  microphone["noiseFloorPercent"] = this->microphone.noiseFloorPercent;
-
-  JsonObject micPins = microphone["pins"].to<JsonObject>();
-  micPins["bclk"] = this->microphone.pins.bclk;
-  micPins["ws"] = this->microphone.pins.ws;
-  micPins["din"] = this->microphone.pins.din;
 
   String out;
   serializeJson(doc, out);
@@ -716,17 +749,6 @@ bool NetworkConfig::validate(String *error) const {
     return false;
   }
 
-  if (debug.heartbeatMs < kHeartbeatMinMs || debug.heartbeatMs > kHeartbeatMaxMs) {
-    if (error != nullptr) {
-      *error = "invalid_debug_heartbeat_ms";
-    }
-    return false;
-  }
-
-  if (!microphone.validate(error)) {
-    return false;
-  }
-
   return true;
 }
 
@@ -779,30 +801,6 @@ bool NetworkConfig::applyPatchJson(const String &payload, String *error) {
   if (!timeObj.isNull()) {
     setBoolIfPresent(timeObj, "syncOnBoot", candidate.time.syncOnBoot);
     setIfPresent(timeObj, "ntpServer", candidate.time.ntpServer);
-  }
-
-  JsonObjectConst debugObj = root["debug"].as<JsonObjectConst>();
-  if (!debugObj.isNull()) {
-    setBoolIfPresent(debugObj, "enabled", candidate.debug.enabled);
-    setUIntIfPresent(debugObj, "heartbeatMs", candidate.debug.heartbeatMs);
-  }
-
-  JsonObjectConst microphoneObj = root["microphone"].as<JsonObjectConst>();
-  if (!microphoneObj.isNull()) {
-    String micPatch;
-    {
-      JsonDocument micDoc;
-      micDoc["microphone"] = microphoneObj;
-      serializeJson(micDoc, micPatch);
-    }
-    String micError;
-    candidate.microphone.applyPatchJson(micPatch, &micError);
-    if (!micError.isEmpty()) {
-      if (error != nullptr) {
-        *error = micError;
-      }
-      return false;
-    }
   }
 
   String validationError;

@@ -1,61 +1,94 @@
-#include "services/ProfileService.h"
+﻿#include "services/ProfileService.h"
 
 #include <LittleFS.h>
 #include <ArduinoJson.h>
 
 namespace {
-constexpr const char *kProfilesPath = "/gpio-profiles.json";
+constexpr const char *kProfilesPath      = "/profiles.json";
 constexpr const char *kStartupProfilePath = "/startup-profile.json";
-constexpr const char *kDefaultProfileId = "DEFAULT";
-constexpr const char *kDefaultProfileName = "DEFAULT";
-constexpr const char *kDefaultProfileDescription =
-  "Configuracion GPIO activa del dispositivo. Se actualiza automaticamente al guardar GPIO o aplicar un profile.";
-constexpr const char *kGledoptoProfileId = "gledopto_gl_c_017wl_d";
+constexpr const char *kDefaultProfileId  = "default";
+constexpr const char *kDefaultProfileName = "Default";
+constexpr const char *kDefaultProfileDesc =
+  "Perfil por defecto del dispositivo. Se actualiza al pulsar Aplicar al perfil por defecto.";
+constexpr const char *kGledoptoProfileId  = "gledopto_gl_c_017wl_d";
 constexpr const char *kGledoptoProfileName = "Gledopto GL-C-017WL-D";
-constexpr const char *kGledoptoProfileDescription =
-  "Preset LED para este controlador. Incluye GPIO 16, 4 y 2. GPIO 1 queda fuera por ser TX y no se activa por defecto. Microfono generic_i2c recomendado: SD=26, WS=5, SCK=21.";
+constexpr const char *kGledoptoProfileDesc =
+  "Preset para el controlador Gledopto GL-C-017WL-D. 3 salidas LED + microfono I2S.";
 
-bool jsonBoolOrDefault(JsonVariantConst value, bool fallback = false) {
-  if (value.isNull()) {
-    return fallback;
-  }
+GpioConfig makeGledoptoGpio() {
+  GpioConfig config;
+  config.outputCount = 3;
 
-  if (value.is<bool>()) {
-    return value.as<bool>();
-  }
+  config.outputs[0].id = 0;  config.outputs[0].pin = 16; config.outputs[0].ledCount = 60;
+  config.outputs[0].ledType = "ws2812b"; config.outputs[0].colorOrder = "GRB";
 
-  if (value.is<int>() || value.is<long>()) {
-    return value.as<long>() != 0;
-  }
+  config.outputs[1].id = 1;  config.outputs[1].pin = 4;  config.outputs[1].ledCount = 60;
+  config.outputs[1].ledType = "ws2812b"; config.outputs[1].colorOrder = "GRB";
 
-  if (value.is<const char *>()) {
-    const String parsed = value.as<String>();
-    return parsed == "true" || parsed == "1";
-  }
+  config.outputs[2].id = 2;  config.outputs[2].pin = 2;  config.outputs[2].ledCount = 60;
+  config.outputs[2].ledType = "ws2812b"; config.outputs[2].colorOrder = "GRB";
 
-  return fallback;
+  return config;
 }
 
-String normalizeGpioPayload(const JsonObjectConst &source) {
-  JsonDocument doc;
-  if (!source["gpio"].isNull()) {
-    doc["gpio"] = source["gpio"];
-  } else {
-    doc["gpio"] = source;
-  }
+MicrophoneConfig makeGledoptoMicrophone() {
+  MicrophoneConfig mic = MicrophoneConfig::defaults();
+  mic.enabled           = true;
+  mic.source            = "generic_i2c";
+  mic.profileId         = kGledoptoProfileId;
+  mic.sampleRate        = 16000;
+  mic.fftSize           = 512;
+  mic.gainPercent       = 100;
+  mic.noiseFloorPercent = 8;
+  mic.pins.bclk         = 21;
+  mic.pins.ws           = 5;
+  mic.pins.din          = 26;
+  return mic;
+}
 
-  String payload;
-  serializeJson(doc, payload);
-  return payload;
+bool profileFromJson(const JsonObjectConst &obj, AppProfile &out, String *error) {
+  const String id = obj["id"].isNull() ? "" : obj["id"].as<String>();
+  if (!ProfileService::isValidProfileId(id)) {
+    if (error) *error = "invalid_profile_id";
+    return false;
+  }
+  out.id          = id;
+  out.name        = obj["name"].isNull() ? id : obj["name"].as<String>();
+  out.description = obj["description"].isNull() ? "" : obj["description"].as<String>();
+  out.readOnly    = false;
+  out.builtIn     = false;
+
+  if (!obj["network"].isNull()) {
+    String p; { JsonDocument d; d["network"] = obj["network"]; serializeJson(d, p); }
+    String err; out.network.applyPatchJson(p, &err);
+    if (!err.isEmpty()) { if (error) *error = "network_" + err; return false; }
+  }
+  if (!obj["gpio"].isNull()) {
+    String p; { JsonDocument d; d["gpio"] = obj["gpio"]; serializeJson(d, p); }
+    String err; out.gpio.applyPatchJson(p, &err);
+    if (!err.isEmpty()) { if (error) *error = "gpio_" + err; return false; }
+  }
+  if (!obj["microphone"].isNull()) {
+    String p; { JsonDocument d; d["microphone"] = obj["microphone"]; serializeJson(d, p); }
+    String err; out.microphone.applyPatchJson(p, &err);
+    if (!err.isEmpty()) { if (error) *error = "microphone_" + err; return false; }
+  }
+  if (!obj["debug"].isNull()) {
+    String p; { JsonDocument d; d["debug"] = obj["debug"]; serializeJson(d, p); }
+    String err; out.debug.applyPatchJson(p, &err);
+    if (!err.isEmpty()) { if (error) *error = "debug_" + err; return false; }
+  }
+  return true;
 }
 } // namespace
 
-ProfileService::ProfileService(GpioConfig &gpioConfig,
-                               NetworkConfig &networkConfig,
+ProfileService::ProfileService(NetworkConfig &networkConfig, GpioConfig &gpioConfig,
+                               MicrophoneConfig &microphoneConfig, DebugConfig &debugConfig,
                                StorageService &storageService,
                                PersistenceSchedulerService &persistenceSchedulerService,
                                LedDriver &ledDriver)
-  : gpioConfig_(gpioConfig), networkConfig_(networkConfig),
+  : networkConfig_(networkConfig), gpioConfig_(gpioConfig),
+    microphoneConfig_(microphoneConfig), debugConfig_(debugConfig),
     storageService_(storageService),
     persistenceSchedulerService_(persistenceSchedulerService),
     ledDriver_(ledDriver) {}
@@ -78,67 +111,32 @@ void ProfileService::requestSaveDefaultProfileId() {
 
 void ProfileService::processPendingPersistence() {
   const uint8_t pending = pendingPersistenceFlags_;
-  if (pending == 0) {
-    return;
-  }
+  if (pending == 0) return;
   pendingPersistenceFlags_ = 0;
 
   if ((pending & kPendingUserProfiles) != 0 && !saveUserProfiles()) {
     Serial.println("[profiles][async] saveUserProfiles failed");
   }
-
   if ((pending & kPendingDefaultProfile) != 0 && !saveDefaultProfileId()) {
     Serial.println("[profiles][async] saveDefaultProfileId failed");
   }
 }
 
 bool ProfileService::applyStartupProfile(String *appliedId, String *error) {
-  if (appliedId != nullptr) {
-    appliedId->clear();
-  }
+  if (appliedId) appliedId->clear();
+  if (defaultProfileId_.isEmpty()) { if (error) error->clear(); return false; }
 
-  if (defaultProfileId_.isEmpty()) {
-    if (error != nullptr) {
-      error->clear();
-    }
-    return false;
-  }
-
-  const GpioProfile *profile = findProfileById(defaultProfileId_);
+  const AppProfile *profile = findProfileById(defaultProfileId_);
   if (profile == nullptr) {
-    if (error != nullptr) {
-      *error = "default_profile_not_found";
-    }
+    if (error) *error = "default_profile_not_found";
     return false;
   }
 
-  const bool changed = gpioConfig_.toJson() != profile->gpio.toJson();
-  gpioConfig_ = profile->gpio;
-
-  // Si es el perfil GLEDOPTO, también aplicar configuración de micrófono
-  if (defaultProfileId_ == kGledoptoProfileId) {
-    networkConfig_.microphone.enabled = true;
-    networkConfig_.microphone.source = "generic_i2c";
-    networkConfig_.microphone.profileId = kGledoptoProfileId;
-    networkConfig_.microphone.pins.bclk = 21;
-    networkConfig_.microphone.pins.ws = 5;
-    networkConfig_.microphone.pins.din = 26;
-    networkConfig_.microphone.sampleRate = 16000;
-    networkConfig_.microphone.fftSize = 512;
-    networkConfig_.microphone.gainPercent = 100;
-    networkConfig_.microphone.noiseFloorPercent = 8;
-    persistenceSchedulerService_.requestSaveNetwork();
-  }
-
-  persistenceSchedulerService_.requestSaveGpio();
-
-  if (appliedId != nullptr) {
-    *appliedId = profile->id;
-  }
-  if (error != nullptr) {
-    error->clear();
-  }
-  return changed;
+  applyProfileConfig(*profile);
+  persistenceSchedulerService_.requestSaveConfig();
+  if (appliedId) *appliedId = profile->id;
+  if (error) error->clear();
+  return true;
 }
 
 void ProfileService::applyActiveConfig() {
@@ -150,219 +148,149 @@ bool ProfileService::syncDefaultProfileFromActiveConfig(String *error) {
   refreshDefaultProfile();
   defaultProfileId_ = kDefaultProfileId;
   requestSaveDefaultProfileId();
-
-  if (error != nullptr) {
-    error->clear();
-  }
+  if (error) error->clear();
   return true;
 }
 
 String ProfileService::listProfilesJson() const {
   JsonDocument doc;
-  JsonObject profiles = doc["profiles"].to<JsonObject>();
-  profiles["defaultProfileId"] = defaultProfileId_;
-  profiles["activeProfileId"] = detectActiveProfileId();
-  profiles["buildProfile"] = kDefaultProfileId;
-  JsonArray items = profiles["items"].to<JsonArray>();
-  appendProfileJson(items);
-
+  JsonObject root = doc["profiles"].to<JsonObject>();
+  root["defaultId"] = defaultProfileId_;
+  JsonArray items = root["items"].to<JsonArray>();
+  appendProfileMetaJson(items);
   String out;
   serializeJsonPretty(doc, out);
   return out;
 }
 
-bool ProfileService::saveProfileFromJson(const String &payload, String *response,
-                                         String *error) {
+String ProfileService::getProfileConfigJson(const String &id) const {
+  const AppProfile *profile = findProfileById(id);
+  if (profile == nullptr) return "{\"error\":\"profile_not_found\"}";
   JsonDocument doc;
-  if (deserializeJson(doc, payload)) {
-    if (error != nullptr) {
-      *error = "invalid_json";
-    }
-    return false;
-  }
+  JsonObject obj = doc["profile"].to<JsonObject>();
+  serializeProfileFull(obj, *profile);
+  String out;
+  serializeJsonPretty(doc, out);
+  return out;
+}
+
+bool ProfileService::saveProfileFromJson(const String &payload, String *response, String *error) {
+  JsonDocument doc;
+  if (deserializeJson(doc, payload)) { if (error) *error = "invalid_json"; return false; }
 
   JsonObjectConst root = doc.as<JsonObjectConst>();
-  JsonObjectConst profileObj = root["profile"].isNull()
-                                 ? root
-                                 : root["profile"].as<JsonObjectConst>();
+  JsonObjectConst profileObj = root["profile"].isNull() ? root : root["profile"].as<JsonObjectConst>();
 
   const String id = profileObj["id"].isNull() ? "" : profileObj["id"].as<String>();
-  if (!isValidProfileId(id)) {
-    if (error != nullptr) {
-      *error = "invalid_profile_id";
-    }
+  AppProfile profile = snapshotActiveConfig(id, id, "");
+
+  String parseError;
+  if (!profileFromJson(profileObj, profile, &parseError)) {
+    if (error) *error = parseError;
     return false;
   }
 
-  if (findProfileById(id) != nullptr && findUserProfileById(id) == nullptr) {
-    if (error != nullptr) {
-      *error = "readonly_profile";
-    }
+  const AppProfile *existing = findProfileById(profile.id);
+  if (existing != nullptr && findUserProfileById(profile.id) == nullptr) {
+    if (error) *error = "readonly_profile";
     return false;
   }
 
-  JsonObjectConst gpioObj = profileObj["gpio"].isNull()
-                              ? root["gpio"].as<JsonObjectConst>()
-                              : profileObj["gpio"].as<JsonObjectConst>();
-  if (gpioObj.isNull()) {
-    if (error != nullptr) {
-      *error = "missing_gpio";
-    }
-    return false;
-  }
-
-  GpioConfig candidate = GpioConfig::defaults();
-  String validationError;
-  candidate.applyPatchJson(normalizeGpioPayload(gpioObj), &validationError);
-  if (!validationError.isEmpty()) {
-    if (error != nullptr) {
-      *error = validationError;
-    }
-    return false;
-  }
-
-  GpioProfile profile;
-  profile.id = id;
-  profile.name = profileObj["name"].isNull() ? id : profileObj["name"].as<String>();
-  profile.description = profileObj["description"].isNull()
-                          ? ""
-                          : profileObj["description"].as<String>();
-  profile.readOnly = false;
-  profile.builtIn = false;
-  profile.gpio = candidate;
-
-  if (!upsertUserProfile(profile, error)) {
-    return false;
-  }
+  if (!upsertUserProfile(profile, error)) return false;
   requestSaveUserProfiles();
 
-  const bool applyNow = jsonBoolOrDefault(profileObj["applyNow"]);
-  const bool setDefault = jsonBoolOrDefault(profileObj["autoApplyOnBoot"]) ||
-                          jsonBoolOrDefault(profileObj["setDefault"]);
-  const bool activateAsCurrent = applyNow || setDefault;
-
-  bool applied = false;
-  if (activateAsCurrent) {
-    gpioConfig_ = candidate;
-    persistenceSchedulerService_.requestSaveGpio();
-    refreshDefaultProfile();
-    if (setDefault) {
-      defaultProfileId_ = id;
-      requestSaveDefaultProfileId();
-    } else {
-      defaultProfileId_ = kDefaultProfileId;
-      requestSaveDefaultProfileId();
-    }
-    applyActiveConfig();
-    applied = true;
-  }
-
-  const bool defaultUpdated = activateAsCurrent;
-
-  if (response != nullptr) {
-    JsonDocument responseDoc;
-    responseDoc["saved"] = true;
-    responseDoc["applied"] = applied;
-    responseDoc["defaultUpdated"] = defaultUpdated;
-    JsonObject profileJson = responseDoc["profile"].to<JsonObject>();
-    serializeProfile(profileJson, profile);
-    String out;
-    serializeJson(responseDoc, out);
+  if (response) {
+    JsonDocument resp;
+    resp["saved"] = true;
+    JsonObject obj = resp["profile"].to<JsonObject>();
+    serializeProfileMeta(obj, profile);
+    String out; serializeJson(resp, out);
     *response = out;
   }
-
-  if (error != nullptr) {
-    error->clear();
-  }
+  if (error) error->clear();
   return true;
 }
 
-bool ProfileService::applyProfileFromJson(const String &payload, String *response,
-                                          String *error) {
+bool ProfileService::cloneProfileFromJson(const String &payload, String *response, String *error) {
   JsonDocument doc;
-  if (deserializeJson(doc, payload)) {
-    if (error != nullptr) {
-      *error = "invalid_json";
-    }
-    return false;
-  }
+  if (deserializeJson(doc, payload)) { if (error) *error = "invalid_json"; return false; }
 
   JsonObjectConst root = doc.as<JsonObjectConst>();
-  JsonObjectConst request = root["profile"].isNull()
-                              ? root
-                              : root["profile"].as<JsonObjectConst>();
-  const String id = request["id"].isNull() ? "" : request["id"].as<String>();
+  const String sourceId = root["sourceId"].isNull() ? "" : root["sourceId"].as<String>();
+  const String newId    = root["newId"].isNull()    ? "" : root["newId"].as<String>();
+  const String newName  = root["newName"].isNull()  ? newId : root["newName"].as<String>();
 
+  if (!isValidProfileId(newId)) { if (error) *error = "invalid_new_profile_id"; return false; }
+
+  const AppProfile *source = findProfileById(sourceId);
+  if (source == nullptr) { if (error) *error = "source_profile_not_found"; return false; }
+  if (findProfileById(newId) != nullptr) { if (error) *error = "profile_id_already_exists"; return false; }
+
+  AppProfile clone = *source;
+  clone.id = newId; clone.name = newName;
+  clone.readOnly = false; clone.builtIn = false;
+
+  if (!upsertUserProfile(clone, error)) return false;
+  requestSaveUserProfiles();
+
+  if (response) {
+    JsonDocument resp;
+    resp["cloned"] = true;
+    JsonObject obj = resp["profile"].to<JsonObject>();
+    serializeProfileMeta(obj, clone);
+    String out; serializeJson(resp, out);
+    *response = out;
+  }
+  if (error) error->clear();
+  return true;
+}
+
+bool ProfileService::applyProfileFromJson(const String &payload, String *response, String *error) {
+  JsonDocument doc;
+  if (deserializeJson(doc, payload)) { if (error) *error = "invalid_json"; return false; }
+  JsonObjectConst root = doc.as<JsonObjectConst>();
+  JsonObjectConst req  = root["profile"].isNull() ? root : root["profile"].as<JsonObjectConst>();
+  const String id = req["id"].isNull() ? "" : req["id"].as<String>();
   return applyProfileById(id, true, response, error);
 }
 
-bool ProfileService::setDefaultProfileFromJson(const String &payload,
-                                               String *response,
-                                               String *error) {
+bool ProfileService::setDefaultProfileFromJson(const String &payload, String *response, String *error) {
   JsonDocument doc;
-  if (deserializeJson(doc, payload)) {
-    if (error != nullptr) {
-      *error = "invalid_json";
-    }
-    return false;
-  }
-
+  if (deserializeJson(doc, payload)) { if (error) *error = "invalid_json"; return false; }
   JsonObjectConst root = doc.as<JsonObjectConst>();
-  JsonObjectConst request = root["profile"].isNull()
-                              ? root
-                              : root["profile"].as<JsonObjectConst>();
-  const String id = request["id"].isNull() ? "" : request["id"].as<String>();
-  if (!applyProfileById(id, true, response, error)) {
-    return false;
-  }
+  JsonObjectConst req  = root["profile"].isNull() ? root : root["profile"].as<JsonObjectConst>();
+  const String id = req["id"].isNull() ? "" : req["id"].as<String>();
 
-  if (error != nullptr) {
-    error->clear();
+  if (findProfileById(id) == nullptr) { if (error) *error = "profile_not_found"; return false; }
+
+  defaultProfileId_ = id;
+  requestSaveDefaultProfileId();
+
+  if (response) {
+    JsonDocument resp;
+    resp["defaultUpdated"] = true;
+    resp["defaultId"] = defaultProfileId_;
+    String out; serializeJson(resp, out);
+    *response = out;
   }
+  if (error) error->clear();
   return true;
 }
 
-bool ProfileService::deleteProfileFromJson(const String &payload, String *response,
-                                           String *error) {
+bool ProfileService::deleteProfileFromJson(const String &payload, String *response, String *error) {
   JsonDocument doc;
-  if (deserializeJson(doc, payload)) {
-    if (error != nullptr) {
-      *error = "invalid_json";
-    }
-    return false;
-  }
-
+  if (deserializeJson(doc, payload)) { if (error) *error = "invalid_json"; return false; }
   JsonObjectConst root = doc.as<JsonObjectConst>();
-  JsonObjectConst request = root["profile"].isNull()
-                              ? root
-                              : root["profile"].as<JsonObjectConst>();
-  const String id = request["id"].isNull() ? "" : request["id"].as<String>();
+  JsonObjectConst req  = root["profile"].isNull() ? root : root["profile"].as<JsonObjectConst>();
+  const String id = req["id"].isNull() ? "" : req["id"].as<String>();
+
+  if (id == kDefaultProfileId) { if (error) *error = "cannot_delete_builtin"; return false; }
+
   const int index = findUserProfileIndexById(id);
   if (index < 0) {
-    const GpioProfile *profile = findProfileById(id);
-    if (profile != nullptr && profile->builtIn) {
-      if (!markBuiltInProfileDeleted(id, error)) {
-        return false;
-      }
-
-      if (response != nullptr) {
-        JsonDocument responseDoc;
-        responseDoc["deleted"] = true;
-        responseDoc["id"] = id;
-        responseDoc["defaultCleared"] = false;
-        String out;
-        serializeJson(responseDoc, out);
-        *response = out;
-      }
-
-      if (error != nullptr) {
-        error->clear();
-      }
-      return true;
-    }
-    if (error != nullptr) {
-      *error = "profile_not_found";
-    }
+    const AppProfile *p = findProfileById(id);
+    if (p != nullptr && p->builtIn) { if (error) *error = "cannot_delete_builtin"; return false; }
+    if (error) *error = "profile_not_found";
     return false;
   }
 
@@ -370,154 +298,81 @@ bool ProfileService::deleteProfileFromJson(const String &payload, String *respon
     userProfiles_[i] = userProfiles_[i + 1];
   }
   if (userProfileCount_ > 0) {
-    userProfiles_[userProfileCount_ - 1] = GpioProfile();
+    userProfiles_[userProfileCount_ - 1] = AppProfile();
     --userProfileCount_;
   }
-
   requestSaveUserProfiles();
 
   bool defaultCleared = false;
   if (defaultProfileId_ == id) {
-    defaultProfileId_.clear();
+    defaultProfileId_ = kDefaultProfileId;
     requestSaveDefaultProfileId();
     defaultCleared = true;
   }
 
-  if (response != nullptr) {
-    JsonDocument responseDoc;
-    responseDoc["deleted"] = true;
-    responseDoc["id"] = id;
-    responseDoc["defaultCleared"] = defaultCleared;
-    String out;
-    serializeJson(responseDoc, out);
+  if (response) {
+    JsonDocument resp;
+    resp["deleted"] = true; resp["id"] = id; resp["defaultCleared"] = defaultCleared;
+    String out; serializeJson(resp, out);
     *response = out;
   }
-
-  if (error != nullptr) {
-    error->clear();
-  }
+  if (error) error->clear();
   return true;
 }
 
 void ProfileService::initializeBuiltInProfiles() {
   builtInProfileCount_ = 0;
 
-  GpioProfile buildProfile;
-  buildProfile.id = kDefaultProfileId;
-  buildProfile.name = kDefaultProfileName;
-  buildProfile.description = kDefaultProfileDescription;
-  buildProfile.readOnly = true;
-  buildProfile.builtIn = true;
-  buildProfile.gpio = gpioConfig_;
-  builtInProfiles_[builtInProfileCount_++] = buildProfile;
+  AppProfile def = snapshotActiveConfig(kDefaultProfileId, kDefaultProfileName, kDefaultProfileDesc);
+  def.readOnly = true; def.builtIn = true;
+  builtInProfiles_[builtInProfileCount_++] = def;
 
-    if (!isBuiltInProfileDeleted(kGledoptoProfileId) &&
-      buildProfile.id != kGledoptoProfileId &&
-      builtInProfileCount_ < kMaxBuiltInGpioProfiles) {
-    GpioProfile gledoptoProfile;
-    gledoptoProfile.id = kGledoptoProfileId;
-    gledoptoProfile.name = kGledoptoProfileName;
-    gledoptoProfile.description = kGledoptoProfileDescription;
-    gledoptoProfile.readOnly = true;
-    gledoptoProfile.builtIn = true;
-    gledoptoProfile.gpio = createGledoptoProfileConfig();
-    builtInProfiles_[builtInProfileCount_++] = gledoptoProfile;
+  if (builtInProfileCount_ < kMaxBuiltInProfiles) {
+    AppProfile gled;
+    gled.id = kGledoptoProfileId; gled.name = kGledoptoProfileName;
+    gled.description = kGledoptoProfileDesc;
+    gled.readOnly = true; gled.builtIn = true;
+    gled.network    = NetworkConfig::defaults();
+    gled.gpio       = makeGledoptoGpio();
+    gled.microphone = makeGledoptoMicrophone();
+    gled.debug      = DebugConfig::defaults();
+    builtInProfiles_[builtInProfileCount_++] = gled;
   }
 }
 
 void ProfileService::refreshDefaultProfile() {
-  if (builtInProfileCount_ == 0) {
-    initializeBuiltInProfiles();
-  }
-
-  builtInProfiles_[0].id = kDefaultProfileId;
-  builtInProfiles_[0].name = kDefaultProfileName;
-  builtInProfiles_[0].description = kDefaultProfileDescription;
+  if (builtInProfileCount_ == 0) initializeBuiltInProfiles();
+  builtInProfiles_[0] = snapshotActiveConfig(kDefaultProfileId, kDefaultProfileName, kDefaultProfileDesc);
   builtInProfiles_[0].readOnly = true;
-  builtInProfiles_[0].builtIn = true;
-  builtInProfiles_[0].gpio = gpioConfig_;
+  builtInProfiles_[0].builtIn  = true;
 }
 
 bool ProfileService::loadUserProfiles() {
-  for (uint8_t i = 0; i < kMaxDeletedBuiltInGpioProfiles; ++i) {
-    deletedBuiltInProfileIds_[i].clear();
-  }
-  deletedBuiltInProfileCount_ = 0;
-
-  for (uint8_t i = 0; i < kMaxUserGpioProfiles; ++i) {
-    userProfiles_[i] = GpioProfile();
-  }
+  for (uint8_t i = 0; i < kMaxUserProfiles; ++i) userProfiles_[i] = AppProfile();
   userProfileCount_ = 0;
 
   String raw;
-  if (!readFile(kProfilesPath, raw)) {
-    return true;
-  }
+  if (!readFile(kProfilesPath, raw)) return true;
 
   JsonDocument doc;
-  if (deserializeJson(doc, raw)) {
-    return false;
-  }
+  if (deserializeJson(doc, raw)) return false;
 
   JsonArrayConst items = doc["profiles"].as<JsonArrayConst>();
-  if (items.isNull()) {
-    return false;
-  }
-
-  JsonArrayConst deletedBuiltIns = doc["deletedBuiltIns"].as<JsonArrayConst>();
-  if (!deletedBuiltIns.isNull()) {
-    for (JsonVariantConst item : deletedBuiltIns) {
-      if (deletedBuiltInProfileCount_ >= kMaxDeletedBuiltInGpioProfiles) {
-        break;
-      }
-      const String id = item.isNull() ? "" : item.as<String>();
-      if (id.isEmpty() || id == kDefaultProfileId) {
-        continue;
-      }
-      bool exists = false;
-      for (uint8_t i = 0; i < deletedBuiltInProfileCount_; ++i) {
-        if (deletedBuiltInProfileIds_[i] == id) {
-          exists = true;
-          break;
-        }
-      }
-      if (!exists) {
-        deletedBuiltInProfileIds_[deletedBuiltInProfileCount_++] = id;
-      }
-    }
-  }
+  if (items.isNull()) return false;
 
   for (JsonObjectConst item : items) {
-    if (userProfileCount_ >= kMaxUserGpioProfiles) {
-      break;
-    }
-
+    if (userProfileCount_ >= kMaxUserProfiles) break;
     const String id = item["id"].isNull() ? "" : item["id"].as<String>();
-    if (!isValidProfileId(id) || findProfileById(id) != nullptr) {
+    if (!isValidProfileId(id) || findProfileById(id) != nullptr) continue;
+
+    AppProfile profile = snapshotActiveConfig(id, id, "");
+    String err;
+    if (!profileFromJson(item, profile, &err)) {
+      Serial.print("[profiles] skipping '"); Serial.print(id); Serial.print("': "); Serial.println(err);
       continue;
     }
-
-    JsonObjectConst gpioObj = item["gpio"].as<JsonObjectConst>();
-    if (gpioObj.isNull()) {
-      continue;
-    }
-
-    GpioConfig gpio = GpioConfig::defaults();
-    String validationError;
-    gpio.applyPatchJson(normalizeGpioPayload(gpioObj), &validationError);
-    if (!validationError.isEmpty()) {
-      continue;
-    }
-
-    GpioProfile &profile = userProfiles_[userProfileCount_++];
-    profile.id = id;
-    profile.name = item["name"].isNull() ? id : item["name"].as<String>();
-    profile.description = item["description"].isNull() ? "" : item["description"].as<String>();
-    profile.readOnly = false;
-    profile.builtIn = false;
-    profile.gpio = gpio;
+    userProfiles_[userProfileCount_++] = profile;
   }
-
   return true;
 }
 
@@ -526,14 +381,8 @@ bool ProfileService::saveUserProfiles() const {
   JsonArray items = doc["profiles"].to<JsonArray>();
   for (uint8_t i = 0; i < userProfileCount_; ++i) {
     JsonObject item = items.add<JsonObject>();
-    serializeProfile(item, userProfiles_[i]);
+    serializeProfileFull(item, userProfiles_[i]);
   }
-
-  JsonArray deletedBuiltIns = doc["deletedBuiltIns"].to<JsonArray>();
-  for (uint8_t i = 0; i < deletedBuiltInProfileCount_; ++i) {
-    deletedBuiltIns.add(deletedBuiltInProfileIds_[i]);
-  }
-
   String out;
   serializeJsonPretty(doc, out);
   return writeFile(kProfilesPath, out);
@@ -541,347 +390,152 @@ bool ProfileService::saveUserProfiles() const {
 
 bool ProfileService::loadDefaultProfileId() {
   defaultProfileId_ = kDefaultProfileId;
-
   String raw;
-  if (!readFile(kStartupProfilePath, raw)) {
-    return saveDefaultProfileId();
-  }
-
+  if (!readFile(kStartupProfilePath, raw)) return saveDefaultProfileId();
   JsonDocument doc;
-  if (deserializeJson(doc, raw)) {
-    return false;
-  }
-
-  const String id = doc["defaultProfileId"].isNull()
-                      ? ""
-                      : doc["defaultProfileId"].as<String>();
-  if (id.isEmpty()) {
-    return saveDefaultProfileId();
-  }
-
-  if (findProfileById(id) == nullptr) {
+  if (deserializeJson(doc, raw)) return false;
+  const String id = doc["defaultId"].isNull() ? "" : doc["defaultId"].as<String>();
+  if (id.isEmpty() || findProfileById(id) == nullptr) {
     defaultProfileId_ = kDefaultProfileId;
     return saveDefaultProfileId();
   }
-
   defaultProfileId_ = id;
-
   return true;
 }
 
 bool ProfileService::saveDefaultProfileId() const {
   JsonDocument doc;
-  doc["defaultProfileId"] = defaultProfileId_;
+  doc["defaultId"] = defaultProfileId_;
   String out;
   serializeJsonPretty(doc, out);
   return writeFile(kStartupProfilePath, out);
 }
 
-const GpioProfile *ProfileService::findProfileById(const String &id) const {
-  if (id.isEmpty()) {
-    return nullptr;
-  }
-
+const AppProfile *ProfileService::findProfileById(const String &id) const {
+  if (id.isEmpty()) return nullptr;
   for (uint8_t i = 0; i < builtInProfileCount_; ++i) {
-    if (builtInProfiles_[i].id == id) {
-      return &builtInProfiles_[i];
-    }
+    if (builtInProfiles_[i].id == id) return &builtInProfiles_[i];
   }
-
   for (uint8_t i = 0; i < userProfileCount_; ++i) {
-    if (userProfiles_[i].id == id) {
-      return &userProfiles_[i];
-    }
+    if (userProfiles_[i].id == id) return &userProfiles_[i];
   }
-
   return nullptr;
 }
 
-GpioProfile *ProfileService::findUserProfileById(const String &id) {
+AppProfile *ProfileService::findUserProfileById(const String &id) {
   for (uint8_t i = 0; i < userProfileCount_; ++i) {
-    if (userProfiles_[i].id == id) {
-      return &userProfiles_[i];
-    }
+    if (userProfiles_[i].id == id) return &userProfiles_[i];
   }
   return nullptr;
 }
 
 int ProfileService::findUserProfileIndexById(const String &id) const {
   for (uint8_t i = 0; i < userProfileCount_; ++i) {
-    if (userProfiles_[i].id == id) {
-      return i;
-    }
+    if (userProfiles_[i].id == id) return static_cast<int>(i);
   }
   return -1;
 }
 
-int ProfileService::findDeletedBuiltInProfileIndexById(const String &id) const {
-  for (uint8_t i = 0; i < deletedBuiltInProfileCount_; ++i) {
-    if (deletedBuiltInProfileIds_[i] == id) {
-      return i;
-    }
-  }
-  return -1;
-}
-
-String ProfileService::detectActiveProfileId() const {
-  const String activeJson = gpioConfig_.toJson();
-
-  // Si el perfil por defecto coincide con la configuracion activa, priorizarlo.
-  const GpioProfile *defaultProfile = findProfileById(defaultProfileId_);
-  if (defaultProfile != nullptr && defaultProfile->gpio.toJson() == activeJson) {
-    return defaultProfileId_;
-  }
-
-  for (uint8_t i = 0; i < builtInProfileCount_; ++i) {
-    if (builtInProfiles_[i].gpio.toJson() == activeJson) {
-      return builtInProfiles_[i].id;
-    }
-  }
-  for (uint8_t i = 0; i < userProfileCount_; ++i) {
-    if (userProfiles_[i].gpio.toJson() == activeJson) {
-      return userProfiles_[i].id;
-    }
-  }
-  return "";
-}
-
-bool ProfileService::upsertUserProfile(const GpioProfile &profile, String *error) {
-  GpioProfile *existing = findUserProfileById(profile.id);
-  if (existing != nullptr) {
-    *existing = profile;
-    return true;
-  }
-
-  if (userProfileCount_ >= kMaxUserGpioProfiles) {
-    if (error != nullptr) {
-      *error = "profile_limit_reached";
-    }
+bool ProfileService::upsertUserProfile(const AppProfile &profile, String *error) {
+  AppProfile *existing = findUserProfileById(profile.id);
+  if (existing != nullptr) { *existing = profile; return true; }
+  if (userProfileCount_ >= kMaxUserProfiles) {
+    if (error) *error = "profile_limit_reached";
     return false;
   }
-
   userProfiles_[userProfileCount_++] = profile;
   return true;
 }
 
-bool ProfileService::markBuiltInProfileDeleted(const String &id, String *error) {
-  if (id.isEmpty()) {
-    if (error != nullptr) {
-      *error = "profile_not_found";
-    }
-    return false;
-  }
-
-  if (id == kDefaultProfileId) {
-    if (error != nullptr) {
-      *error = "cannot_delete_default";
-    }
-    return false;
-  }
-
-  if (findDeletedBuiltInProfileIndexById(id) >= 0) {
-    if (error != nullptr) {
-      error->clear();
-    }
-    return true;
-  }
-
-  if (deletedBuiltInProfileCount_ >= kMaxDeletedBuiltInGpioProfiles) {
-    if (error != nullptr) {
-      *error = "profile_limit_reached";
-    }
-    return false;
-  }
-
-  deletedBuiltInProfileIds_[deletedBuiltInProfileCount_++] = id;
-  initializeBuiltInProfiles();
-  requestSaveUserProfiles();
-
-  if (error != nullptr) {
-    error->clear();
-  }
-  return true;
-}
-
-bool ProfileService::isBuiltInProfileDeleted(const String &id) const {
-  return findDeletedBuiltInProfileIndexById(id) >= 0;
-}
-
-bool ProfileService::setDefaultProfileId(const String &id, String *error) {
-  (void)id;
-  if (!syncDefaultProfileFromActiveConfig(error)) {
-    return false;
-  }
-
-  if (error != nullptr) {
-    error->clear();
-  }
-  return true;
-}
-
 bool ProfileService::applyProfileById(const String &id, bool setAsDefault,
-                                      String *response, String *error) {
-  const GpioProfile *profile = findProfileById(id);
-  if (profile == nullptr) {
-    if (error != nullptr) {
-      *error = "profile_not_found";
-    }
-    return false;
-  }
+                                       String *response, String *error) {
+  const AppProfile *profile = findProfileById(id);
+  if (profile == nullptr) { if (error) *error = "profile_not_found"; return false; }
 
-  gpioConfig_ = profile->gpio;
-  persistenceSchedulerService_.requestSaveGpio();
-
-  // Si es el perfil GLEDOPTO, también aplicar configuración de micrófono
-  if (id == kGledoptoProfileId) {
-    if (networkConfig_.microphone.profileId != kGledoptoProfileId ||
-        networkConfig_.microphone.pins.bclk != 21 ||
-        networkConfig_.microphone.pins.ws != 5 ||
-        networkConfig_.microphone.pins.din != 26) {
-      networkConfig_.microphone.enabled = true;
-      networkConfig_.microphone.source = "generic_i2c";
-      networkConfig_.microphone.profileId = kGledoptoProfileId;
-      networkConfig_.microphone.pins.bclk = 21;
-      networkConfig_.microphone.pins.ws = 5;
-      networkConfig_.microphone.pins.din = 26;
-      networkConfig_.microphone.sampleRate = 16000;
-      networkConfig_.microphone.fftSize = 512;
-      networkConfig_.microphone.gainPercent = 100;
-      networkConfig_.microphone.noiseFloorPercent = 8;
-      persistenceSchedulerService_.requestSaveNetwork();
-    }
-  }
-
+  applyProfileConfig(*profile);
+  persistenceSchedulerService_.requestSaveConfig();
   refreshDefaultProfile();
+
   if (setAsDefault) {
     defaultProfileId_ = id;
     requestSaveDefaultProfileId();
-  } else {
-    defaultProfileId_ = kDefaultProfileId;
-    requestSaveDefaultProfileId();
   }
-
   applyActiveConfig();
 
-  if (response != nullptr) {
-    JsonDocument responseDoc;
-    responseDoc["applied"] = true;
-    responseDoc["defaultUpdated"] = setAsDefault;
-    responseDoc["defaultProfileId"] = defaultProfileId_;
-    JsonObject profileJson = responseDoc["profile"].to<JsonObject>();
-    serializeProfile(profileJson, *profile);
-    String out;
-    serializeJson(responseDoc, out);
+  if (response) {
+    JsonDocument resp;
+    resp["applied"] = true;
+    resp["defaultUpdated"] = setAsDefault;
+    resp["defaultId"] = defaultProfileId_;
+    JsonObject obj = resp["profile"].to<JsonObject>();
+    serializeProfileMeta(obj, *profile);
+    String out; serializeJson(resp, out);
     *response = out;
   }
-
-  if (error != nullptr) {
-    error->clear();
-  }
+  if (error) error->clear();
   return true;
 }
 
-void ProfileService::appendProfileJson(JsonArray target) const {
-  const String activeProfileId = detectActiveProfileId();
+AppProfile ProfileService::snapshotActiveConfig(const String &id, const String &name,
+                                                 const String &description) const {
+  AppProfile p;
+  p.id = id; p.name = name; p.description = description;
+  p.network    = networkConfig_;
+  p.gpio       = gpioConfig_;
+  p.microphone = microphoneConfig_;
+  p.debug      = debugConfig_;
+  return p;
+}
+
+void ProfileService::applyProfileConfig(const AppProfile &profile) {
+  networkConfig_    = profile.network;
+  gpioConfig_       = profile.gpio;
+  microphoneConfig_ = profile.microphone;
+  debugConfig_      = profile.debug;
+}
+
+void ProfileService::appendProfileMetaJson(JsonArray target) const {
   for (uint8_t i = 0; i < builtInProfileCount_; ++i) {
     JsonObject item = target.add<JsonObject>();
-    serializeProfile(item, builtInProfiles_[i]);
+    serializeProfileMeta(item, builtInProfiles_[i]);
     item["isDefault"] = builtInProfiles_[i].id == defaultProfileId_;
-    item["isActive"] = builtInProfiles_[i].id == activeProfileId;
   }
   for (uint8_t i = 0; i < userProfileCount_; ++i) {
     JsonObject item = target.add<JsonObject>();
-    serializeProfile(item, userProfiles_[i]);
+    serializeProfileMeta(item, userProfiles_[i]);
     item["isDefault"] = userProfiles_[i].id == defaultProfileId_;
-    item["isActive"] = userProfiles_[i].id == activeProfileId;
   }
 }
 
-void ProfileService::serializeProfile(JsonObject target,
-                                      const GpioProfile &profile) const {
-  target["id"] = profile.id;
-  target["name"] = profile.name;
+void ProfileService::serializeProfileMeta(JsonObject target, const AppProfile &profile) const {
+  target["id"]          = profile.id;
+  target["name"]        = profile.name;
   target["description"] = profile.description;
-  target["readOnly"] = profile.readOnly;
-  target["builtIn"] = profile.builtIn;
-
-  JsonDocument gpioDoc;
-  deserializeJson(gpioDoc, profile.gpio.toJson());
-  target["gpio"] = gpioDoc["gpio"];
-
-  JsonObject microphone = target["microphone"].to<JsonObject>();
-  if (profile.id == kGledoptoProfileId) {
-    microphone["enabled"] = true;
-    microphone["source"] = "generic_i2c";
-    microphone["profileId"] = kGledoptoProfileId;
-    microphone["sampleRate"] = 16000;
-    microphone["fftSize"] = 512;
-    microphone["gainPercent"] = 100;
-    microphone["noiseFloorPercent"] = 8;
-    JsonObject pins = microphone["pins"].to<JsonObject>();
-    pins["bclk"] = 21;
-    pins["ws"] = 5;
-    pins["din"] = 26;
-  } else if (profile.id == kDefaultProfileId) {
-    JsonDocument micDoc;
-    deserializeJson(micDoc, networkConfig_.microphone.toJson());
-    microphone.set(micDoc["microphone"]);
-  }
+  target["readOnly"]    = profile.readOnly;
+  target["builtIn"]     = profile.builtIn;
 }
 
-GpioConfig ProfileService::createGledoptoProfileConfig() {
-  GpioConfig config;
-  config.outputCount = 3;
-
-  config.outputs[0].id = 0;
-  config.outputs[0].pin = 16;
-  config.outputs[0].ledCount = 60;
-  config.outputs[0].ledType = "ws2812b";
-  config.outputs[0].colorOrder = "GRB";
-
-  config.outputs[1].id = 1;
-  config.outputs[1].pin = 4;
-  config.outputs[1].ledCount = 60;
-  config.outputs[1].ledType = "ws2812b";
-  config.outputs[1].colorOrder = "GRB";
-
-  config.outputs[2].id = 2;
-  config.outputs[2].pin = 2;
-  config.outputs[2].ledCount = 60;
-  config.outputs[2].ledType = "ws2812b";
-  config.outputs[2].colorOrder = "GRB";
-
-  return config;
+void ProfileService::serializeProfileFull(JsonObject target, const AppProfile &profile) const {
+  serializeProfileMeta(target, profile);
+  { JsonDocument d; deserializeJson(d, profile.network.toJson());    target["network"]    = d["network"]; }
+  { JsonDocument d; deserializeJson(d, profile.gpio.toJson());       target["gpio"]       = d["gpio"]; }
+  { JsonDocument d; deserializeJson(d, profile.microphone.toJson()); target["microphone"] = d["microphone"]; }
+  { JsonDocument d; deserializeJson(d, profile.debug.toJson());      target["debug"]      = d["debug"]; }
 }
 
 bool ProfileService::isValidProfileId(const String &id) {
-  if (id.isEmpty() || id.length() > 48) {
-    return false;
-  }
-
+  if (id.isEmpty() || id.length() > 48) return false;
   for (size_t i = 0; i < id.length(); ++i) {
     const char ch = id[i];
-    const bool isLowerAlpha = ch >= 'a' && ch <= 'z';
-    const bool isDigitChar = ch >= '0' && ch <= '9';
-    const bool isSeparator = ch == '-' || ch == '_';
-    if (!isLowerAlpha && !isDigitChar && !isSeparator) {
-      return false;
-    }
+    if (!(ch >= 'a' && ch <= 'z') && !(ch >= '0' && ch <= '9') && ch != '-' && ch != '_') return false;
   }
-
   return true;
 }
 
 bool ProfileService::readFile(const char *path, String &content) {
-  if (!LittleFS.exists(path)) {
-    return false;
-  }
-
+  if (!LittleFS.exists(path)) return false;
   File file = LittleFS.open(path, "r");
-  if (!file) {
-    return false;
-  }
-
+  if (!file) return false;
   content = file.readString();
   file.close();
   return !content.isEmpty();
@@ -889,10 +543,7 @@ bool ProfileService::readFile(const char *path, String &content) {
 
 bool ProfileService::writeFile(const char *path, const String &content) {
   File file = LittleFS.open(path, "w");
-  if (!file) {
-    return false;
-  }
-
+  if (!file) return false;
   const size_t bytes = file.print(content);
   file.close();
   return bytes > 0;

@@ -19,16 +19,12 @@ void PersistenceSchedulerService::requestSaveState() {
   setPending(kPendingState);
 }
 
-void PersistenceSchedulerService::requestSaveNetwork() {
-  setPending(kPendingNetwork);
-}
-
-void PersistenceSchedulerService::requestSaveGpio() {
-  setPending(kPendingGpio);
+void PersistenceSchedulerService::requestSaveConfig() {
+  setPending(kPendingConfig);
 }
 
 void PersistenceSchedulerService::requestSaveAll() {
-  setPending(kPendingState | kPendingNetwork | kPendingGpio);
+  setPending(kPendingState | kPendingConfig);
 }
 
 void PersistenceSchedulerService::processPending() {
@@ -43,11 +39,7 @@ void PersistenceSchedulerService::processPending() {
     Serial.println("[storage][async] saveState failed");
   }
 
-  if ((work & kPendingNetwork) != 0 && !storageService_.saveNetworkConfig()) {
-    Serial.println("[storage][async] saveNetworkConfig failed");
-  }
-
-  if ((work & kPendingGpio) != 0 && !storageService_.saveGpioConfig()) {
-    Serial.println("[storage][async] saveGpioConfig failed");
+  if ((work & kPendingConfig) != 0 && !storageService_.saveConfig()) {
+    Serial.println("[storage][async] saveConfig failed");
   }
 }

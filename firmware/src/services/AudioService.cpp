@@ -1,9 +1,9 @@
-#include "services/AudioService.h"
+﻿#include "services/AudioService.h"
 
 #include <cmath>
 
-AudioService::AudioService(NetworkConfig &networkConfig, CoreState &coreState)
-    : networkConfig_(networkConfig), coreState_(coreState) {}
+AudioService::AudioService(MicrophoneConfig &microphoneConfig, CoreState &coreState)
+    : microphoneConfig_(microphoneConfig), coreState_(coreState) {}
 
 AudioService::~AudioService() {
   end();
@@ -15,16 +15,16 @@ bool AudioService::begin() {
   }
 
   // Validar configuración de micrófono
-  if (!networkConfig_.microphone.enabled) {
+  if (!microphoneConfig_.enabled) {
     hasError_ = true;
     Serial.println("[audio] begin skipped: microphone.enabled=false");
     return false;
   }
 
-  if (networkConfig_.microphone.source != "generic_i2c") {
+  if (microphoneConfig_.source != "generic_i2c") {
     hasError_ = true;
     Serial.print("[audio] begin failed: unsupported source=");
-    Serial.println(networkConfig_.microphone.source);
+    Serial.println(microphoneConfig_.source);
     return false;
   }
 
@@ -76,17 +76,17 @@ void AudioService::handle(unsigned long nowMs) {
     Serial.print(" effectId=");
     Serial.print(coreState_.effectId);
     Serial.print(" gain=");
-    Serial.print(networkConfig_.microphone.gainPercent);
+    Serial.print(microphoneConfig_.gainPercent);
     Serial.print(" noiseFloor=");
-    Serial.print(networkConfig_.microphone.noiseFloorPercent);
+    Serial.print(microphoneConfig_.noiseFloorPercent);
     Serial.print(" baseline=");
     Serial.print(static_cast<int>(ambientBaseline_));
     Serial.print(" pins=");
-    Serial.print(networkConfig_.microphone.pins.bclk);
+    Serial.print(microphoneConfig_.pins.bclk);
     Serial.print('/');
-    Serial.print(networkConfig_.microphone.pins.ws);
+    Serial.print(microphoneConfig_.pins.ws);
     Serial.print('/');
-    Serial.println(networkConfig_.microphone.pins.din);
+    Serial.println(microphoneConfig_.pins.din);
   }
 
   if (!isActive_) {
@@ -106,7 +106,7 @@ bool AudioService::initializeI2S() {
   // Configurar I2S en modo master RX para generar clocks al micro MEMS.
   i2s_config_t i2sConfig = {
       .mode = static_cast<i2s_mode_t>(I2S_MODE_MASTER | I2S_MODE_RX),
-      .sample_rate = networkConfig_.microphone.sampleRate,
+      .sample_rate = microphoneConfig_.sampleRate,
       .bits_per_sample = I2S_BITS_PER_SAMPLE_16BIT,
       .channel_format = I2S_CHANNEL_FMT_RIGHT_LEFT,
       .communication_format = I2S_COMM_FORMAT_I2S_MSB,
@@ -120,10 +120,10 @@ bool AudioService::initializeI2S() {
 
   i2s_pin_config_t pinConfig;
   memset(&pinConfig, 0, sizeof(pinConfig));
-  pinConfig.bck_io_num = networkConfig_.microphone.pins.bclk;
-  pinConfig.ws_io_num = networkConfig_.microphone.pins.ws;
+  pinConfig.bck_io_num = microphoneConfig_.pins.bclk;
+  pinConfig.ws_io_num = microphoneConfig_.pins.ws;
   pinConfig.data_out_num = I2S_PIN_NO_CHANGE;
-  pinConfig.data_in_num = networkConfig_.microphone.pins.din;
+  pinConfig.data_in_num = microphoneConfig_.pins.din;
   pinConfig.mck_io_num = I2S_PIN_NO_CHANGE;
 
   esp_err_t err = i2s_driver_install(i2sPort_, &i2sConfig, 0, NULL);
@@ -144,13 +144,13 @@ bool AudioService::initializeI2S() {
   i2s_zero_dma_buffer(i2sPort_);
 
   Serial.print("[audio] I2S initialized: sampleRate=");
-  Serial.print(networkConfig_.microphone.sampleRate);
+  Serial.print(microphoneConfig_.sampleRate);
   Serial.print(" Hz, bclk=");
-  Serial.print(networkConfig_.microphone.pins.bclk);
+  Serial.print(microphoneConfig_.pins.bclk);
   Serial.print(" ws=");
-  Serial.print(networkConfig_.microphone.pins.ws);
+  Serial.print(microphoneConfig_.pins.ws);
   Serial.print(" din=");
-  Serial.println(networkConfig_.microphone.pins.din);
+  Serial.println(microphoneConfig_.pins.din);
   Serial.println("[audio] I2S mode=MASTER_RX channels=RIGHT_LEFT bits=16");
 
   return true;
@@ -191,11 +191,11 @@ void AudioService::processAudioBuffer(unsigned long nowMs) {
 
   // Calcular RMS, aplicar ganancia y filtro de ruido estático configurable.
   uint32_t rms = calculateRMS(audioBuffer_, samplesRead);
-  const float gainMultiplier = networkConfig_.microphone.gainPercent / 100.0f;
+  const float gainMultiplier = microphoneConfig_.gainPercent / 100.0f;
   uint32_t scaledRms = static_cast<uint32_t>(rms * gainMultiplier);
 
   const uint32_t noiseFloor =
-      static_cast<uint32_t>(networkConfig_.microphone.noiseFloorPercent) * 20U;
+      static_cast<uint32_t>(microphoneConfig_.noiseFloorPercent) * 20U;
   if (scaledRms <= noiseFloor) {
     scaledRms = 0;
   } else {

@@ -7,11 +7,11 @@
 #include "core/CoreState.h"
 
 /**
- * AudioService: Captura audio desde entrada I2S configurada en NetworkConfig.microphone
+ * AudioService: Captura audio desde entrada I2S configurada en MicrophoneConfig
  * y proporciona métricas de audio (nivel RMS, picos) a los efectos reactivos.
  *
  * Uso:
- *   AudioService audioService(networkConfig, coreState);
+ *   AudioService audioService(microphoneConfig, coreState);
  *   audioService.begin();
  *   ...
  *   audioService.handle(); // Llamar regularmente en el ciclo de control
@@ -22,7 +22,7 @@
  */
 class AudioService {
 public:
-  AudioService(NetworkConfig &networkConfig, CoreState &coreState);
+  AudioService(MicrophoneConfig &microphoneConfig, CoreState &coreState);
   virtual ~AudioService();
 
   /**
@@ -73,7 +73,7 @@ public:
   }
 
 private:
-  NetworkConfig &networkConfig_;
+  MicrophoneConfig &microphoneConfig_;
   CoreState &coreState_;
 
   i2s_port_t i2sPort_ = I2S_NUM_0;

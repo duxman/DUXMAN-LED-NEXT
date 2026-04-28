@@ -1,7 +1,7 @@
 {
-  "version": "0.3.5-beta",
-  "versionCode": 8,
-  "buildDate": "2026-04-12",
+  "version": "0.3.7-beta",
+  "versionCode": 10,
+  "buildDate": "2026-04-28",
   "branch": "main",
   "features": [
     "Fase 4A: FreeRTOS dual-core architecture (TaskControl + TaskRender)",
@@ -17,7 +17,11 @@
     "Effects split into VISUAL and AUDIO categories with automatic audio mode",
     "Audio-focused effects enhanced (Audio Pulse, Trig Ribbon, Stellar Twinkle, Bouncing Physics)",
     "Roadmap expanded with phased master-slave sync and LedFx realtime plan",
-    "Phase 3A completed: predefined 3-color palettes with runtime/API/UI/persistence support"
+    "Phase 3A completed: predefined 3-color palettes with runtime/API/UI/persistence support",
+    "UserPaletteService: user-defined palettes with CRUD, LittleFS persistence and 20-palette limit",
+    "System vs user palette distinction: source/readOnly fields in API, ID encoding <= -100 for user palettes",
+    "Endpoints POST /api/v1/palettes/save and /api/v1/palettes/delete for user palette management",
+    "Embedded palette editor at /config/palettes with color swatches, form and apply/edit/delete actions"
   ],
   "hardwareSupported": [
     "ESP32-D0WD-V3 (esp32dev)",

@@ -11,16 +11,19 @@
 #include "services/PersistenceSchedulerService.h"
 #include "services/ProfileService.h"
 #include "services/StorageService.h"
+#include "services/UserPaletteService.h"
 #include "services/WatchdogService.h"
 #include "services/WifiService.h"
 
 class ApiService {
 public:
   ApiService(CoreState &state, NetworkConfig &networkConfig, GpioConfig &gpioConfig,
+             MicrophoneConfig &microphoneConfig, DebugConfig &debugConfig,
              StorageService &storageService, WifiService &wifiService,
              PersistenceSchedulerService &persistenceSchedulerService,
              EffectPersistenceService &effectPersistenceService,
-             ProfileService &profileService, WatchdogService &watchdogService);
+             ProfileService &profileService, UserPaletteService &userPaletteService,
+             WatchdogService &watchdogService);
 
   void begin();
   void handle();
@@ -29,11 +32,14 @@ private:
   CoreState &state_;
   NetworkConfig &networkConfig_;
   GpioConfig &gpioConfig_;
+  MicrophoneConfig &microphoneConfig_;
+  DebugConfig &debugConfig_;
   StorageService &storageService_;
   WifiService &wifiService_;
   PersistenceSchedulerService &persistenceSchedulerService_;
   EffectPersistenceService &effectPersistenceService_;
   ProfileService &profileService_;
+  UserPaletteService &userPaletteService_;
   WatchdogService &watchdogService_;
   String commandBuffer_;
   WebServer httpServer_;
@@ -48,20 +54,27 @@ private:
   void handleHttpDiagRoute();
   void handleHttpConfigAllRoute();
   void handleHttpHardwareRoute();
-  void handleHttpGpioProfilesRoute();
-  void handleHttpGpioProfilesSaveRoute();
-  void handleHttpGpioProfilesApplyRoute();
-  void handleHttpGpioProfilesDefaultRoute();
-  void handleHttpGpioProfilesDeleteRoute();
+  // Rutas de perfiles (cobertura completa de configuración)
+  void handleHttpProfilesRoute();
+  void handleHttpProfilesSaveRoute();
+  void handleHttpProfilesCloneRoute();
+  void handleHttpProfilesApplyRoute();
+  void handleHttpProfilesDefaultRoute();
+  void handleHttpProfilesDeleteRoute();
+  void handleHttpProfilesGetRoute();
+  // Rutas de efectos y paletas
   void handleHttpEffectsRoute();
   void handleHttpEffectsStartupRoute();
   void handleHttpEffectsSequenceAddRoute();
   void handleHttpEffectsSequenceDeleteRoute();
   void handleHttpPalettesRoute();
   void handleHttpPalettesApplyRoute();
+  void handleHttpPalettesSaveRoute();
+  void handleHttpPalettesDeleteRoute();
   void handleHttpRestartRoute();
   String buildFullConfigJson() const;
   String buildOpenApiJson() const;
+  String buildNavHtml() const;
   String buildHomeHtml() const;
   String buildConfigIndexHtml() const;
   String buildDocsHtml() const;
@@ -81,4 +94,5 @@ private:
   String buildProfilesConfigHtml() const;
   String buildDebugConfigHtml() const;
   String buildManualConfigHtml() const;
+  String buildPalettesConfigHtml() const;
 };

@@ -4,13 +4,14 @@
 
 #include "services/StorageService.h"
 
+// PersistenceSchedulerService gestiona la escritura différée de la configuración.
+// Toda la config (network, gpio, microphone, debug) se guarda como un bloque en /config.json.
 class PersistenceSchedulerService {
 public:
   explicit PersistenceSchedulerService(StorageService &storageService);
 
   void requestSaveState();
-  void requestSaveNetwork();
-  void requestSaveGpio();
+  void requestSaveConfig();  // Guarda toda la configuración unificada
   void requestSaveAll();
 
   // Procesa una tanda pequeña de trabajo de persistencia pendiente.
@@ -18,9 +19,8 @@ public:
 
 private:
   enum PendingFlags : uint8_t {
-    kPendingState = 1 << 0,
-    kPendingNetwork = 1 << 1,
-    kPendingGpio = 1 << 2,
+    kPendingState  = 1 << 0,
+    kPendingConfig = 1 << 1,
   };
 
   StorageService &storageService_;
