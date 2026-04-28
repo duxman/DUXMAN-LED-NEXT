@@ -2,7 +2,7 @@
  * duxman-led next - v0.3.7-beta
  * Licensed under the Apache License 2.0
  * File: firmware/src/services/AudioService.cpp
- * Last commit: ec3d96f - 2026-04-28
+ * Last commit: 1ce6ea9 - 2026-04-28
  */
 
 #include "services/AudioService.h"
