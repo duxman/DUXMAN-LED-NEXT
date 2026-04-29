@@ -131,10 +131,14 @@ void EffectManager::renderFrame() {
         }
       }
     }
-    // Limpiar todos los LEDs antes de activar el nuevo efecto para que no
-    // queden pixels residuales del efecto anterior.
+    // Limpiar el buffer antes de activar el nuevo efecto para que no queden
+    // pixeles residuales del efecto anterior.  NO llamar show() aqui: hacer
+    // un Show() DMA y luego escribir en el mismo buffer dentro de
+    // activeEffect.renderFrame() (mas abajo, en el mismo ciclo) produce una
+    // carrera de datos que corrompe la trama y enciende pixeles aleatorios.
+    // El buffer limpio se enviara al strip en el show() del primer frame del
+    // nuevo efecto.
     impl_->driver.clear();
-    impl_->driver.show();
 
     // Activar log de diagnostico para el primer frame del nuevo efecto.
     impl_->driver.scheduleShowLog();

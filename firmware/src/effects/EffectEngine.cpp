@@ -33,7 +33,9 @@ const uint8_t *gammaLut() {
 EffectEngine::EffectEngine(CoreState &state, LedDriver &driver) : state_(state), driver_(driver) {}
 
 void EffectEngine::begin() {
-  driver_.begin();
+  // El ciclo de vida del driver (configure/begin) es responsabilidad de
+  // EffectManager y del setup().  Los efectos no deben llamar a begin()
+  // sobre el driver: hacerlo causaria un doble-begin en el arranque.
 }
 
 float EffectEngine::reactiveAudio01() const {
