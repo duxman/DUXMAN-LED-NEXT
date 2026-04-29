@@ -70,6 +70,14 @@ void EffectManager::renderFrame() {
         }
       }
     }
+    // Limpiar todos los LEDs antes de activar el nuevo efecto para que no
+    // queden pixels residuales del efecto anterior.
+    driver_.clear();
+    driver_.show();
+
+    // Activar log de diagnostico para el primer frame del nuevo efecto.
+    driver_.scheduleShowLog();
+
     activeEffect.onActivate();
     lastEffectId_ = state_.effectId;
   }

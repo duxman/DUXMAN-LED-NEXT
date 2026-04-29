@@ -23,4 +23,8 @@ public:
 private:
   bool initialized_ = false;
   void *outputs_[kMaxLedOutputs] = {nullptr, nullptr, nullptr, nullptr};
+  // Maximo ledCount visto por canal en reconfigurations anteriores.
+  // Se usa para dimensionar el bus NeoPixelBus y asi poder apagar LEDs
+  // fisicos que quedan fuera del ledCount actual.
+  uint16_t peakLedCounts_[kMaxLedOutputs] = {0, 0, 0, 0};
 };
