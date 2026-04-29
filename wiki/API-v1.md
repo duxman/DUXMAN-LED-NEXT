@@ -61,6 +61,10 @@ Base: /api/v1
 - PATCH y POST se aceptan como equivalentes en varios endpoints de mutación.
 - La ruta canónica de perfiles es /api/v1/profiles*.
 - Las referencias antiguas /api/v1/profiles/gpio* son legacy y deben evitarse.
+- `PATCH /api/v1/config/gpio` soporta `gpio.powerLimit` para limitar consumo por software:
+	- `enabled` (bool)
+	- `maxCurrentmA` (mA totales)
+	- `milliAmpsPerLed` (estimación por LED)
 
 ## Detalle ampliado
 

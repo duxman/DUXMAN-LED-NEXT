@@ -82,11 +82,14 @@ bool isRgbwOutput(LedDriverType ledType, LedDriverColorOrder colorOrder) {
 void LedDriver::configure(const GpioConfig &config) {
 	outputCount_ = config.outputCount > kMaxLedOutputs ? kMaxLedOutputs : config.outputCount;
 	level_ = 0;
+	powerLimitScale_ = 1.0f;
 
 	for (uint8_t i = 0; i < kMaxLedOutputs; ++i) {
 		outputs_[i] = LedDriverOutputConfig();
 		outputLevels_[i] = 0;
 	}
+
+	uint32_t totalAddressableLeds = 0;
 
 	for (uint8_t i = 0; i < outputCount_; ++i) {
 		const LedOutput &source = config.outputs[i];
@@ -99,6 +102,18 @@ void LedDriver::configure(const GpioConfig &config) {
 		target.colorOrder = parseColorOrder(source.colorOrder);
 		target.isDigital = target.ledType == LedDriverType::Digital;
 		target.isRgbw = isRgbwOutput(target.ledType, target.colorOrder);
+		if (target.enabled && !target.isDigital && isAddressableType(target.ledType)) {
+			totalAddressableLeds += target.ledCount;
+		}
+	}
+
+	if (config.powerLimit.enabled && totalAddressableLeds > 0) {
+		const float worstCaseCurrentmA = static_cast<float>(totalAddressableLeds) *
+				static_cast<float>(config.powerLimit.milliAmpsPerLed);
+		if (worstCaseCurrentmA > 0.0f) {
+			const float scale = static_cast<float>(config.powerLimit.maxCurrentmA) / worstCaseCurrentmA;
+			powerLimitScale_ = min(1.0f, max(0.02f, scale));
+		}
 	}
 }
 
@@ -126,7 +141,7 @@ void LedDriver::setOutputColor(uint8_t outputIndex, uint32_t color) {
 	if (outputIndex >= outputCount_) {
 		return;
 	}
-	outputLevels_[outputIndex] = colorLevel(color);
+	outputLevels_[outputIndex] = colorLevel(applyPowerLimit(color));
 }
 
 void LedDriver::setPixelColor(uint8_t outputIndex, uint16_t pixelIndex, uint32_t color) {
@@ -169,4 +184,21 @@ bool LedDriver::isAddressableType(LedDriverType ledType) {
 	return ledType == LedDriverType::Ws2812b || ledType == LedDriverType::Ws2811 ||
 				 ledType == LedDriverType::Ws2813 || ledType == LedDriverType::Ws2815 ||
 				 ledType == LedDriverType::Sk6812 || ledType == LedDriverType::Tm1814;
+}
+
+uint32_t LedDriver::applyPowerLimit(uint32_t color) const {
+	if (powerLimitScale_ >= 0.999f) {
+		return color;
+	}
+
+	const uint8_t r = static_cast<uint8_t>((color >> 16) & 0xFF);
+	const uint8_t g = static_cast<uint8_t>((color >> 8) & 0xFF);
+	const uint8_t b = static_cast<uint8_t>(color & 0xFF);
+
+	const uint8_t rr = static_cast<uint8_t>(static_cast<float>(r) * powerLimitScale_ + 0.5f);
+	const uint8_t gg = static_cast<uint8_t>(static_cast<float>(g) * powerLimitScale_ + 0.5f);
+	const uint8_t bb = static_cast<uint8_t>(static_cast<float>(b) * powerLimitScale_ + 0.5f);
+	return (static_cast<uint32_t>(rr) << 16) |
+				 (static_cast<uint32_t>(gg) << 8) |
+				 static_cast<uint32_t>(bb);
 }

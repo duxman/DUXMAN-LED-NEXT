@@ -90,6 +90,7 @@ protected:
   uint8_t outputLevel(uint8_t outputIndex) const;
   static uint8_t colorLevel(uint32_t color);
   static bool isAddressableType(LedDriverType ledType);
+  uint32_t applyPowerLimit(uint32_t color) const;
 
   uint8_t level_ = 0;
   bool logNextShow_ = false;
@@ -98,4 +99,5 @@ private:
   LedDriverOutputConfig outputs_[kMaxLedOutputs];
   uint8_t outputLevels_[kMaxLedOutputs] = {0, 0, 0, 0};
   uint8_t outputCount_ = 0;
+  float powerLimitScale_ = 1.0f;
 };

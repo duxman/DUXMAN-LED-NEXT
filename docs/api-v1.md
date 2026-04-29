@@ -29,7 +29,7 @@ Proyecto: DUXMAN-LED-NEXT (firmware v0.3.11-beta)
 | GET | /api/v1/config/microphone | Configuración de micrófono |
 | PATCH, POST | /api/v1/config/microphone | Patch parcial de micrófono |
 | GET | /api/v1/config/gpio | Configuración LED/GPIO |
-| PATCH, POST | /api/v1/config/gpio | Patch parcial de GPIO |
+| PATCH, POST | /api/v1/config/gpio | Patch parcial de GPIO (outputs + powerLimit) |
 | GET | /api/v1/config/debug | Configuración debug |
 | PATCH, POST | /api/v1/config/debug | Patch parcial de debug |
 | GET | /api/v1/config/all | Export de config completa |
@@ -96,6 +96,11 @@ Proyecto: DUXMAN-LED-NEXT (firmware v0.3.11-beta)
 ```json
 {
   "gpio": {
+    "powerLimit": {
+      "enabled": true,
+      "maxCurrentmA": 2500,
+      "milliAmpsPerLed": 60
+    },
     "outputs": [
       { "pin": 8, "ledCount": 60, "ledType": "ws2812b", "colorOrder": "GRB" },
       { "pin": 16, "ledCount": 1, "ledType": "digital", "colorOrder": "R" }
@@ -103,6 +108,12 @@ Proyecto: DUXMAN-LED-NEXT (firmware v0.3.11-beta)
   }
 }
 ```
+
+Notas sobre `powerLimit`:
+
+- `enabled`: activa/desactiva el limitador software.
+- `maxCurrentmA`: corriente máxima total estimada para todas las tiras direccionables.
+- `milliAmpsPerLed`: consumo estimado por LED a blanco pleno para calcular la escala global.
 
 ### POST /api/v1/profiles/save
 

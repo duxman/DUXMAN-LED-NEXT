@@ -374,13 +374,14 @@ bool LedDriverNeoPixelBus::isInitialized() const {
 
 void LedDriverNeoPixelBus::setOutputColor(uint8_t outputIndex, uint32_t color) {
   LedDriver::setOutputColor(outputIndex, color);
+  const uint32_t limitedColor = applyPowerLimit(color);
 
 #if DUX_LED_BACKEND == DUX_LED_BACKEND_NEOPIXELBUS
   if (outputIndex >= outputCount() || outputs_[outputIndex] == nullptr) {
     return;
   }
 
-  asNeoOutput(outputs_[outputIndex])->fillColor(color);
+  asNeoOutput(outputs_[outputIndex])->fillColor(limitedColor);
 #else
   (void)outputIndex;
   (void)color;
@@ -389,13 +390,14 @@ void LedDriverNeoPixelBus::setOutputColor(uint8_t outputIndex, uint32_t color) {
 
 void LedDriverNeoPixelBus::setPixelColor(uint8_t outputIndex, uint16_t pixelIndex, uint32_t color) {
   LedDriver::setOutputColor(outputIndex, color);
+  const uint32_t limitedColor = applyPowerLimit(color);
 
 #if DUX_LED_BACKEND == DUX_LED_BACKEND_NEOPIXELBUS
   if (outputIndex >= outputCount() || outputs_[outputIndex] == nullptr) {
     return;
   }
 
-  asNeoOutput(outputs_[outputIndex])->setPixelColor(pixelIndex, color);
+  asNeoOutput(outputs_[outputIndex])->setPixelColor(pixelIndex, limitedColor);
 #else
   (void)outputIndex;
   (void)pixelIndex;

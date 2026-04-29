@@ -8,6 +8,11 @@ Todos los cambios relevantes de este proyecto se documentan en este archivo.
 - Nuevo efecto `AUDIO · Neon EQ` (`audio_neon_eq`, id=18): ecualizador visual de 3 bandas con barras segmentadas, cabezal brillante por barra y flash de beat.
 - Mapeo de color por banda con `primaryColors[0..2]` (bajos/medios/altos) y alternancia de dirección por segmento para un look más dinámico.
 
+### Changed
+- Configuración GPIO extendida con `powerLimit` para control de consumo software: `enabled`, `maxCurrentmA`, `milliAmpsPerLed`.
+- Drivers LED (`NeoPixelBus`/`FastLED`) ahora aplican escala global de potencia estimada cuando el límite está activo.
+- UI/API de configuración GPIO actualizadas para editar y persistir `powerLimit`.
+
 ## [0.3.10-beta] - 2026-04-30
 
 ### Added

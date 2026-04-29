@@ -191,6 +191,10 @@ constexpr int kLedCountMin = 1;
 constexpr int kLedCountMax = 1500;
 constexpr int kGpioPinMin = -1;
 constexpr int kGpioPinMax = 48;
+constexpr uint16_t kPowerLimitMaxCurrentMin = 200;
+constexpr uint16_t kPowerLimitMaxCurrentMax = 50000;
+constexpr uint8_t kPowerLimitPerLedMin = 5;
+constexpr uint8_t kPowerLimitPerLedMax = 80;
 
 bool isValidLedType(const String &type) {
   return type == "digital" || type == "ws2812b" || type == "ws2811" ||
@@ -447,6 +451,10 @@ GpioConfig GpioConfig::defaults() {
 String GpioConfig::toJson() const {
   JsonDocument doc;
   JsonObject gpio = doc["gpio"].to<JsonObject>();
+  JsonObject powerLimitObj = gpio["powerLimit"].to<JsonObject>();
+  powerLimitObj["enabled"] = powerLimit.enabled;
+  powerLimitObj["maxCurrentmA"] = powerLimit.maxCurrentmA;
+  powerLimitObj["milliAmpsPerLed"] = powerLimit.milliAmpsPerLed;
   JsonArray arr = gpio["outputs"].to<JsonArray>();
 
   for (uint8_t i = 0; i < outputCount; ++i) {
@@ -466,6 +474,18 @@ String GpioConfig::toJson() const {
 bool GpioConfig::validate(String *error) const {
   if (outputCount > kMaxLedOutputs) {
     if (error) *error = "too_many_outputs";
+    return false;
+  }
+
+  if (powerLimit.maxCurrentmA < kPowerLimitMaxCurrentMin ||
+      powerLimit.maxCurrentmA > kPowerLimitMaxCurrentMax) {
+    if (error) *error = "invalid_power_limit_max_current_ma";
+    return false;
+  }
+
+  if (powerLimit.milliAmpsPerLed < kPowerLimitPerLedMin ||
+      powerLimit.milliAmpsPerLed > kPowerLimitPerLedMax) {
+    if (error) *error = "invalid_power_limit_per_led_ma";
     return false;
   }
 
@@ -545,6 +565,19 @@ bool GpioConfig::applyPatchJson(const String &payload, String *error) {
       setIfPresent(item, "ledType", o.ledType);
       setIfPresent(item, "colorOrder", o.colorOrder);
     }
+  }
+
+  JsonObjectConst powerLimitObj = gpioObj["powerLimit"].as<JsonObjectConst>();
+  if (!powerLimitObj.isNull()) {
+    setBoolIfPresent(powerLimitObj, "enabled", candidate.powerLimit.enabled);
+
+    uint32_t maxCurrent = candidate.powerLimit.maxCurrentmA;
+    setUIntIfPresent(powerLimitObj, "maxCurrentmA", maxCurrent);
+    if (maxCurrent <= 65535UL) {
+      candidate.powerLimit.maxCurrentmA = static_cast<uint16_t>(maxCurrent);
+    }
+
+    setUInt8IfPresent(powerLimitObj, "milliAmpsPerLed", candidate.powerLimit.milliAmpsPerLed);
   }
 
   String validationError;

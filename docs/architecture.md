@@ -69,6 +69,7 @@ GpioConfig:
 - hasta 4 outputs
 - tipos: ws2812b, ws2811, ws2813, ws2815, sk6812, tm1814, digital
 - orden/color: GRB, RGB, BRG, RBG, GBR, BGR, RGBW, GRBW, y en digital R/G/B/W
+- powerLimit (software): `enabled`, `maxCurrentmA`, `milliAmpsPerLed`
 
 Perfiles:
 
@@ -81,7 +82,7 @@ Paletas:
 
 Efectos:
 
-- 17 entradas de catálogo en EffectRegistry
+- 19 entradas de catálogo en EffectRegistry
 - efectos visuales y audio-reactivos
 
 ## Render y driver LED
@@ -95,6 +96,12 @@ Selección de backend en compilación (DUX_LED_BACKEND):
 - 1: NeoPixelBus
 - 2: FastLED
 - 3: Digital
+
+Limitación de consumo en software:
+
+- El driver calcula una escala global estimada a partir de `gpio.powerLimit` y del total de LEDs direccionables.
+- Si `powerLimit.enabled=true`, los colores de salida se escalan antes de enviarse al backend (`NeoPixelBus`/`FastLED`) para mantener el consumo dentro de `maxCurrentmA`.
+- Si `powerLimit.enabled=false`, la escala es 1.0 (sin limitación).
 
 ## Persistencia
 

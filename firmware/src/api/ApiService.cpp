@@ -1547,7 +1547,7 @@ String ApiService::buildOpenApiJson() const {
 
   JsonObject gpioPath = paths["/api/v1/config/gpio"].to<JsonObject>();
   gpioPath["get"]["summary"] = "Obtener configuracion GPIO";
-  gpioPath["patch"]["summary"] = "Actualizar GPIO (outputs: pin, ledCount, ledType, colorOrder)";
+  gpioPath["patch"]["summary"] = "Actualizar GPIO (outputs + powerLimit: enabled, maxCurrentmA, milliAmpsPerLed)";
   gpioPath["post"]["summary"] = "Alias de PATCH para clientes limitados";
 
   JsonObject profilesPath = paths["/api/v1/profiles"].to<JsonObject>();
@@ -1666,7 +1666,7 @@ String ApiService::buildOpenApiJson() const {
   serialCommands.add("GET /api/v1/config/debug");
   serialCommands.add("PATCH /api/v1/config/debug {\"debug\":{\"enabled\":true,\"heartbeatMs\":5000}}");
   serialCommands.add("GET /api/v1/config/gpio");
-  serialCommands.add("PATCH /api/v1/config/gpio {\"gpio\":{\"outputs\":[{\"pin\":8,\"ledCount\":60,\"ledType\":\"ws2812b\",\"colorOrder\":\"GRB\"}]}}");
+  serialCommands.add("PATCH /api/v1/config/gpio {\"gpio\":{\"powerLimit\":{\"enabled\":true,\"maxCurrentmA\":2500,\"milliAmpsPerLed\":60},\"outputs\":[{\"pin\":8,\"ledCount\":60,\"ledType\":\"ws2812b\",\"colorOrder\":\"GRB\"}]}}");
   serialCommands.add("GET /api/v1/profiles/gpio");
   serialCommands.add("POST /api/v1/profiles/gpio/save {\"profile\":{\"id\":\"mi_perfil\",\"name\":\"Mi perfil\",\"gpio\":{\"outputs\":[{\"pin\":8,\"ledCount\":60,\"ledType\":\"ws2812b\",\"colorOrder\":\"GRB\"}]},\"applyNow\":true}} ");
   serialCommands.add("POST /api/v1/profiles/gpio/apply {\"profile\":{\"id\":\"gledopto_gl_c_017wl_d\"}} ");
@@ -3971,6 +3971,20 @@ __NAV__
     </div>
 
     <div class='card'>
+      <h2>Limite de consumo (software)</h2>
+      <p class='hint'>Control de corriente estimada para evitar picos de consumo. Si se activa, el firmware escala brillo global automaticamente.</p>
+      <div class='row'>
+        <div class='col field'>
+          <label><input type='checkbox' id='plEnabled'> Activar limite</label>
+        </div>
+      </div>
+      <div class='row'>
+        <div class='col field'><label>Corriente maxima total (mA)</label><input type='number' id='plMaxCurrent' min='200' max='50000' step='50'></div>
+        <div class='col field'><label>Corriente estimada por LED (mA)</label><input type='number' id='plPerLed' min='5' max='80' step='1'></div>
+      </div>
+    </div>
+
+    <div class='card'>
       <h2>Referencia de Pines</h2>
       <p class='hint'>Pin de compilacion (BuildProfile): <strong>__BUILD_PIN__</strong> &middot; LEDs: <strong>__BUILD_COUNT__</strong></p>
       <table>
@@ -4001,6 +4015,7 @@ __NAV__
     const COLOR_ORDERS_4CH = ['RGBW','GRBW'];
     const DIGITAL_COLORS = ['R','G','B','W'];
     const ALL_ORDERS = COLOR_ORDERS_3CH.concat(COLOR_ORDERS_4CH);
+    const powerLimit = { enabled: false, maxCurrentmA: 2500, milliAmpsPerLed: 60 };
 
     function isDigital(type) { return type === 'digital'; }
     function colorOptionsFor(type) { return isDigital(type) ? DIGITAL_COLORS : ALL_ORDERS; }
@@ -4094,6 +4109,7 @@ __NAV__
 
     function fillFromConfig(cfg) {
       const gpio = cfg && cfg.gpio ? cfg.gpio : {};
+      const pl = gpio.powerLimit || {};
       const arr = gpio.outputs || [];
       outputs = arr.map(function(o) {
         return {
@@ -4104,12 +4120,23 @@ __NAV__
         };
       });
       if (outputs.length === 0) outputs.push({ pin: -1, ledCount: 1, ledType: 'ws2812b', colorOrder: 'GRB' });
+      powerLimit.enabled = !!pl.enabled;
+      powerLimit.maxCurrentmA = Number.isFinite(Number(pl.maxCurrentmA)) ? Number(pl.maxCurrentmA) : 2500;
+      powerLimit.milliAmpsPerLed = Number.isFinite(Number(pl.milliAmpsPerLed)) ? Number(pl.milliAmpsPerLed) : 60;
+      byId('plEnabled').checked = powerLimit.enabled;
+      byId('plMaxCurrent').value = powerLimit.maxCurrentmA;
+      byId('plPerLed').value = powerLimit.milliAmpsPerLed;
       renderOutputs();
     }
 
     function buildPayload() {
       return {
         gpio: {
+          powerLimit: {
+            enabled: !!byId('plEnabled').checked,
+            maxCurrentmA: Number(byId('plMaxCurrent').value || 2500),
+            milliAmpsPerLed: Number(byId('plPerLed').value || 60)
+          },
           outputs: outputs.map(function(o, i) {
             return { id: i, pin: o.pin, ledCount: o.ledCount, ledType: o.ledType, colorOrder: o.colorOrder };
           })
@@ -4187,7 +4214,7 @@ __NAV__
       <h1>API Config GPIO</h1>
       <button onclick='getCfg()'>GET /api/v1/config/gpio</button>
       <button onclick='patchCfg()'>PATCH /api/v1/config/gpio</button>
-      <textarea id='payload'>{"gpio":{"outputs":[{"pin":8,"ledCount":60,"ledType":"ws2812b","colorOrder":"GRB"}]}}</textarea>
+      <textarea id='payload'>{"gpio":{"powerLimit":{"enabled":true,"maxCurrentmA":2500,"milliAmpsPerLed":60},"outputs":[{"pin":8,"ledCount":60,"ledType":"ws2812b","colorOrder":"GRB"}]}}</textarea>
     </div>
     <div class='card'><pre id='out'>Sin llamadas aun.</pre></div>
   </main>

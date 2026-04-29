@@ -39,6 +39,7 @@ Modelos principales:
 
 - NetworkConfig
 - GpioConfig (hasta 4 outputs)
+- GpioConfig.powerLimit (limite de consumo software)
 - MicrophoneConfig
 - DebugConfig
 - CoreState (runtime)
@@ -54,6 +55,12 @@ Backends seleccionables en compilación:
 - NeoPixelBus
 - FastLED
 - Digital
+
+Control de consumo (software):
+
+- `gpio.powerLimit.enabled` activa/desactiva la limitación.
+- `gpio.powerLimit.maxCurrentmA` define el techo de corriente estimada.
+- `gpio.powerLimit.milliAmpsPerLed` ajusta el modelo por tipo de tira.
 
 ## API
 

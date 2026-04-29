@@ -46,6 +46,7 @@ Configuraciones principales:
 - State runtime: power, brightness, effectId, speed, level, sectionCount, palette/colors, audio metrics
 - NetworkConfig: wifi, ip(ap/sta), dns, time
 - GpioConfig: hasta 4 salidas LED
+- GpioConfig.powerLimit: limitación de consumo software (enabled, maxCurrentmA, milliAmpsPerLed)
 - MicrophoneConfig: I2S, rate, fftSize, gain, noise floor, pins
 - DebugConfig: enabled, heartbeatMs
 

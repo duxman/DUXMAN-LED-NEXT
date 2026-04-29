@@ -106,10 +106,20 @@ struct LedOutput {
   String colorOrder = "GRB";
 };
 
+struct GpioPowerLimitConfig {
+  // false = deshabilitado, true = aplica limite de consumo estimado.
+  bool enabled = false;
+  // Corriente maxima total permitida para todas las tiras direccionables.
+  uint16_t maxCurrentmA = 2500;
+  // Corriente maxima estimada por LED a blanco pleno (RGB=255,255,255).
+  uint8_t milliAmpsPerLed = 60;
+};
+
 // Configuración de salidas LED (pines, tipo, orden de color).
 struct GpioConfig {
   LedOutput outputs[kMaxLedOutputs];
   uint8_t outputCount = 0;
+  GpioPowerLimitConfig powerLimit;
 
   static GpioConfig defaults();
   String toJson() const;
