@@ -2,6 +2,12 @@
 
 Todos los cambios relevantes de este proyecto se documentan en este archivo.
 
+## [0.3.9-beta] - 2026-04-30
+
+### Fixed
+- **Píxeles aleatorios al cambiar efecto**: eliminado el `show()` intermedio en la transición de efecto en `EffectManager`. Hacer `clear()` + `show()` (inicia DMA) y luego escribir el buffer en el mismo ciclo provocaba corrupción de la trama en NeoPixelBus/RMT.
+- **Doble `begin()` en el arranque**: `EffectEngine::begin()` ya no llama a `driver_.begin()`. El ciclo de vida del driver es responsabilidad exclusiva de `applyActiveConfig()` y del guard `isInitialized()` en `EffectManager`.
+
 ## [0.3.8-beta] - 2026-04-29
 
 ### Added
