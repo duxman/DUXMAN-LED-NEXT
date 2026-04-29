@@ -2,6 +2,22 @@
 
 Todos los cambios relevantes de este proyecto se documentan en este archivo.
 
+## [0.3.8-beta] - 2026-04-29
+
+### Added
+- Documento técnico de refactor arquitectónico: `docs/analisis-arquitectura-refactor.md`.
+- Utilidades compartidas de color en `ColorUtils` para parse/format de colores hex.
+
+### Changed
+- Rutas de perfiles documentadas de forma canónica como `/api/v1/profiles*` en README, docs y wiki.
+- Sincronización integral de documentación técnica (`README`, `docs/api-v1.md`, `docs/architecture.md`, `wiki/API-v1.md`, `wiki/Architecture.md`, `wiki/GPIO-Profiles.md`).
+- `EffectManager` desacoplado en cabecera usando `Impl` para reducir fan-in de includes.
+
+### Fixed
+- Publicación de métricas de audio y pulso de beat en `AudioService` sin escrituras no protegidas al estado compartido.
+- Compatibilidad de `NeoPixelBus` en ESP32-C3 evitando métodos RMT no disponibles para canales 2/3.
+- Costo de gamma por píxel optimizado mediante LUT en `EffectEngine`.
+
 ## [0.3.7-beta] - 2026-04-28
 
 ### Added

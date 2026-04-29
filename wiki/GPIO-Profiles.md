@@ -1,28 +1,45 @@
 # Perfiles GPIO
 
-## ¿Qué es un perfil GPIO?
-Un perfil GPIO define la configuración de todas las salidas LED del dispositivo (pin, tipo, orden de color, cantidad de LEDs, etc). Permite cambiar la topología de hardware sin reconfigurar manualmente cada parámetro.
+## Qué es un perfil
 
-## Tipos de perfiles
-- **Integrados**: presets por placa (`esp32dev`, `esp32c3supermini`, `esp32s3`)
-- **Usuario**: creados y guardados desde la UI o API
+Un perfil es un snapshot completo de configuración de dispositivo (network + gpio + microphone + debug), con foco práctico en la topología LED.
 
-## Endpoints relevantes
-- `GET /api/v1/profiles/gpio` — Listar todos los perfiles
-- `POST /api/v1/profiles/gpio/save` — Guardar/editar perfil
-- `POST /api/v1/profiles/gpio/apply` — Aplicar perfil
-- `POST /api/v1/profiles/gpio/default` — Fijar perfil por defecto
-- `POST /api/v1/profiles/gpio/delete` — Eliminar perfil
+## Tipos
 
-## Ejemplo de perfil
+- Integrados (read-only): presets incluidos en firmware
+- Usuario: hasta 8 perfiles persistidos en LittleFS
+
+## Rutas canónicas de API
+
+- GET /api/v1/profiles
+- GET /api/v1/profiles/get?id=<id>
+- POST, PATCH /api/v1/profiles/save
+- POST, PATCH /api/v1/profiles/apply
+- POST, PATCH /api/v1/profiles/default
+- POST, PATCH /api/v1/profiles/delete
+- POST, PATCH /api/v1/profiles/clone
+
+Nota: rutas antiguas /api/v1/profiles/gpio* se consideran legacy y deben evitarse.
+
+## Ejemplo de guardado
+
 ```json
 {
-  "id": "custom1",
-  "label": "Mi perfil",
-  "outputs": [
-    { "pin": 5, "ledType": "ws2812b", "colorOrder": "GRB", "ledCount": 60 }
-  ]
+  "profile": {
+    "id": "custom1",
+    "name": "Mi perfil",
+    "description": "Salida principal + digital auxiliar",
+    "gpio": {
+      "outputs": [
+        { "pin": 8, "ledType": "ws2812b", "colorOrder": "GRB", "ledCount": 60 },
+        { "pin": 16, "ledType": "digital", "colorOrder": "R", "ledCount": 1 }
+      ]
+    },
+    "network": { "wifi": { "mode": "ap" } },
+    "microphone": { "enabled": false },
+    "debug": { "enabled": false }
+  }
 }
 ```
 
-Al aplicar un perfil, el driver LED se reconfigura en caliente sin reinicio.
+Al aplicar un perfil, el driver LED se reconfigura en caliente.

@@ -201,10 +201,12 @@ NeoOutputBase *createNeoOutputRgbByChannel(uint8_t outputIndex, uint16_t ledCoun
       return createNeoOutputRgbByMethod<TFeature, NeoEsp32Rmt0800KbpsMethod>(ledCount, pin, busCount);
     case 1:
       return createNeoOutputRgbByMethod<TFeature, NeoEsp32Rmt1800KbpsMethod>(ledCount, pin, busCount);
+#if !defined(CONFIG_IDF_TARGET_ESP32C3)
     case 2:
       return createNeoOutputRgbByMethod<TFeature, NeoEsp32Rmt2800KbpsMethod>(ledCount, pin, busCount);
     case 3:
       return createNeoOutputRgbByMethod<TFeature, NeoEsp32Rmt3800KbpsMethod>(ledCount, pin, busCount);
+#endif
     default:
       return nullptr;
   }
@@ -217,10 +219,12 @@ NeoOutputBase *createNeoOutputRgbwByChannel(uint8_t outputIndex, uint16_t ledCou
       return createNeoOutputRgbwByMethod<TFeature, NeoEsp32Rmt0800KbpsMethod>(ledCount, pin, busCount);
     case 1:
       return createNeoOutputRgbwByMethod<TFeature, NeoEsp32Rmt1800KbpsMethod>(ledCount, pin, busCount);
+#if !defined(CONFIG_IDF_TARGET_ESP32C3)
     case 2:
       return createNeoOutputRgbwByMethod<TFeature, NeoEsp32Rmt2800KbpsMethod>(ledCount, pin, busCount);
     case 3:
       return createNeoOutputRgbwByMethod<TFeature, NeoEsp32Rmt3800KbpsMethod>(ledCount, pin, busCount);
+#endif
     default:
       return nullptr;
   }

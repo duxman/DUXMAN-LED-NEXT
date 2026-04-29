@@ -7,62 +7,13 @@
 
 #include "services/EffectPersistenceService.h"
 
+#include "core/ColorUtils.h"
+
 #include <ArduinoJson.h>
 #include <LittleFS.h>
 
 namespace {
 constexpr const char *kEffectPersistencePath = "/effects-persistence.json";
-
-uint32_t parseHexColor(const char *value, uint32_t fallback) {
-  if (value == nullptr) {
-    return fallback;
-  }
-
-  String normalized = value;
-  normalized.trim();
-  if (normalized.startsWith("#")) {
-    normalized.remove(0, 1);
-  }
-  if (normalized.length() != 6) {
-    return fallback;
-  }
-
-  for (size_t i = 0; i < normalized.length(); ++i) {
-    if (!isxdigit(normalized[i])) {
-      return fallback;
-    }
-  }
-
-  return strtoul(normalized.c_str(), nullptr, 16) & 0xFFFFFFUL;
-}
-
-uint32_t parseColorValue(JsonVariantConst value, uint32_t fallback) {
-  if (value.isNull()) {
-    return fallback;
-  }
-
-  if (value.is<const char *>()) {
-    return parseHexColor(value.as<const char *>(), fallback);
-  }
-
-  if (value.is<String>()) {
-    return parseHexColor(value.as<String>().c_str(), fallback);
-  }
-
-  if (value.is<uint32_t>()) {
-    return value.as<uint32_t>() & 0xFFFFFFUL;
-  }
-
-  if (value.is<int>()) {
-    const long numeric = value.as<long>();
-    if (numeric < 0) {
-      return fallback;
-    }
-    return static_cast<uint32_t>(numeric) & 0xFFFFFFUL;
-  }
-
-  return fallback;
-}
 } // namespace
 
 EffectPersistenceService::EffectPersistenceService(CoreState &state) : state_(state) {}
@@ -389,9 +340,9 @@ void EffectPersistenceService::writeConfigJson(JsonObject target,
   target["effectUsesAudio"] = EffectRegistry::usesAudio(config.effectId);
   JsonArray colors = target["primaryColors"].to<JsonArray>();
   for (uint8_t i = 0; i < 3; ++i) {
-    colors.add(formatHexColor(config.primaryColors[i]));
+    colors.add(ColorUtils::formatHexColor(config.primaryColors[i]));
   }
-  target["backgroundColor"] = formatHexColor(config.backgroundColor);
+  target["backgroundColor"] = ColorUtils::formatHexColor(config.backgroundColor);
 }
 
 void EffectPersistenceService::writeEntryJson(JsonObject target,
@@ -412,7 +363,7 @@ bool EffectPersistenceService::readConfigJson(JsonObjectConst source,
   config.effectLevel = constrain(source["effectLevel"] | 5, 1, 10);
   config.paletteId = source["paletteId"] | static_cast<int16_t>(PaletteRegistry::kManualPalette);
   config.reactiveToAudio = EffectRegistry::usesAudio(config.effectId);
-  config.backgroundColor = parseColorValue(source["backgroundColor"], config.backgroundColor);
+  config.backgroundColor = ColorUtils::parseColorValue(source["backgroundColor"], config.backgroundColor);
 
   JsonArrayConst colors = source["primaryColors"].as<JsonArrayConst>();
   if (colors.isNull()) {
@@ -421,15 +372,9 @@ bool EffectPersistenceService::readConfigJson(JsonObjectConst source,
 
   for (uint8_t i = 0; i < 3; ++i) {
     config.primaryColors[i] = i < colors.size()
-                                  ? parseColorValue(colors[i], config.primaryColors[i])
+                                  ? ColorUtils::parseColorValue(colors[i], config.primaryColors[i])
                                   : config.primaryColors[i];
   }
 
   return true;
-}
-
-String EffectPersistenceService::formatHexColor(uint32_t color) {
-  char buffer[8];
-  snprintf(buffer, sizeof(buffer), "%06lX", static_cast<unsigned long>(color & 0xFFFFFFUL));
-  return String("#") + buffer;
 }

@@ -7,91 +7,152 @@
 
 #include "effects/EffectManager.h"
 
+#include "effects/EffectAudioPulse.h"
+#include "effects/EffectBlinkFixed.h"
+#include "effects/EffectBlinkGradient.h"
+#include "effects/EffectBouncingPhysics.h"
+#include "effects/EffectBreathFixed.h"
+#include "effects/EffectBreathGradient.h"
+#include "effects/EffectDiagnostic.h"
+#include "effects/EffectFixed.h"
+#include "effects/EffectGradient.h"
+#include "effects/EffectGradientMeteor.h"
+#include "effects/EffectLavaFlow.h"
+#include "effects/EffectPolarIce.h"
+#include "effects/EffectRandomColorPop.h"
 #include "effects/EffectRegistry.h"
+#include "effects/EffectScanningPulse.h"
+#include "effects/EffectStellarTwinkle.h"
+#include "effects/EffectTrigRibbon.h"
+#include "effects/EffectTripleChase.h"
+
+struct EffectManager::Impl {
+  static constexpr size_t kEffectCount = 17;
+
+  CoreState &state;
+  LedDriver &driver;
+  EffectEngine *effects[kEffectCount] = {};
+  uint8_t lastEffectId = 255; // 255 = ninguno activo aun
+
+  EffectFixed fixedEffect;
+  EffectGradient gradientEffect;
+  EffectBlinkFixed blinkFixedEffect;
+  EffectBlinkGradient blinkGradientEffect;
+  EffectDiagnostic diagnosticEffect;
+  EffectBreathFixed breathFixedEffect;
+  EffectBreathGradient breathGradientEffect;
+  EffectTripleChase tripleChaseEffect;
+  EffectGradientMeteor gradientMeteorEffect;
+  EffectScanningPulse scanningPulseEffect;
+  EffectTrigRibbon trigRibbonEffect;
+  EffectLavaFlow lavaFlowEffect;
+  EffectPolarIce polarIceEffect;
+  EffectStellarTwinkle stellarTwinkleEffect;
+  EffectRandomColorPop randomColorPopEffect;
+  EffectBouncingPhysics bouncingPhysicsEffect;
+  EffectAudioPulse audioPulseEffect;
+
+  Impl(CoreState &stateRef, LedDriver &driverRef)
+      : state(stateRef),
+        driver(driverRef),
+        fixedEffect(stateRef, driverRef),
+        gradientEffect(stateRef, driverRef),
+        blinkFixedEffect(stateRef, driverRef),
+        blinkGradientEffect(stateRef, driverRef),
+        diagnosticEffect(stateRef, driverRef),
+        breathFixedEffect(stateRef, driverRef),
+        breathGradientEffect(stateRef, driverRef),
+        tripleChaseEffect(stateRef, driverRef),
+        gradientMeteorEffect(stateRef, driverRef),
+        scanningPulseEffect(stateRef, driverRef),
+        trigRibbonEffect(stateRef, driverRef),
+        lavaFlowEffect(stateRef, driverRef),
+        polarIceEffect(stateRef, driverRef),
+        stellarTwinkleEffect(stateRef, driverRef),
+        randomColorPopEffect(stateRef, driverRef),
+        bouncingPhysicsEffect(stateRef, driverRef),
+        audioPulseEffect(stateRef, driverRef) {
+    effects[0] = &fixedEffect;
+    effects[1] = &gradientEffect;
+    effects[2] = &blinkFixedEffect;
+    effects[3] = &blinkGradientEffect;
+    effects[4] = &diagnosticEffect;
+    effects[5] = &breathFixedEffect;
+    effects[6] = &breathGradientEffect;
+    effects[7] = &tripleChaseEffect;
+    effects[8] = &gradientMeteorEffect;
+    effects[9] = &scanningPulseEffect;
+    effects[10] = &trigRibbonEffect;
+    effects[11] = &lavaFlowEffect;
+    effects[12] = &polarIceEffect;
+    effects[13] = &stellarTwinkleEffect;
+    effects[14] = &randomColorPopEffect;
+    effects[15] = &bouncingPhysicsEffect;
+    effects[16] = &audioPulseEffect;
+  }
+};
 
 EffectManager::EffectManager(CoreState &state, LedDriver &driver)
-    : state_(state), driver_(driver), fixedEffect_(state, driver), gradientEffect_(state, driver),
-      blinkFixedEffect_(state, driver), blinkGradientEffect_(state, driver),
-      diagnosticEffect_(state, driver), breathFixedEffect_(state, driver),
-      breathGradientEffect_(state, driver), tripleChaseEffect_(state, driver),
-      gradientMeteorEffect_(state, driver), scanningPulseEffect_(state, driver),
-  trigRibbonEffect_(state, driver), lavaFlowEffect_(state, driver),
-  polarIceEffect_(state, driver), stellarTwinkleEffect_(state, driver),
-      randomColorPopEffect_(state, driver), bouncingPhysicsEffect_(state, driver),
-  audioPulseEffect_(state, driver) {
-  effects_[0] = &fixedEffect_;
-  effects_[1] = &gradientEffect_;
-  effects_[2] = &blinkFixedEffect_;
-  effects_[3] = &blinkGradientEffect_;
-  effects_[4] = &diagnosticEffect_;
-  effects_[5] = &breathFixedEffect_;
-  effects_[6] = &breathGradientEffect_;
-  effects_[7] = &tripleChaseEffect_;
-  effects_[8] = &gradientMeteorEffect_;
-  effects_[9] = &scanningPulseEffect_;
-  effects_[10] = &trigRibbonEffect_;
-  effects_[11] = &lavaFlowEffect_;
-  effects_[12] = &polarIceEffect_;
-  effects_[13] = &stellarTwinkleEffect_;
-  effects_[14] = &randomColorPopEffect_;
-  effects_[15] = &bouncingPhysicsEffect_;
-  effects_[16] = &audioPulseEffect_;
+    : impl_(new Impl(state, driver)) {}
+
+EffectManager::~EffectManager() {
+  delete impl_;
 }
 
 void EffectManager::begin() {
-  fixedEffect_.begin();
+  impl_->fixedEffect.begin();
 }
 
 void EffectManager::renderFrame() {
-  if (!state_.lock()) {
+  if (!impl_->state.lock()) {
     return;
   }
 
-  if (!driver_.isInitialized()) {
-    driver_.begin();
+  if (!impl_->driver.isInitialized()) {
+    impl_->driver.begin();
   }
 
-  if (!state_.power) {
-    driver_.clear();
-    driver_.show();
-    state_.unlock();
+  if (!impl_->state.power) {
+    impl_->driver.clear();
+    impl_->driver.show();
+    impl_->state.unlock();
     return;
   }
 
   EffectEngine &activeEffect = resolveActiveEffect();
 
   // Ciclo de vida: detectar cambio de efecto y notificar onActivate/onDeactivate.
-  if (state_.effectId != lastEffectId_) {
-    if (lastEffectId_ != 255) {
-      for (size_t i = 0; i < kEffectCount; ++i) {
-        if (effects_[i] && effects_[i]->supports(lastEffectId_)) {
-          effects_[i]->onDeactivate();
+  if (impl_->state.effectId != impl_->lastEffectId) {
+    if (impl_->lastEffectId != 255) {
+      for (size_t i = 0; i < Impl::kEffectCount; ++i) {
+        if (impl_->effects[i] && impl_->effects[i]->supports(impl_->lastEffectId)) {
+          impl_->effects[i]->onDeactivate();
           break;
         }
       }
     }
     // Limpiar todos los LEDs antes de activar el nuevo efecto para que no
     // queden pixels residuales del efecto anterior.
-    driver_.clear();
-    driver_.show();
+    impl_->driver.clear();
+    impl_->driver.show();
 
     // Activar log de diagnostico para el primer frame del nuevo efecto.
-    driver_.scheduleShowLog();
+    impl_->driver.scheduleShowLog();
 
     activeEffect.onActivate();
-    lastEffectId_ = state_.effectId;
+    impl_->lastEffectId = impl_->state.effectId;
   }
 
   activeEffect.renderFrame();
-  state_.unlock();
+  impl_->state.unlock();
 }
 
 EffectEngine &EffectManager::resolveActiveEffect() {
-  for (size_t i = 0; i < kEffectCount; ++i) {
-    if (effects_[i] != nullptr && effects_[i]->supports(state_.effectId)) {
-      return *effects_[i];
+  for (size_t i = 0; i < Impl::kEffectCount; ++i) {
+    if (impl_->effects[i] != nullptr && impl_->effects[i]->supports(impl_->state.effectId)) {
+      return *impl_->effects[i];
     }
   }
 
-  return fixedEffect_;
+  return impl_->fixedEffect;
 }

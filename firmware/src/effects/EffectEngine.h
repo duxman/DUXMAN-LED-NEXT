@@ -11,6 +11,7 @@
 
 #include "core/CoreState.h"
 #include "drivers/LedDriver.h"
+#include "effects/EffectRegistry.h"
 
 class EffectEngine {
 public:

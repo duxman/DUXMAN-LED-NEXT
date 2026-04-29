@@ -20,11 +20,11 @@
 #endif
 
 #ifndef DUX_FW_VERSION
-#define DUX_FW_VERSION "0.3.6-beta"
+#define DUX_FW_VERSION "0.3.8-beta"
 #endif
 
 #ifndef DUX_FW_DATE
-#define DUX_FW_DATE "2026-04-12"
+#define DUX_FW_DATE "2026-04-29"
 #endif
 
 #ifndef DUX_FW_BRANCH

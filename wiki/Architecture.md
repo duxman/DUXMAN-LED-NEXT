@@ -1,34 +1,80 @@
-# Arquitectura
+# Architecture
 
-Firmware modular para ESP32, inspirado en WLED pero con arquitectura propia, API REST versionada y separación estricta de servicios.
+Arquitectura actual del firmware DUXMAN-LED-NEXT (v0.3.8-beta).
 
-## Módulos principales
-- **CoreState**: Estado runtime del motor de iluminación
-- **ApiService**: Adaptador HTTP/Serial, expone `/api/v1/*` y páginas HTML embebidas
-- **StorageService**: Persistencia asíncrona y atómica en LittleFS
-- **UserPaletteService**: CRUD de paletas de usuario
-- **EffectEngine**: Motor de efectos visuales y audio-reactivos
-- **LedDriver**: Abstracción de hardware LED, múltiples salidas/backends
-- **WifiService**: Gestión de modos AP/STA, hostname, IP, mDNS
+## Diseño general
 
-## Modelo runtime
-1. Arranque: carga de configuración y perfiles por defecto
-2. Inicialización de servicios y hardware
-3. Loop principal: render de efectos, atención a API, persistencia diferida
-4. Watchdog y recuperación ante errores
+- Firmware C++ modular (PlatformIO, Arduino framework)
+- FreeRTOS con dos tareas principales (control y render)
+- API HTTP + comandos Serial equivalentes
+- Persistencia en LittleFS con scheduler
 
-## Persistencia y perfiles
-- Configuración persistente en LittleFS (`config.json`, `gpio-profiles.json`, `user-palettes.json`)
-- Perfiles GPIO: presets integrados y de usuario, arranque automático
-- Paletas: catálogo de sistema y usuario, editable en UI
+## Tareas y ejecución
 
-## API REST v1
-- HTTP (`/api/v1/*`) y Serial (comandos idénticos)
-- Endpoints para estado, configuración, perfiles, paletas, debug, hardware
-- Respuestas JSON deterministas, validación estricta
+- controlTask (core0): API, WiFi, audio, persistencia
+- renderTask (core1): EffectManager.renderFrame()
 
-## Novedades recientes
-- Menú de navegación responsive y unificado en todas las páginas
-- Editor visual de paletas de usuario (CRUD)
-- Perfiles GPIO completos y aplicables en caliente
-- Motor de efectos robusto, validado en hardware real
+Frecuencia objetivo:
+
+- control: ~10 ms
+- render: ~16 ms
+
+## Servicios
+
+- CoreState
+- ApiService
+- StorageService
+- PersistenceSchedulerService
+- ProfileService
+- UserPaletteService
+- EffectManager
+- EffectPersistenceService
+- AudioService
+- WifiService
+- WatchdogService
+
+## Configuración
+
+Modelos principales:
+
+- NetworkConfig
+- GpioConfig (hasta 4 outputs)
+- MicrophoneConfig
+- DebugConfig
+- CoreState (runtime)
+
+## Motor LED
+
+Cadena de render:
+
+- EffectManager -> EffectEngine -> LedDriver -> backend
+
+Backends seleccionables en compilación:
+
+- NeoPixelBus
+- FastLED
+- Digital
+
+## API
+
+Base: /api/v1
+
+Grupos funcionales:
+
+- state/system
+- config
+- profiles
+- effects
+- palettes
+- metadata
+
+La ruta canónica de perfiles es /api/v1/profiles*.
+
+## Persistencia
+
+Se persisten configuración activa, perfiles, paletas de usuario, estado runtime y datos de efectos/secuencia.
+
+## Referencias
+
+- API: wiki/API-v1.md
+- Documentación técnica completa: docs/architecture.md y docs/api-v1.md

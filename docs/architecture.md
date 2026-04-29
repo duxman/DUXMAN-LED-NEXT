@@ -1,339 +1,133 @@
-
 # Architecture
 
-Proyecto: `DUXMAN-LED-NEXT` (firmware v0.3.7-beta)
+Proyecto: DUXMAN-LED-NEXT (firmware v0.3.8-beta)
 
-## Visión general
-Firmware modular para ESP32, orientado a robustez, mantenibilidad y extensibilidad. Inspirado en WLED pero con arquitectura propia, API REST versionada y separación estricta de servicios.
+## Resumen
 
-## Módulos principales
+Firmware modular para ESP32 con separación por servicios, API HTTP/Serial, persistencia en LittleFS y render de efectos en tarea dedicada.
 
-- **CoreState**: Estado runtime del motor de iluminación (`power`, `brightness`, `effectId`, `sectionCount`, `primaryColors[3]`, `backgroundColor`, `paletteId`)
-- **ApiService**: Adaptador HTTP/Serial sobre `PsychicHttp`, expone `/api/v1/*` y páginas HTML embebidas
-- **StorageService**: Persistencia asíncrona y atómica en LittleFS, debounce y recuperación
-- **UserPaletteService**: CRUD de paletas de usuario, distinción sistema/usuario, persistencia en `/user-palettes.json`
-- **EffectEngine**: Motor de efectos visuales y audio-reactivos, render a 60 FPS, segmentos virtuales
-- **LedDriver**: Abstracción de hardware LED, soporta múltiples salidas y backends (`NeoPixelBus`, `FastLED`, `Digital`)
-- **WifiService**: Gestión de modos AP/STA, hostname, IP, mDNS
+## Concurrencia y tareas
 
-## Modelo runtime
+El sistema usa FreeRTOS con dos tareas principales:
 
-El ciclo principal:
-1. Arranque: carga de configuración y perfiles por defecto
-2. Inicialización de servicios y hardware
-3. Loop principal: render de efectos, atención a API, persistencia diferida
-4. Watchdog y recuperación ante errores
+- controlTask (core0, cada ~10 ms)
+- renderTask (core1, cada ~16 ms)
 
-## Persistencia y perfiles
-- Configuración persistente en LittleFS (`config.json`, `gpio-profiles.json`, `user-palettes.json`)
-- Perfiles GPIO: presets integrados y de usuario, arranque automático
-- Paletas: catálogo de sistema y usuario, editable en UI
+controlTask ejecuta:
 
-## API REST v1
-- HTTP (`/api/v1/*`) y Serial (comandos idénticos)
-- Endpoints para estado, configuración, perfiles, paletas, debug, hardware
-- Respuestas JSON deterministas, validación estricta
+- apiService.handle()
+- wifiService.handle()
+- audioService.handle()
+- profileService.processPendingPersistence()
+- userPaletteService.processPendingPersistence()
+- persistenceSchedulerService.processPending()
+- effectPersistenceService.handle()
 
-## Novedades recientes
-- Menú de navegación responsive y unificado en todas las páginas
-- Editor visual de paletas de usuario (CRUD)
-- Perfiles GPIO completos y aplicables en caliente
-- Motor de efectos robusto, validado en hardware real
+renderTask ejecuta:
 
----
-Para detalles de endpoints y ejemplos, ver `docs/api-v1.md`. Para evolución y decisiones, ver `CHANGELOG.md` y `evolucion led-next.md`.
+- effectManager.renderFrame()
 
-Tipos soportados actualmente:
-
-- `digital`
-- `ws2812b`
-- `ws2811`
-- `ws2813`
-- `ws2815`
-- `sk6812`
-- `tm1814`
-
-### `ReleaseInfo`
-
-No es una estructura persistida. Es un namespace de solo lectura que genera JSON a partir de constantes compile-time definidas en `BuildProfile.h` y `platformio.ini`.
-
-Esto garantiza trazabilidad de versión en binario.
-
-### `HardwareInfo`
-
-Es un namespace de solo lectura que consulta capacidades reales de la placa en runtime.
-
-Datos expuestos actualmente:
-
-- modelo de chip
-- revisión
-- número de cores
-- frecuencia CPU
-- presencia de WiFi y Bluetooth
-- tamaño y velocidad de flash
-- MAC base en eFuse
+Sin tareas RTOS (fallback), loop() atiende API/WiFi/effects en modo cooperativo.
 
 ## Servicios principales
 
-### `StorageService`
-
-Responsable de cargar y guardar estado/configuración en LittleFS.
-
-Responsabilidades actuales:
-
-- `save()` / `load()` general
-- `saveNetworkConfig()` / `loadNetworkConfig()`
-- `saveGpioConfig()` / `loadGpioConfig()`
-- persistencia segura mediante lectura/escritura de archivos JSON
-
-Persistencia actual:
-
-- `state.json`
-- `device-config.json`
-- `gpio-config.json`
-
-`release-info.json` ya no existe; la versión sale de código compilado.
-
-`StorageService` sigue gestionando solo la configuración activa del sistema, no el catálogo de perfiles.
-
-### `ProfileService`
-
-Responsable de los perfiles GPIO reutilizables.
-
-Responsabilidades actuales:
-
-- registrar presets integrados en firmware
-- cargar y guardar perfiles GPIO de usuario en LittleFS
-- mantener el `id` del perfil por defecto de arranque
-- aplicar un perfil sobre `GpioConfig`
-- reconfigurar `LedDriver` en caliente al aplicar un perfil
-
-Persistencia actual:
-
-- `gpio-profiles.json`
-- `startup-profile.json`
-
-Perfiles integrados actuales:
-
-- perfil base derivado del build activo
-- preset `gledopto_gl_c_017wl_d`
-
-### `WifiService`
-
-Responsable de aplicar y mantener la configuración de red.
-
-Responsabilidades:
-
-- arrancar WiFi en `begin()`
-- reaplicar configuración en `applyConfig()`
-- mantener políticas AP/STA en `handle()`
-- construir SSID/AP según configuración
-
-### `ApiService`
-
-Expone dos superficies:
-
-- HTTP con `WebServer`
-- comandos Serial línea a línea con la misma semántica que la API HTTP
-
-Responsabilidades:
-
-- rutas `/api/v1/*`
-- páginas HTML embebidas de ayuda y configuración
-- import/export de configuración completa
-- gestión de perfiles GPIO (listar, guardar, aplicar, fijar default, borrar)
-- exposición de metadatos de hardware runtime (`/api/v1/hardware`)
-- normalización de payloads debug
-- coordinación con `StorageService`, `ProfileService` y `WifiService`
-
-### `EffectEngine`
-
-Es el puente entre `CoreState` y `LedDriver`.
-
-Responsabilidades actuales:
-
-- arrancar el driver LED
-- renderizar frames a intervalos fijos
-- aplicar brillo/power al backend LED
-- dividir cada salida en secciones lógicas
-- pintar color fijo o degradado estático a nivel de píxel cuando el backend lo permite
-- degradar con color plano cuando la salida no soporta control por píxel
-
-Actualmente es intencionadamente simple. La evolución prevista es convertirlo en el núcleo del motor de efectos dinámico y configurable por JSON.
-
-## Abstracción LED
-
-### Clase base `LedDriver`
-
-`LedDriver` es una clase base abstracta con lógica común compartida.
-
-Responsabilidades del padre:
-
-- recibir `GpioConfig` mediante `configure()`
-- traducir `ledType` y `colorOrder` a enums internos
-- mantener configuración normalizada por output
-- mantener nivel global y nivel por salida
-- exponer API genérica al resto del sistema
-
-API base actual:
-
-- `configure(const GpioConfig&)`
-- `begin()`
-- `show()`
-- `backendName()`
-- `setAll(level)`
-- `setAllColor(color)`
-- `setOutputLevel(index, level)`
-- `setOutputColor(index, color)`
-- `setPixelColor(index, pixel, color)`
-- `clear()`
-
-### Implementaciones hijas
-
-#### `LedDriverNeoPixelBus`
-
-Backend principal recomendado para ESP32.
-
-Estado actual:
-
-- múltiples salidas reales
-- respeta `ledType`, `colorOrder` y RGB/RGBW
-- crea un bus por output válido
-- buen encaje con configuración runtime por GPIO
-
-#### `LedDriverDigital`
-
-Backend simple para salidas digitales no direccionables.
-
-Estado actual:
-
-- múltiples salidas reales
-- usa cada output `digital` como GPIO on/off
-- pensado para casos simples o relés/LEDs discretos
-
-#### `LedDriverFastLed`
-
-Backend alternativo de compilación.
-
-Estado actual:
-
-- integrado en la misma jerarquía
-- interpreta `ledType` y `colorOrder`
-- trabaja sobre la salida que coincide con el pin de compilación
-- no resuelve todavía bien el caso de múltiples GPIOs configurables en runtime
-
-Conclusión práctica actual:
-
-- `NeoPixelBus` es el backend más natural para configuración dinámica multi-salida
-- `FastLED` queda disponible como backend alternativo, pero con limitación arquitectónica conocida
-
-### Selección del backend activo
-
-La implementación concreta se selecciona en compilación mediante `DUX_LED_BACKEND`.
-
-Archivo clave:
-
-- `drivers/CurrentLedDriver.h`
-
-Valores actuales:
-
-- `1` → `NeoPixelBus`
-- `2` → `FastLED`
-- `3` → `digital`
-
-El resto del firmware trabaja contra el padre `LedDriver`, no contra una implementación concreta.
+- CoreState: estado runtime compartido con mutex
+- ApiService: rutas HTTP, comandos serial y UI embebida
+- StorageService: carga/guardado en LittleFS
+- PersistenceSchedulerService: debounce y guardado diferido
+- ProfileService: perfiles completos (network/gpio/microphone/debug)
+- UserPaletteService: paletas de usuario CRUD
+- EffectManager: orquestación de 17 efectos y ciclo de vida
+- EffectPersistenceService: startup effect + secuencias
+- AudioService: captura I2S + AGC + beat
+- WifiService: AP/STA/AP+STA
+- WatchdogService: supervisión de tareas
 
 ## Flujo de arranque
 
-Secuencia actual en `main.cpp`:
+1. Serial + espera USB CDC opcional
+2. storageService.begin()
+3. creación mutex CoreState y watchdog init
+4. begin() de effectPersistenceService, profileService, userPaletteService
+5. applyStartupProfile() y applyStartupEffect()
+6. ledDriver.configure(gpioConfig)
+7. wifiService.begin(), audioService.begin(), effectManager.begin(), apiService.begin()
+8. creación de tareas FreeRTOS
 
-1. iniciar Serial
-2. esperar USB CDC si aplica
-3. `storageService.begin()`
-4. `profileService.begin()`
-5. aplicar perfil GPIO por defecto si existe
-6. `ledDriver.configure(gpioConfig)`
-7. `wifiService.begin()`
-8. `effectEngine.begin()`
-9. `apiService.begin()`
+## Configuración y modelo de datos
 
-Después del arranque se informa por Serial de:
+Configuraciones activas:
 
-- perfil de build
-- backend LED activo
-- outputs configurados
-- estado de debug
+- NetworkConfig
+- GpioConfig
+- MicrophoneConfig
+- DebugConfig
+- CoreState (runtime)
 
-## Bucle principal
+GpioConfig:
 
-El `loop()` actual ejecuta tres responsabilidades:
+- hasta 4 outputs
+- tipos: ws2812b, ws2811, ws2813, ws2815, sk6812, tm1814, digital
+- orden/color: GRB, RGB, BRG, RBG, GBR, BGR, RGBW, GRBW, y en digital R/G/B/W
 
-1. `apiService.handle()`
-2. `wifiService.handle()`
-3. render periódico a ~60 FPS (`16 ms`)
+Perfiles:
 
-También emite heartbeat por Serial cuando `debug.enabled` está activo.
+- AppProfile captura completa de network+gpio+microphone+debug
+- perfiles integrados + hasta 8 perfiles de usuario
 
-## Persistencia y aplicación de cambios
+Paletas:
 
-Patrón general actual:
+- catálogo del sistema + hasta 20 paletas de usuario
 
-1. llega payload por HTTP o Serial
-2. se aplica patch parcial sobre la estructura correspondiente
-3. se valida
-4. si hay cambios, se persiste en LittleFS
-5. si corresponde, se reaplica el subsistema afectado
+Efectos:
 
-Ejemplos:
+- 17 entradas de catálogo en EffectRegistry
+- efectos visuales y audio-reactivos
 
-- `network` → persistencia + `wifiService.applyConfig()`
-- `gpio` → persistencia + reconfiguración en caliente del driver LED
-- `profiles/gpio/apply` → persistencia + reconfiguración en caliente + opcionalmente fijar startup default
-- `config/all` → validación en candidatos antes de aplicar nada
+## Render y driver LED
 
-## Superficies expuestas
+Jerarquía:
 
-### API HTTP
+- EffectManager -> EffectEngine (base) -> LedDriver (abstracción) -> backend
 
-La API real está documentada en:
+Selección de backend en compilación (DUX_LED_BACKEND):
 
-- [api-v1.md](f:/desarrollo/duxman-led-next/docs/api-v1.md)
+- 1: NeoPixelBus
+- 2: FastLED
+- 3: Digital
 
-### UI embebida
+## Persistencia
 
-El firmware todavía expone páginas HTML internas para ayuda/configuración:
+La persistencia se canaliza por scheduler para evitar escritura excesiva.
 
-- `/`
-- `/config`
-- `/config/network`
-- `/config/gpio`
-- `/config/profiles`
-- `/config/debug`
-- `/config/manual`
-- `/api`
-- `/api/profiles/gpio`
-- `/api/hardware`
-- `/version`
+Entradas persistidas incluyen:
 
-## Decisiones técnicas relevantes
+- configuración activa
+- estado runtime
+- perfiles y perfil por defecto
+- paletas de usuario
+- persistencia de efectos/secuencia
 
-- versión y fecha de release se compilan dentro del binario
-- tabla de particiones actual: `huge_app`
-- OTA dual desactivada por ahora
-- `NeoPixelBus` es backend preferente
-- `FastLED` se mantiene como backend alternativo de compilación
-- `ProfileService` permite separar presets de hardware de la configuración activa
-- arquitectura futura abierta entre ESP32 autocontenido o modelo hub/nodo con Raspberry Pi
+## API y UI
 
-## Limitaciones actuales
+ApiService expone:
 
-- `EffectEngine` implementa actualmente dos efectos estáticos: color fijo por secciones y degradado fijo por secciones
-- `LedDriverFastLed` no cubre aún multi-salida runtime de forma equivalente a `NeoPixelBus`
-- la reconfiguración en caliente existe para aplicar cambios de GPIO, pero falta cerrar todas las aristas del backend `FastLED`
-- la UI sigue embebida en firmware; aún no se ha migrado a una SPA externa en `web/`
+- API v1 (/api/v1/*)
+- OpenAPI (/api/v1/openapi.json)
+- UI embebida de configuración y testers
 
-## Próximos pasos naturales
+Rutas canónicas de perfiles:
 
-- motor de efectos con coordenadas normalizadas y presets JSON
-- integración de audio reactivo con I2S + FFT
-- revisión de arquitectura hub/nodo si la Raspberry Pi pasa a ser hub central
+- /api/v1/profiles*
+
+## Riesgos técnicos abiertos
+
+- Contención de mutex de CoreState durante render
+- Costo por píxel de algunas operaciones de color/gamma en escenarios de alta densidad
+- Limpieza de referencias legacy /profiles/gpio* en páginas de prueba antiguas
+
+## Referencias
+
+- API: docs/api-v1.md
+- README: README.md
+- Refactor: docs/analisis-arquitectura-refactor.md

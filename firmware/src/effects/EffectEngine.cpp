@@ -15,6 +15,19 @@ uint8_t blendChannel(uint8_t start, uint8_t end, uint16_t step, uint16_t maxStep
   const int delta = static_cast<int>(end) - static_cast<int>(start);
   return static_cast<uint8_t>(start + (delta * step) / maxStep);
 }
+
+const uint8_t *gammaLut() {
+  static bool initialized = false;
+  static uint8_t lut[256];
+  if (!initialized) {
+    for (int i = 0; i < 256; ++i) {
+      const float n = static_cast<float>(i) / 255.0f;
+      lut[i] = static_cast<uint8_t>(powf(n, 2.2f) * 255.0f + 0.5f);
+    }
+    initialized = true;
+  }
+  return lut;
+}
 } // namespace
 
 EffectEngine::EffectEngine(CoreState &state, LedDriver &driver) : state_(state), driver_(driver) {}
@@ -137,9 +150,9 @@ uint32_t EffectEngine::lerpColor(uint32_t colorA, uint32_t colorB, float t) {
 }
 
 uint32_t EffectEngine::addColor(uint32_t colorA, uint32_t colorB) {
-  const uint32_t r = min(255u, ((colorA >> 16) & 0xFF) + ((colorB >> 16) & 0xFF));
-  const uint32_t g = min(255u, ((colorA >> 8)  & 0xFF) + ((colorB >> 8)  & 0xFF));
-  const uint32_t b = min(255u, (colorA & 0xFF)         + (colorB & 0xFF));
+  const uint32_t r = min<uint32_t>(255u, static_cast<uint32_t>(((colorA >> 16) & 0xFF) + ((colorB >> 16) & 0xFF)));
+  const uint32_t g = min<uint32_t>(255u, static_cast<uint32_t>(((colorA >> 8) & 0xFF) + ((colorB >> 8) & 0xFF)));
+  const uint32_t b = min<uint32_t>(255u, static_cast<uint32_t>((colorA & 0xFF) + (colorB & 0xFF)));
   return (r << 16) | (g << 8) | b;
 }
 
@@ -165,10 +178,11 @@ uint32_t EffectEngine::audioColorShift(uint32_t cA, uint32_t cB, uint32_t cC) co
 }
 
 uint32_t EffectEngine::applyGamma(uint32_t color) {
-  auto gammaChannel = [](uint8_t v) -> uint8_t {
-    return static_cast<uint8_t>(powf(v / 255.0f, 2.2f) * 255.0f + 0.5f);
-  };
-  return (static_cast<uint32_t>(gammaChannel((color >> 16) & 0xFF)) << 16) |
-         (static_cast<uint32_t>(gammaChannel((color >> 8)  & 0xFF)) << 8) |
-         static_cast<uint32_t>(gammaChannel(color & 0xFF));
+  const uint8_t *lut = gammaLut();
+  const uint8_t r = lut[(color >> 16) & 0xFF];
+  const uint8_t g = lut[(color >> 8) & 0xFF];
+  const uint8_t b = lut[color & 0xFF];
+  return (static_cast<uint32_t>(r) << 16) |
+         (static_cast<uint32_t>(g) << 8) |
+         static_cast<uint32_t>(b);
 }

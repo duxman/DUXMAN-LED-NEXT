@@ -7,15 +7,8 @@
 
 #include "effects/EffectBlinkFixed.h"
 
-namespace {
-uint16_t resolveSectionSizeValue(uint16_t ledCount, uint8_t sectionCount) {
-  const uint8_t safeSections = max<uint8_t>(1, sectionCount);
-  return max<uint16_t>(1, static_cast<uint16_t>((ledCount + safeSections - 1) / safeSections));
-}
-} // namespace
-
 bool EffectBlinkFixed::supports(uint8_t effectId) const {
-  return effectId == CoreState::kEffectBlinkFixed;
+  return effectId == EffectRegistry::kEffectBlinkFixed;
 }
 
 void EffectBlinkFixed::renderFrame() {
@@ -67,7 +60,7 @@ void EffectBlinkFixed::renderFrame() {
       ledDriver.setPixelColor(outputIndex, pixelIndex, scaledBackground);
     }
 
-    const uint16_t sectionSize = resolveSectionSizeValue(output.ledCount, currentState.sectionCount);
+    const uint16_t sectionSize = resolveSectionSize(output.ledCount, currentState.sectionCount);
     for (uint8_t sectionIndex = 0; sectionIndex < currentState.sectionCount; ++sectionIndex) {
       const uint16_t sectionStart = static_cast<uint16_t>(sectionIndex) * sectionSize;
       if (sectionStart >= output.ledCount) {

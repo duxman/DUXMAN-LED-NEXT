@@ -6,68 +6,14 @@
  */
 
 #include "core/CoreState.h"
+#include "core/ColorUtils.h"
+#include "core/PaletteRegistry.h"
+#include "effects/EffectRegistry.h"
 
 #include <ArduinoJson.h>
 
 namespace {
 SemaphoreHandle_t gCoreStateMutex = nullptr;
-
-uint32_t parseHexColor(const char *value, uint32_t fallback) {
-  if (value == nullptr) {
-    return fallback;
-  }
-
-  String normalized = value;
-  normalized.trim();
-  if (normalized.startsWith("#")) {
-    normalized.remove(0, 1);
-  }
-  if (normalized.length() != 6) {
-    return fallback;
-  }
-
-  for (size_t i = 0; i < normalized.length(); ++i) {
-    if (!isxdigit(normalized[i])) {
-      return fallback;
-    }
-  }
-
-  return strtoul(normalized.c_str(), nullptr, 16) & 0xFFFFFFUL;
-}
-
-uint32_t parseColorValue(JsonVariantConst value, uint32_t fallback) {
-  if (value.isNull()) {
-    return fallback;
-  }
-
-  if (value.is<const char *>()) {
-    return parseHexColor(value.as<const char *>(), fallback);
-  }
-
-  if (value.is<String>()) {
-    return parseHexColor(value.as<String>().c_str(), fallback);
-  }
-
-  if (value.is<uint32_t>()) {
-    return value.as<uint32_t>() & 0xFFFFFFUL;
-  }
-
-  if (value.is<int>()) {
-    const long numeric = value.as<long>();
-    if (numeric < 0) {
-      return fallback;
-    }
-    return static_cast<uint32_t>(numeric) & 0xFFFFFFUL;
-  }
-
-  return fallback;
-}
-
-String formatHexColor(uint32_t color) {
-  char buffer[8];
-  snprintf(buffer, sizeof(buffer), "%06lX", static_cast<unsigned long>(color & 0xFFFFFFUL));
-  return String("#") + buffer;
-}
 
 uint8_t parseEffectId(JsonVariantConst value, uint8_t fallback) {
   if (value.isNull()) {
@@ -184,10 +130,10 @@ String CoreState::toJson() const {
 
   JsonArray colors = doc["primaryColors"].to<JsonArray>();
   for (uint8_t i = 0; i < 3; ++i) {
-    colors.add(formatHexColor(primaryColors[i]));
+    colors.add(ColorUtils::formatHexColor(primaryColors[i]));
   }
 
-  doc["backgroundColor"] = formatHexColor(backgroundColor);
+  doc["backgroundColor"] = ColorUtils::formatHexColor(backgroundColor);
 
   String json;
   serializeJson(doc, json);
@@ -258,12 +204,12 @@ bool CoreState::applyPatchJson(const String &payload) {
   if (root["primaryColors"].is<JsonArrayConst>()) {
     JsonArrayConst colors = root["primaryColors"].as<JsonArrayConst>();
     for (uint8_t i = 0; i < 3 && i < colors.size(); ++i) {
-      next.primaryColors[i] = parseColorValue(colors[i], next.primaryColors[i]);
+      next.primaryColors[i] = ColorUtils::parseColorValue(colors[i], next.primaryColors[i]);
     }
     next.paletteId = PaletteRegistry::kManualPalette;
   }
 
-  next.backgroundColor = parseColorValue(root["backgroundColor"], next.backgroundColor);
+  next.backgroundColor = ColorUtils::parseColorValue(root["backgroundColor"], next.backgroundColor);
 
   bool changed = next.power != power || next.brightness != brightness ||
                  next.effectId != effectId || next.sectionCount != sectionCount ||

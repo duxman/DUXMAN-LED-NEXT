@@ -8,7 +8,7 @@
 #include "effects/EffectDiagnostic.h"
 
 bool EffectDiagnostic::supports(uint8_t effectId) const {
-  return effectId == CoreState::kEffectDiagnostic;
+  return effectId == EffectRegistry::kEffectDiagnostic;
 }
 
 void EffectDiagnostic::renderFrame() {

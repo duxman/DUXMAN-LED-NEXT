@@ -8,7 +8,7 @@
 #include "effects/EffectGradient.h"
 
 bool EffectGradient::supports(uint8_t effectId) const {
-  return effectId == CoreState::kEffectGradient;
+  return effectId == EffectRegistry::kEffectGradient;
 }
 
 void EffectGradient::renderFrame() {

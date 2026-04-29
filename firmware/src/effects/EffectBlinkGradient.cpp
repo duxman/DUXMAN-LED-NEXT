@@ -8,7 +8,7 @@
 #include "effects/EffectBlinkGradient.h"
 
 bool EffectBlinkGradient::supports(uint8_t effectId) const {
-  return effectId == CoreState::kEffectBlinkGradient;
+  return effectId == EffectRegistry::kEffectBlinkGradient;
 }
 
 void EffectBlinkGradient::renderFrame() {

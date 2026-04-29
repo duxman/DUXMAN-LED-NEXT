@@ -8,7 +8,7 @@
 #include "effects/EffectFixed.h"
 
 bool EffectFixed::supports(uint8_t effectId) const {
-  return effectId == CoreState::kEffectFixed;
+  return effectId == EffectRegistry::kEffectFixed;
 }
 
 void EffectFixed::renderFrame() {

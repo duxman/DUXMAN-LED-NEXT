@@ -12,6 +12,7 @@
 
 #include "core/PaletteRegistry.h"
 #include "core/CoreState.h"
+#include "effects/EffectRegistry.h"
 
 class EffectPersistenceService {
 public:
@@ -33,7 +34,7 @@ private:
   struct SavedEffectConfig {
     bool power = true;
     uint8_t brightness = 128;
-    uint8_t effectId = CoreState::kEffectFixed;
+    uint8_t effectId = EffectRegistry::kEffectFixed;
     uint8_t sectionCount = 3;
     uint8_t effectSpeed = 10;
     uint8_t effectLevel = 5;
@@ -69,5 +70,4 @@ private:
   static void writeConfigJson(JsonObject target, const SavedEffectConfig &config);
   static void writeEntryJson(JsonObject target, const SavedEffectEntry &entry);
   static bool readConfigJson(JsonObjectConst source, SavedEffectConfig &config);
-  static String formatHexColor(uint32_t color);
 };

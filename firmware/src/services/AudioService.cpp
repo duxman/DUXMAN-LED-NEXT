@@ -166,9 +166,7 @@ bool AudioService::initializeI2S() {
 }
 
 void AudioService::shutdownI2S() {
-  if (i2sPort_ == I2S_NUM_0 || i2sPort_ == I2S_NUM_1) {
-    i2s_driver_uninstall(i2sPort_);
-  }
+  i2s_driver_uninstall(i2sPort_);
 }
 
 void AudioService::processAudioBuffer(unsigned long nowMs) {
@@ -176,8 +174,8 @@ void AudioService::processAudioBuffer(unsigned long nowMs) {
     return;
   }
 
-  // P2: Limpiar flag de beat del ciclo anterior para que sea un pulso limpio.
-  coreState_.beatDetected = false;
+  // Estado local del ciclo; se publica a CoreState solo dentro de mutex.
+  bool beatDetected = false;
 
   // Leer datos I2S.
   size_t bytesRead = 0;
@@ -190,6 +188,12 @@ void AudioService::processAudioBuffer(unsigned long nowMs) {
     // Sin datos: dejar caer el nivel suavizado para que los efectos reflejen el silencio.
     smoothedLevel_ += (0.0f - smoothedLevel_) * kDecayFactor;
     audioLevel_ = static_cast<uint8_t>(smoothedLevel_);
+    if (coreState_.lock(pdMS_TO_TICKS(1))) {
+      coreState_.beatDetected  = false;
+      coreState_.audioLevel    = audioLevel_;
+      coreState_.audioPeakHold = peakHold_;
+      coreState_.unlock();
+    }
     return;
   }
 
@@ -258,7 +262,7 @@ void AudioService::processAudioBuffer(unsigned long nowMs) {
   if (agcSignal >= smoothedLevel_ * kBeatSpikeRatio &&
       agcSignal >= static_cast<float>(kBeatMinThreshold) &&
       nowMs >= beatCooldownMs_) {
-    coreState_.beatDetected = true;
+    beatDetected = true;
     beatCooldownMs_ = nowMs + kBeatCooldownMs;
   }
 
@@ -281,12 +285,10 @@ void AudioService::processAudioBuffer(unsigned long nowMs) {
 
   // Publicar métricas al CoreState compartido.
   if (coreState_.lock(pdMS_TO_TICKS(1))) {
+    coreState_.beatDetected  = beatDetected;
     coreState_.audioLevel    = audioLevel_;
     coreState_.audioPeakHold = peakHold_;
     coreState_.unlock();
-  } else {
-    coreState_.audioLevel    = audioLevel_;
-    coreState_.audioPeakHold = peakHold_;
   }
 }
 
