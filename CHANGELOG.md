@@ -2,6 +2,15 @@
 
 Todos los cambios relevantes de este proyecto se documentan en este archivo.
 
+## [0.3.10-beta] - 2026-04-30
+
+### Added
+- Nuevo efecto `AUDIO · Spectrum VU` (`audio_spectrum`, id=17): VU-meter de 3 bandas (bajos / medios / altos) mapeadas a `primaryColors[0/1/2]`.
+  - Modo **multi-salida** (>=3 outputs): cada salida recibe una banda completa con relleno desde los bordes hacia el centro.
+  - Modo **segmentos** (<3 outputs): la tira se divide en `sectionCount` segmentos, segmento i dibuja la banda `i % 3`.
+  - Beat flash en la banda de bajos con mezcla blanca de 120 ms.
+  - Suavizado exponencial por banda: ataque rapido (0.35), decay lento (0.08) para aspecto VU clasico.
+  - Sin `reactiveToAudio`: muestra los 3 colores fijos al 80% de brillo.
 ## [0.3.9-beta] - 2026-04-30
 
 ### Fixed

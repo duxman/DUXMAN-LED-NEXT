@@ -1,6 +1,6 @@
 # Architecture
 
-Proyecto: DUXMAN-LED-NEXT (firmware v0.3.9-beta)
+Proyecto: DUXMAN-LED-NEXT (firmware v0.3.10-beta)
 
 ## Resumen
 

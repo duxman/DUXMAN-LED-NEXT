@@ -36,6 +36,7 @@ constexpr uint8_t kEffectStellarTwinkle = 13;
 constexpr uint8_t kEffectRandomColorPop = 14;
 constexpr uint8_t kEffectBouncingPhysics = 15;
 constexpr uint8_t kEffectAudioPulse      = 16;
+constexpr uint8_t kEffectAudioSpectrum   = 17;
 
 const EffectDescriptor *all();
 size_t count();

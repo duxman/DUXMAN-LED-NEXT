@@ -8,6 +8,7 @@
 #include "effects/EffectManager.h"
 
 #include "effects/EffectAudioPulse.h"
+#include "effects/EffectAudioSpectrum.h"
 #include "effects/EffectBlinkFixed.h"
 #include "effects/EffectBlinkGradient.h"
 #include "effects/EffectBouncingPhysics.h"
@@ -27,7 +28,7 @@
 #include "effects/EffectTripleChase.h"
 
 struct EffectManager::Impl {
-  static constexpr size_t kEffectCount = 17;
+  static constexpr size_t kEffectCount = 18;
 
   CoreState &state;
   LedDriver &driver;
@@ -51,6 +52,7 @@ struct EffectManager::Impl {
   EffectRandomColorPop randomColorPopEffect;
   EffectBouncingPhysics bouncingPhysicsEffect;
   EffectAudioPulse audioPulseEffect;
+  EffectAudioSpectrum audioSpectrumEffect;
 
   Impl(CoreState &stateRef, LedDriver &driverRef)
       : state(stateRef),
@@ -71,7 +73,8 @@ struct EffectManager::Impl {
         stellarTwinkleEffect(stateRef, driverRef),
         randomColorPopEffect(stateRef, driverRef),
         bouncingPhysicsEffect(stateRef, driverRef),
-        audioPulseEffect(stateRef, driverRef) {
+        audioPulseEffect(stateRef, driverRef),
+        audioSpectrumEffect(stateRef, driverRef) {
     effects[0] = &fixedEffect;
     effects[1] = &gradientEffect;
     effects[2] = &blinkFixedEffect;
@@ -89,6 +92,7 @@ struct EffectManager::Impl {
     effects[14] = &randomColorPopEffect;
     effects[15] = &bouncingPhysicsEffect;
     effects[16] = &audioPulseEffect;
+    effects[17] = &audioSpectrumEffect;
   }
 };
 
