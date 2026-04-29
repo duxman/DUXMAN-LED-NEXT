@@ -1,6 +1,6 @@
 # API REST v1
 
-Esta página resume la API implementada actualmente por el firmware DUXMAN-LED-NEXT (v0.3.10-beta).
+Esta página resume la API implementada actualmente por el firmware DUXMAN-LED-NEXT (v0.3.11-beta).
 
 Base: /api/v1
 

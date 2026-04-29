@@ -1,7 +1,7 @@
 {
   "name": "duxman-led-next-web",
   "private": true,
-  "version": "0.3.10",
+  "version": "0.3.11",
   "description": "UI base para DUXMAN-LED-NEXT",
   "scripts": {
     "dev": "echo \"Pendiente: scaffold frontend\"",

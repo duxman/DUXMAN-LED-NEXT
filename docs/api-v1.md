@@ -1,6 +1,6 @@
 # API v1
 
-Proyecto: DUXMAN-LED-NEXT (firmware v0.3.10-beta)
+Proyecto: DUXMAN-LED-NEXT (firmware v0.3.11-beta)
 
 ## Base
 

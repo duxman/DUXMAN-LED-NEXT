@@ -1,6 +1,6 @@
 # DUXMAN-LED-NEXT
 
-Firmware modular para control LED en ESP32 (v0.3.10-beta), con API REST/Serial, UI embebida, perfiles de configuración completos, paletas de usuario y motor de efectos visuales/audio.
+Firmware modular para control LED en ESP32 (v0.3.11-beta), con API REST/Serial, UI embebida, perfiles de configuración completos, paletas de usuario y motor de efectos visuales/audio.
 
 ## Estado actual
 

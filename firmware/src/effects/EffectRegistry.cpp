@@ -47,6 +47,8 @@ constexpr EffectDescriptor kEffects[] = {
   "VU metro simetrico reactivo: beat flash, peak hold y color dinamico al audio.", false, true},
   {EffectRegistry::kEffectAudioSpectrum, "audio_spectrum", "AUDIO \xc2\xb7 Spectrum VU",
   "VU-meter de 3 bandas (bajos/medios/altos) con colores primarios por banda y segmentos configurables.", false, true},
+  {EffectRegistry::kEffectAudioNeonEq, "audio_neon_eq", "AUDIO \xc2\xb7 Neon EQ",
+  "Ecualizador neon de 3 bandas con barras alternadas, cabezal brillante y beat flash.", true, true},
 };
 }
 

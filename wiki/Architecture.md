@@ -1,6 +1,6 @@
 # Architecture
 
-Arquitectura actual del firmware DUXMAN-LED-NEXT (v0.3.10-beta).
+Arquitectura actual del firmware DUXMAN-LED-NEXT (v0.3.11-beta).
 
 ## Diseño general
 
