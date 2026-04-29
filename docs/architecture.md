@@ -1,82 +1,47 @@
+
 # Architecture
 
-Proyecto: `DUXMAN-LED-NEXT`.
-
-Documento actualizado según la implementación actual del firmware `v0.3.6-beta` (Fase 4A-4C, persistencia async, watchdog, catalogo de efectos dinamicos, audio reactivo I2S base, paletas predefinidas y editor de paletas de usuario).
+Proyecto: `DUXMAN-LED-NEXT` (firmware v0.3.7-beta)
 
 ## Visión general
-
-El firmware está organizado como un sistema modular para ESP32 con estas responsabilidades principales:
-
-- configuración persistente en LittleFS
-- gestión WiFi y red
-- API HTTP + comandos Serial
-- motor de render LED
-- abstracción de backend LED seleccionable en compilación
-
-La aplicación arranca en `main.cpp` y cablea los servicios principales sobre un conjunto de objetos globales compartidos.
+Firmware modular para ESP32, orientado a robustez, mantenibilidad y extensibilidad. Inspirado en WLED pero con arquitectura propia, API REST versionada y separación estricta de servicios.
 
 ## Módulos principales
 
-### `CoreState`
+- **CoreState**: Estado runtime del motor de iluminación (`power`, `brightness`, `effectId`, `sectionCount`, `primaryColors[3]`, `backgroundColor`, `paletteId`)
+- **ApiService**: Adaptador HTTP/Serial sobre `PsychicHttp`, expone `/api/v1/*` y páginas HTML embebidas
+- **StorageService**: Persistencia asíncrona y atómica en LittleFS, debounce y recuperación
+- **UserPaletteService**: CRUD de paletas de usuario, distinción sistema/usuario, persistencia en `/user-palettes.json`
+- **EffectEngine**: Motor de efectos visuales y audio-reactivos, render a 60 FPS, segmentos virtuales
+- **LedDriver**: Abstracción de hardware LED, soporta múltiples salidas y backends (`NeoPixelBus`, `FastLED`, `Digital`)
+- **WifiService**: Gestión de modos AP/STA, hostname, IP, mDNS
 
-Representa el estado runtime del motor de iluminación.
+## Modelo runtime
 
-Campos actuales:
+El ciclo principal:
+1. Arranque: carga de configuración y perfiles por defecto
+2. Inicialización de servicios y hardware
+3. Loop principal: render de efectos, atención a API, persistencia diferida
+4. Watchdog y recuperación ante errores
 
-- `power`
-- `brightness`
-- `effectId`
-- `sectionCount`
-- `primaryColors[3]`
-- `backgroundColor`
+## Persistencia y perfiles
+- Configuración persistente en LittleFS (`config.json`, `gpio-profiles.json`, `user-palettes.json`)
+- Perfiles GPIO: presets integrados y de usuario, arranque automático
+- Paletas: catálogo de sistema y usuario, editable en UI
 
-Efectos soportados actualmente:
+## API REST v1
+- HTTP (`/api/v1/*`) y Serial (comandos idénticos)
+- Endpoints para estado, configuración, perfiles, paletas, debug, hardware
+- Respuestas JSON deterministas, validación estricta
 
-- `0` / `fixed`: color fijo por secciones
-- `1` / `gradient`: degradado fijo por sección
-- `2` / `diagnostic`: diagnóstico de salida principal
-- `3` / `blink_fixed`: parpadeo fijo
-- `4` / `blink_gradient`: parpadeo degradado
-- `5` / `breath_fixed`: respiración de secciones fijas
-- `6` / `breath_gradient`: respiración con degradado global
-- `7` / `triple_chase`: tren de color en movimiento
-- `8` / `gradient_meteor`: cabeza y cola con gradiente
-- `9` / `scanning_pulse`: pulso de barrido con rebote
-- `10` / `trig_ribbon`: mezcla sinusoidal multicapa
-- `11` / `lava_flow`: deformación orgánica cálida
-- `12` / `polar_ice`: interferencia fría
-- `13` / `stellar_twinkle`: destellos estelares
-- `14` / `random_color_pop`: pops aleatorios de color
-- `15` / `bouncing_physics`: bolas luminosas en rebote
+## Novedades recientes
+- Menú de navegación responsive y unificado en todas las páginas
+- Editor visual de paletas de usuario (CRUD)
+- Perfiles GPIO completos y aplicables en caliente
+- Motor de efectos robusto, validado en hardware real
 
-Es la parte más cercana al "estado operativo" del render, no a la configuración persistente de infraestructura.
-
-### `NetworkConfig`
-
-Agrupa toda la configuración de red y debug:
-
-- WiFi (`ap`, `sta`, `ap_sta`)
-- política de disponibilidad del AP
-- IP de AP y STA (`dhcp` o `static`)
-- DNS / hostname
-- debug (`enabled`, `heartbeatMs`)
-
-Se persiste en LittleFS y también se expone por la API.
-
-### `GpioConfig`
-
-Define la configuración de salidas LED.
-
-Modelo actual:
-
-- hasta `4` salidas (`kMaxLedOutputs`)
-- cada salida describe:
-	- `id`
-	- `pin`
-	- `ledCount`
-	- `ledType`
-	- `colorOrder`
+---
+Para detalles de endpoints y ejemplos, ver `docs/api-v1.md`. Para evolución y decisiones, ver `CHANGELOG.md` y `evolucion led-next.md`.
 
 Tipos soportados actualmente:
 

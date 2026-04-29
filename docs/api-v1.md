@@ -1,65 +1,43 @@
+
 # API v1
 
-Proyecto: `DUXMAN-LED-NEXT`.
-
-Documentación de la API real implementada actualmente en firmware.
+Proyecto: `DUXMAN-LED-NEXT` (firmware v0.3.7-beta)
 
 ## Resumen
-
-- Base HTTP: `http://<ip-dispositivo>/api/v1/*`
-- Puerto HTTP: `80`
-- Interfaz Serial: mismos comandos que HTTP, una línea por petición
+- HTTP: `http://<ip>/api/v1/*` (puerto 80)
+- Serial: mismos comandos, 115200 baud
 - Formato: JSON
-- Métodos soportados:
-	- `GET` para lectura
-	- `PATCH` para actualización parcial
-	- `POST` como alias de `PATCH` en algunos endpoints
+- Métodos: `GET`, `PATCH`, `POST` (alias)
 
-## Endpoints disponibles
-
+## Endpoints principales
 | Método | Ruta | Descripción |
 |---|---|---|
-| `GET` | `/api/v1/state` | Obtener estado runtime actual |
-| `PATCH` | `/api/v1/state` | Actualizar estado runtime |
-| `POST` | `/api/v1/state` | Alias de `PATCH` |
-| `GET` | `/api/v1/palettes` | Listar catálogo de paletas predefinidas |
-| `POST` | `/api/v1/palettes/apply` | Aplicar paleta por `paletteId` o `palette` |
-| `PATCH` | `/api/v1/palettes/apply` | Alias de `POST` |
-| `GET` | `/api/v1/config/network` | Obtener configuración de red |
-| `PATCH` | `/api/v1/config/network` | Actualizar configuración de red |
-| `POST` | `/api/v1/config/network` | Alias de `PATCH` |
-| `GET` | `/api/v1/config/microphone` | Obtener configuración de micrófono (`generic_i2c`) |
-| `PATCH` | `/api/v1/config/microphone` | Actualizar configuración de micrófono |
-| `POST` | `/api/v1/config/microphone` | Alias de `PATCH` |
-| `GET` | `/api/v1/config/gpio` | Obtener configuración de salidas LED |
-| `PATCH` | `/api/v1/config/gpio` | Actualizar configuración GPIO/LED |
-| `POST` | `/api/v1/config/gpio` | Alias de `PATCH` |
-| `GET` | `/api/v1/profiles/gpio` | Listar perfiles GPIO integrados y guardados |
-| `POST` | `/api/v1/profiles/gpio/save` | Guardar o actualizar un perfil GPIO de usuario |
-| `PATCH` | `/api/v1/profiles/gpio/save` | Alias de `POST` |
-| `POST` | `/api/v1/profiles/gpio/apply` | Aplicar un perfil GPIO al runtime |
-| `PATCH` | `/api/v1/profiles/gpio/apply` | Alias de `POST` |
-| `POST` | `/api/v1/profiles/gpio/default` | Fijar o limpiar perfil GPIO por defecto |
-| `PATCH` | `/api/v1/profiles/gpio/default` | Alias de `POST` |
-| `POST` | `/api/v1/profiles/gpio/delete` | Eliminar un perfil GPIO de usuario |
-| `PATCH` | `/api/v1/profiles/gpio/delete` | Alias de `POST` |
-| `GET` | `/api/v1/config/debug` | Obtener configuración debug |
-| `PATCH` | `/api/v1/config/debug` | Actualizar configuración debug |
-| `POST` | `/api/v1/config/debug` | Alias de `PATCH` |
-| `GET` | `/api/v1/config/all` | Exportar configuración completa |
-| `POST` | `/api/v1/config/all` | Importar configuración completa validando todo antes de aplicar |
-| `GET` | `/api/v1/hardware` | Obtener capacidades de hardware detectadas en runtime |
-| `GET` | `/api/v1/release` | Obtener versión/release compilada en binario |
-| `GET` | `/api/v1/openapi.json` | OpenAPI-like embebido |
+| GET | `/api/v1/state` | Estado runtime actual |
+| PATCH/POST | `/api/v1/state` | Actualizar estado |
+| GET | `/api/v1/palettes` | Listar paletas (sistema + usuario) |
+| POST | `/api/v1/palettes/apply` | Aplicar paleta |
+| POST | `/api/v1/palettes/save` | Guardar/editar paleta de usuario |
+| POST | `/api/v1/palettes/delete` | Eliminar paleta de usuario |
+| GET | `/api/v1/config/network` | Configuración WiFi/IP |
+| PATCH/POST | `/api/v1/config/network` | Actualizar red |
+| GET | `/api/v1/config/microphone` | Config micrófono |
+| PATCH/POST | `/api/v1/config/microphone` | Actualizar micrófono |
+| GET | `/api/v1/config/gpio` | Configuración salidas LED |
+| PATCH/POST | `/api/v1/config/gpio` | Actualizar GPIO |
+| GET | `/api/v1/profiles/gpio` | Listar perfiles GPIO |
+| POST | `/api/v1/profiles/gpio/save` | Guardar perfil GPIO |
+| POST | `/api/v1/profiles/gpio/apply` | Aplicar perfil GPIO |
+| POST | `/api/v1/profiles/gpio/default` | Fijar perfil GPIO por defecto |
+| POST | `/api/v1/profiles/gpio/delete` | Eliminar perfil GPIO |
+| GET | `/api/v1/config/debug` | Configuración debug |
+| PATCH/POST | `/api/v1/config/debug` | Actualizar debug |
+| GET | `/api/v1/config/all` | Exportar configuración completa |
+| POST | `/api/v1/config/all` | Importar configuración completa |
+| GET | `/api/v1/hardware` | Info hardware runtime |
+| GET | `/api/v1/release` | Info de versión/release |
 
-## Estado runtime
-
+## Ejemplo: Estado runtime
 ### `GET /api/v1/state`
-
-Devuelve el estado actual del motor.
-
-Ejemplo de respuesta:
-
 ```json
 {
 	"power": true,
@@ -67,16 +45,69 @@ Ejemplo de respuesta:
 	"effectId": 0,
 	"effect": "fixed",
 	"sectionCount": 3,
-	"primaryColors": [
-		"#FF4D00",
-		"#FFD400",
-		"#00B8D9"
-	],
-	"backgroundColor": "#000000"
+	"primaryColors": ["#FF4D00", "#FFD400", "#00B8D9"],
+	"backgroundColor": "#000000",
+	"paletteId": 2
 }
 ```
 
 ### `PATCH /api/v1/state`
+Permite actualizar cualquier campo del estado. Ejemplo:
+```json
+{
+	"power": false,
+	"brightness": 200,
+	"effectId": 7,
+	"primaryColors": ["#00FF00", "#0000FF", "#FF00FF"]
+}
+```
+
+## Ejemplo: Paletas
+### `GET /api/v1/palettes`
+Devuelve lista combinada de paletas de sistema y usuario:
+```json
+[
+	{ "id": 0, "label": "Sunset", "primaryColors": ["#FF4D00", "#FFD400", "#00B8D9"], "source": "system", "readOnly": true },
+	{ "id": -101, "label": "Mi paleta", "primaryColors": ["#123456", "#654321", "#ABCDEF"], "source": "user", "readOnly": false }
+]
+```
+
+### `POST /api/v1/palettes/save`
+Guardar o editar una paleta de usuario:
+```json
+{
+	"id": -101,
+	"label": "Mi paleta",
+	"primaryColors": ["#123456", "#654321", "#ABCDEF"],
+	"style": "neon",
+	"description": "Paleta personalizada"
+}
+```
+
+### `POST /api/v1/palettes/delete`
+Eliminar una paleta de usuario:
+```json
+{ "id": -101 }
+```
+
+## Ejemplo: Perfiles GPIO
+### `GET /api/v1/profiles/gpio`
+Lista todos los perfiles GPIO disponibles (integrados y usuario):
+```json
+[
+	{ "id": "esp32dev", "label": "Default ESP32 DevKit", "outputs": [ ... ] },
+	{ "id": "custom1", "label": "Mi perfil", "outputs": [ ... ] }
+]
+```
+
+### `POST /api/v1/profiles/gpio/apply`
+Aplica un perfil GPIO:
+```json
+{ "id": "custom1" }
+```
+
+---
+Para detalles de arquitectura y evolución, ver `docs/architecture.md` y `CHANGELOG.md`.
 
 Actualiza parcialmente el estado actual.
 

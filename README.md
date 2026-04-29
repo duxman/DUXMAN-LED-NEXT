@@ -1,83 +1,88 @@
+
 # DUXMAN-LED-NEXT
 
-Controlador LED modular para ESP32, inspirado en WLED. Firmware beta v0.3.6-beta (FreeRTOS + Watchdog + catalogo de efectos dinamicos + paletas predefinidas + editor de paletas de usuario).
+Controlador LED modular para ESP32, inspirado en WLED. Firmware **v0.3.7-beta** (FreeRTOS, Watchdog, catálogo de efectos dinámicos, paletas predefinidas, editor de paletas de usuario, perfiles GPIO, menú de navegación responsive y API REST/Serial).
 
-## Características implementadas
+## Características principales
 
 ### Arquitectura
+- Modular en C++ (PlatformIO, Arduino framework)
+- Servicios desacoplados: `ApiService`, `StorageService`, `WifiService`, `LedDriver`, `EffectEngine`, `UserPaletteService`
+- Firmware versionado en binario (`BuildProfile.h`)
+- Partición `huge_app.csv` (3 MB app, 960 KB LittleFS, sin OTA dual)
+- Persistencia atómica en LittleFS (temp → flush → rename)
+- ArduinoJson 7.4.3 para serialización
 
-- Firmware modular en C++ con PlatformIO (Arduino framework).
-- Servicios desacoplados: `ApiService`, `StorageService`, `WifiService`, `LedDriver`, `EffectEngine`.
-- Versión de firmware compilada en binario (`BuildProfile.h`) — no mutable en runtime.
-- Partición `huge_app.csv` (3 MB app, 960 KB LittleFS, sin OTA dual).
-- Persistencia atómica en LittleFS con escritura segura (temp → flush → rename).
-- ArduinoJson 7.4.3 para serialización/deserialización.
-
-### Perfiles de hardware
-
+### Hardware soportado
 | Perfil | Board | Pin LED | LEDs por defecto |
 |---|---|---|---|
 | `esp32c3supermini` | ESP32-C3-DevKitM-1 | GPIO 8 | 60 |
 | `esp32dev` | ESP32 DevKit | GPIO 5 | 60 |
 | `esp32s3` | ESP32-S3-DevKitC-1 | GPIO 48 | 60 |
 
-### Configuración GPIO (salidas LED)
+### Salidas LED y perfiles GPIO
+- Hasta **4 salidas LED** independientes (`kMaxLedOutputs = 4`)
+- Tipos: `ws2812b`, `ws2811`, `ws2813`, `ws2815`, `sk6812`, `tm1814`, `digital`
+- Órdenes de color: `GRB`, `RGB`, `BRG`, `RBG`, `GBR`, `BGR`, `RGBW`, `GRBW`
+- Tipo `digital`: LEDs no direccionables, color fijo (`R`, `G`, `B`, `W`)
+- Validación de pines y restricciones por tipo
+- Perfiles GPIO: presets integrados y perfiles de usuario en LittleFS
+- Aplicar un perfil reconfigura el driver en caliente
 
-- Hasta **4 salidas LED** independientes (`kMaxLedOutputs = 4`).
-- Tipos de LED soportados: `ws2812b`, `ws2811`, `ws2813`, `ws2815`, `sk6812`, `tm1814`, `digital`.
-- Órdenes de color: `GRB`, `RGB`, `BRG`, `RBG`, `GBR`, `BGR`, `RGBW`, `GRBW`.
-- Tipo `digital` para LEDs no direccionables: color fijo (`R`, `G`, `B`, `W`), `ledCount` forzado a 1.
-- Validación de pines duplicados y restricciones por tipo.
-- Soporte de **perfiles GPIO** guardados en LittleFS y presets integrados en firmware.
-- Un perfil puede guardarse, aplicarse al runtime actual y marcarse como perfil por defecto de arranque.
-- Si existe perfil por defecto, se aplica en cada boot y sobrescribe la `gpio-config.json` activa.
-- `LedDriver` es ahora una clase base abstracta con lógica común de configuración de salidas, niveles por output y API genérica.
-- Implementaciones hijas separadas: `LedDriverNeoPixelBus`, `LedDriverFastLed` y `LedDriverDigital`.
-- `NeoPixelBus` y `digital` ya usan la configuración real de `GpioConfig` con múltiples salidas.
-- `FastLED` queda preparado dentro de la jerarquía, pero por ahora trabaja sobre la salida que coincide con el pin de compilación, ya que esa librería impone restricciones más fuertes para GPIOs variables en runtime.
+### Paletas de color
+- Catálogo curado de 12+ paletas predefinidas (3 colores principales)
+- Editor visual de paletas de usuario (`UserPaletteService`)
+- CRUD completo: crear, editar, eliminar, aplicar
+- Paletas de sistema (read-only) y de usuario (editables)
 
-### Perfiles GPIO
-
-- Presets integrados actuales:
-  - el preset base del build activo (`esp32c3supermini`, `esp32dev` o `esp32s3`)
-  - `gledopto_gl_c_017wl_d` como preset futuro para el controlador Gledopto con GPIO `16`, `4` y `2`
-- Persistencia adicional en LittleFS:
-  - `gpio-profiles.json`: perfiles GPIO de usuario
-  - `startup-profile.json`: id del perfil GPIO por defecto de arranque
-- Aplicar un perfil reconfigura el `LedDriver` en caliente sin reiniciar.
+### Motor de efectos
+- 16 efectos visuales y audio-reactivos
+- Segmentos virtuales, parámetros configurables
+- Audio reactivo por I2S (MEMS)
 
 ### WiFi y red
+- Modos: `ap`, `sta`, `ap_sta`
+- AP: `always` o `untilStaConnected`
+- IP estática/DHCP, hostname mDNS configurable
 
-- Modos WiFi: `ap`, `sta`, `ap_sta`.
-- Política de AP: `always` o `untilStaConnected` (AP se apaga al conectar STA, se reactiva si cae).
-- IP estática o DHCP para AP y STA de forma independiente.
-- Hostname mDNS configurable y resolución local vía `hostname.local` (1-63 caracteres alfanuméricos).
-- Validación completa de IPv4, SSID, hostname.
-
-### API REST (v1)
-
-Interfaz dual: HTTP (puerto 80) + Serial (115200 baud) con los mismos comandos.
+### API REST v1 (HTTP/Serial)
+Base: `http://<ip>/api/v1/*` (puerto 80) y Serial 115200
 
 | Método | Ruta | Descripción |
 |---|---|---|
-| GET | `/api/v1/state` | Estado actual (power, brightness, effecto, secciones y colores) |
-| PATCH | `/api/v1/state` | Actualizar estado |
-| GET | `/api/v1/config/network` | Configuración WiFi + IP |
-| PATCH | `/api/v1/config/network` | Actualizar red |
-| GET | `/api/v1/config/microphone` | Configuración de micrófono (`generic_i2c`) |
-| PATCH | `/api/v1/config/microphone` | Actualizar configuración de micrófono |
-| GET | `/api/v1/config/gpio` | Configuración de salidas LED |
-| PATCH | `/api/v1/config/gpio` | Actualizar GPIO |
-| GET | `/api/v1/profiles/gpio` | Listar perfiles GPIO integrados y guardados |
-| POST | `/api/v1/profiles/gpio/save` | Guardar o actualizar un perfil GPIO |
-| POST | `/api/v1/profiles/gpio/apply` | Aplicar un perfil GPIO al runtime |
-| POST | `/api/v1/profiles/gpio/default` | Fijar o limpiar el perfil GPIO por defecto |
-| POST | `/api/v1/profiles/gpio/delete` | Eliminar un perfil GPIO de usuario |
-| GET | `/api/v1/config/debug` | Configuración debug (heartbeat) |
-| PATCH | `/api/v1/config/debug` | Actualizar debug |
-| GET | `/api/v1/config/all` | Configuración completa (merge de todo) |
-| POST | `/api/v1/config/all` | Importar configuración completa con validación |
-| GET | `/api/v1/hardware` | Capacidades runtime de la placa: chip, flash y MAC |
+| GET | `/api/v1/state` | Estado actual (power, brightness, effect, secciones, colores) |
+| PATCH/POST | `/api/v1/state` | Actualizar estado |
+| GET | `/api/v1/palettes` | Listar paletas (sistema + usuario) |
+| POST | `/api/v1/palettes/apply` | Aplicar paleta |
+| POST | `/api/v1/palettes/save` | Guardar/editar paleta de usuario |
+| POST | `/api/v1/palettes/delete` | Eliminar paleta de usuario |
+| GET | `/api/v1/config/network` | Configuración WiFi/IP |
+| PATCH/POST | `/api/v1/config/network` | Actualizar red |
+| GET | `/api/v1/config/microphone` | Config micrófono |
+| PATCH/POST | `/api/v1/config/microphone` | Actualizar micrófono |
+| GET | `/api/v1/config/gpio` | Configuración salidas LED |
+| PATCH/POST | `/api/v1/config/gpio` | Actualizar GPIO |
+| GET | `/api/v1/profiles/gpio` | Listar perfiles GPIO |
+| POST | `/api/v1/profiles/gpio/save` | Guardar perfil GPIO |
+| POST | `/api/v1/profiles/gpio/apply` | Aplicar perfil GPIO |
+| POST | `/api/v1/profiles/gpio/default` | Fijar perfil GPIO por defecto |
+| POST | `/api/v1/profiles/gpio/delete` | Eliminar perfil GPIO |
+| GET | `/api/v1/config/debug` | Configuración debug |
+| PATCH/POST | `/api/v1/config/debug` | Actualizar debug |
+| GET | `/api/v1/config/all` | Exportar configuración completa |
+| POST | `/api/v1/config/all` | Importar configuración completa |
+| GET | `/api/v1/hardware` | Info hardware runtime |
+| GET | `/api/v1/release` | Info de versión/release |
+
+### Novedades recientes (v0.3.7-beta)
+- Menú de navegación horizontal responsive y unificado
+- Editor de paletas de usuario completo (CRUD)
+- Perfiles GPIO: presets, guardado, arranque automático
+- Motor de efectos robusto y validado en hardware real
+- Documentación y endpoints sincronizados
+
+---
+Para detalles técnicos y arquitectura, ver `docs/architecture.md`, `docs/api-v1.md` y `CHANGELOG.md`.
 | GET | `/api/v1/release` | Versión, fecha, rama, board, repositorio |
 | GET | `/api/v1/openapi.json` | Especificación OpenAPI 3.0 |
 
