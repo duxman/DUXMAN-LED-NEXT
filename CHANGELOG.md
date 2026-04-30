@@ -2,6 +2,57 @@
 
 Todos los cambios relevantes de este proyecto se documentan en este archivo.
 
+## [0.6.0-alpha] - 2026-04-30
+
+### Added
+- **Sistema de Internacionalización (i18n)** — Soporte multilenguaje completo (EN/ES), extensible a FR, DE, IT:
+  - `LanguageManager` (C++): Servicio central con método `t(key)` usando dot-notation, instancia global `gLanguageManager`
+  - Packs de idioma firmware en PROGMEM (~50 KB flash): `i18n_en.json` y `i18n_es.json` con 76 strings cada uno
+  - Motor JavaScript `data/ui/i18n.js`: `i18n.t(key)`, `i18n.load(lang)`, `i18n.onChange(fn)`, formatters (bytes, tiempo, porcentaje)
+  - Packs de idioma web en LittleFS: `data/ui/i18n/en.json` y `data/ui/i18n/es.json` (~120 strings de UI cada uno)
+  - Atributo HTML `data-i18n="key"` para traducción automática de elementos del DOM
+  - Persistencia en `localStorage` y auto-detección del idioma del navegador en primera visita
+
+- **Pantalla "Opciones Generales"** (`/config/general`):
+  - Selector de idioma de interfaz (EN, ES, FR, DE, IT)
+  - Selector de región/locale (US, ES, MX, AR, FR, DE, IT, GB)
+  - Opciones de debug consolidadas (habilitado + heartbeat)
+  - Aplicación inmediata del idioma al guardar sin recarga de página
+  - Preferencias de UI (mostrar JSON) migradas desde la sección debug
+
+- **API REST nuevos endpoints**:
+  - `GET /api/v1/config/general` — Devuelve `{general:{language, regionCode, debugEnabled, heartbeatMs}}`
+  - `PATCH /api/v1/config/general` — Actualiza configuración general, persiste en LittleFS
+  - `GET /config/general` — Sirve la página de configuración general
+
+- **Wiki multilenguaje**:
+  - `wiki/en/` — 14 documentos en inglés con navegación actualizada
+  - `wiki/es/` — 12 documentos en español con Home y FAQ nativos
+  - `wiki/README.md` — Selector de idioma bilingüe (punto de entrada)
+
+### Changed
+- **`GeneralConfig`** (renombrado desde `DebugConfig`):
+  - Añadidos campos `language` (por defecto "en") y `regionCode` (por defecto "US")
+  - Campo `enabled` renombrado a `debugEnabled` para mayor claridad
+  - Validación: idioma debe ser uno de en/es/fr/de/it
+  - JSON serializado bajo clave `general` (reemplaza `debug`)
+
+- **ApiService**: Método `buildGeneralConfigHtml()` carga `general-config.html` desde LittleFS
+- **WifiService**: Referencia `DebugConfig &` → `GeneralConfig &` en constructor y miembros
+- **NavBar** (`nav.html`): Enlace "Debug" → "General" apuntando a `/config/general`
+
+### Deprecated
+- Ruta `/config/debug` — Redirige (302) a `/config/general` (se eliminará en v0.7.0)
+- Ruta `/api/v1/config/debug` — Redirige internamente a `handleHttpGeneralRoute()` (se eliminará en v0.7.0)
+- Struct `DebugConfig` y clave JSON `debug.*` — Usar `GeneralConfig` y `general.*`
+
+### Extensibilidad i18n
+- Para añadir un nuevo idioma (ej. Francés):
+  1. Crear `data/ui/i18n/fr.json` con mismas claves que `en.json`
+  2. Crear `firmware/src/i18n/i18n_fr.json` con mismas claves
+  3. Añadir `FRENCH = 2` al enum `Language` en `LanguageManager.h`
+  4. El selector en `/config/general` ya incluye FR/DE/IT
+
 ## [0.5.0-alpha] - 2026-04-30
 
 ### Added
