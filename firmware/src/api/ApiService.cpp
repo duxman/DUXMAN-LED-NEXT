@@ -709,6 +709,18 @@ void ApiService::setupHttpRoutes() {
     httpServer_.send(200, "text/html", buildVersionHtml());
   });
 
+  // Serve i18n JSON language packs from LittleFS
+  httpServer_.on("/ui/i18n/en.json", HTTP_GET, [this]() {
+    const String data = loadTemplateFromLittleFs("/ui/i18n/en.json");
+    if (data.isEmpty()) { httpServer_.send(404, "application/json", "{\"error\":\"not_found\"}"); return; }
+    httpServer_.send(200, "application/json", data);
+  });
+  httpServer_.on("/ui/i18n/es.json", HTTP_GET, [this]() {
+    const String data = loadTemplateFromLittleFs("/ui/i18n/es.json");
+    if (data.isEmpty()) { httpServer_.send(404, "application/json", "{\"error\":\"not_found\"}"); return; }
+    httpServer_.send(200, "application/json", data);
+  });
+
   httpServer_.on("/api/v1/openapi.json", HTTP_GET, [this]() {
     httpServer_.send(200, "application/json", buildOpenApiJson());
   });

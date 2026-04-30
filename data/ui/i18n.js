@@ -28,7 +28,7 @@ class I18nEngine {
    */
   async load(langCode) {
     try {
-      const response = await fetch(`/data/ui/i18n/${langCode}.json`);
+      const response = await fetch(`/ui/i18n/${langCode}.json`);
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       
       const data = await response.json();
