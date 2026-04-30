@@ -241,6 +241,12 @@ class I18nEngine {
     const nodes = [];
     while (walker.nextNode()) nodes.push(walker.currentNode);
 
+    // Keep UI language consistent: if we cannot translate most strings,
+    // avoid ending in a mixed-language page.
+    const changedNodes = [];
+    let candidateCount = 0;
+    let translatedCount = 0;
+
     nodes.forEach((node) => {
       const parent = node.parentElement;
       if (!parent) return;
@@ -251,11 +257,27 @@ class I18nEngine {
       const trimmed = String(raw || '').trim();
       if (!trimmed || trimmed.length < 2) return;
 
+      candidateCount += 1;
+
       const translated = this.translateLiteral(trimmed);
       if (translated && translated !== trimmed) {
+        changedNodes.push({ node, oldValue: raw });
         node.nodeValue = this.replaceKeepingWhitespace(raw, translated);
+        translatedCount += 1;
       }
     });
+
+    // If coverage is low, rollback to avoid Spanglish.
+    if (this.currentLang !== 'es' && candidateCount > 0) {
+      const coverage = translatedCount / candidateCount;
+      const minCoverage = 0.78;
+      if (coverage < minCoverage) {
+        changedNodes.forEach((entry) => {
+          entry.node.nodeValue = entry.oldValue;
+        });
+        return;
+      }
+    }
 
     const attrs = document.querySelectorAll('input[placeholder], textarea[placeholder], [title]');
     attrs.forEach((el) => {
