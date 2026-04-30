@@ -2,6 +2,28 @@
 
 Todos los cambios relevantes de este proyecto se documentan en este archivo.
 
+## [0.4.0-beta] - 2026-04-30
+
+### Added
+- **Tres nuevos efectos audio-reactivos espectaculares**:
+  - `AUDIO · Rainbow Wave` (id=19): Onda de colores que viaja (Rojo→Naranja→Amarillo→Blanco según audioLevel). Movimiento fluido, muy visual.
+  - `AUDIO · Spectrum Chase` (id=20): Chase tipo Knight Rider con colores reactivos por rango de frecuencia (Rojo=bajos, Verde=medios, Azul=altos). Velocidad acelerada con audio.
+  - `AUDIO · Section Strobe` (id=21): Efecto discoteca: LEDs divididos en secciones que flashean por turno en cada beat. Colores rotativos (Rojo→Verde→Azul→Magenta). Muy dramático.
+
+- **Reorganización de carpetas de efectos** para mejor mantenibilidad:
+  - `firmware/src/effects/audio-reactive/`: Contiene todos los efectos reactivos al audio (9 efectos: AudioPulse, AudioSpectrum, AudioNeonEq, TrigRibbon, StellarTwinkle, BouncingPhysics + 3 nuevos).
+  - `firmware/src/effects/visual-only/`: Contiene todos los efectos puramente visuales (13 efectos: Fixed, Gradient, Blink*, Breath*, Diagnostic, Triple Chase, Meteor, Scanning Pulse, Lava Flow, Polar Ice, Random Pop).
+  - Actualizadas rutas de include en `EffectManager.cpp` y todos los archivos `.cpp` de efectos.
+
+### Changed
+- Estructura del motor de efectos ahora completamente modular por tipo.
+- Registry de efectos (EffectRegistry) extendido con 3 nuevas entradas (IDs 19, 20, 21) e indicador `usesAudio` más preciso.
+
+### Build Info
+- RAM: 17.9% (58.6 KB / 320 KB)
+- Flash: 39.8% (1252 KB / 3145 KB)
+- Compilación: **SUCCESS** en 5.7 segundos
+
 ## [0.3.11-beta] - 2026-04-30
 
 ### Added

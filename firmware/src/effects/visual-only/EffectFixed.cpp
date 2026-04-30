@@ -5,7 +5,7 @@
  * Last commit: 2c35a63 - 2026-04-28
  */
 
-#include "effects/EffectFixed.h"
+#include "effects/visual-only/EffectFixed.h"
 
 bool EffectFixed::supports(uint8_t effectId) const {
   return effectId == EffectRegistry::kEffectFixed;

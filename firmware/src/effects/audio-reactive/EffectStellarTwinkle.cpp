@@ -5,7 +5,7 @@
  * Last commit: 2c35a63 - 2026-04-28
  */
 
-#include "effects/EffectStellarTwinkle.h"
+#include "effects/audio-reactive/EffectStellarTwinkle.h"
 
 #include "effects/EffectRegistry.h"
 

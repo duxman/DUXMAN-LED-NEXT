@@ -5,7 +5,7 @@
  * Last commit: 2c35a63 - 2026-04-28
  */
 
-#include "effects/EffectDiagnostic.h"
+#include "effects/visual-only/EffectDiagnostic.h"
 
 bool EffectDiagnostic::supports(uint8_t effectId) const {
   return effectId == EffectRegistry::kEffectDiagnostic;

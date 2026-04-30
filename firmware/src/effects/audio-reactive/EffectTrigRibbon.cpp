@@ -5,7 +5,7 @@
  * Last commit: 2c35a63 - 2026-04-28
  */
 
-#include "effects/EffectTrigRibbon.h"
+#include "effects/audio-reactive/EffectTrigRibbon.h"
 
 #include "effects/EffectRegistry.h"
 

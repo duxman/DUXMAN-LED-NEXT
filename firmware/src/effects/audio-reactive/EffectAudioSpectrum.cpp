@@ -4,7 +4,7 @@
  * File: firmware/src/effects/EffectAudioSpectrum.cpp
  */
 
-#include "effects/EffectAudioSpectrum.h"
+#include "effects/audio-reactive/EffectAudioSpectrum.h"
 
 #include "effects/EffectRegistry.h"
 

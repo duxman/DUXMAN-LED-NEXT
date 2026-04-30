@@ -5,7 +5,7 @@
  * Last commit: 2c35a63 - 2026-04-28
  */
 
-#include "effects/EffectGradientMeteor.h"
+#include "effects/visual-only/EffectGradientMeteor.h"
 
 #include "effects/EffectRegistry.h"
 

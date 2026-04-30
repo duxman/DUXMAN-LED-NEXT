@@ -1662,7 +1662,7 @@ String ApiService::buildOpenApiJson() const {
   serialCommands.add("GET /api/v1/config/network");
   serialCommands.add("PATCH /api/v1/config/network {\"network\":{\"wifi\":{\"mode\":\"sta\",\"connection\":{\"ssid\":\"MiWiFi\",\"password\":\"secreto\"}},\"ip\":{\"sta\":{\"mode\":\"dhcp\",\"primaryDns\":\"8.8.8.8\",\"secondaryDns\":\"1.1.1.1\"}},\"dns\":{\"hostname\":\"duxman-led\"},\"time\":{\"syncOnBoot\":true,\"ntpServer\":\"europe.pool.ntp.org\"}}}");
   serialCommands.add("GET /api/v1/config/microphone");
-  serialCommands.add("PATCH /api/v1/config/microphone {\"microphone\":{\"enabled\":false,\"source\":\"generic_i2c\",\"profileId\":\"gledopto_gl_c_017wl_d\",\"sampleRate\":16000,\"fftSize\":512,\"gainPercent\":100,\"noiseFloorPercent\":8,\"pins\":{\"bclk\":21,\"ws\":5,\"din\":26}}}");
+  serialCommands.add("PATCH /api/v1/config/microphone {\"microphone\":{\"enabled\":false,\"source\":\"generic_i2c\",\"profileId\":\"gledopto_gl_c_017wl_d\",\"sampleRate\":16000,\"fftSize\":512,\"gainPercent\":100,\"noiseFloorPercent\":8,\"noiseGateKnee\":35,\"agcResponsePercent\":100,\"pins\":{\"bclk\":21,\"ws\":5,\"din\":26}}}");
   serialCommands.add("GET /api/v1/config/debug");
   serialCommands.add("PATCH /api/v1/config/debug {\"debug\":{\"enabled\":true,\"heartbeatMs\":5000}}");
   serialCommands.add("GET /api/v1/config/gpio");
@@ -3530,10 +3530,13 @@ __NAV__
   <main>
     <div class='card'>
       <h1>Configuracion de Microfono</h1>
-      <p class='hint'>Perfil actual soportado: <strong>generic_i2c</strong> con pines GLEDOPTO (SD=26, WS=5, SCK=21).</p>
+      <p class='hint'>Perfil actual soportado: <strong>generic_i2c</strong> con pines GLEDOPTO (SD=26, WS=5, SCK=21). Los cambios se aplican en caliente y se guardan en la configuracion persistente.</p>
       <div class='actions'>
         <button class='btn alt' onclick='loadConfig()'>Recargar</button>
         <button class='btn' onclick='saveConfig()'>Guardar</button>
+      </div>
+      <div class='field' style='margin-top:8px'>
+        <label><input id='autoApplyRealtime' type='checkbox' checked> Aplicar sensibilidad en tiempo real al mover controles</label>
       </div>
       <p id='status' class='status-live' aria-live='polite'></p>
     </div>
@@ -3582,6 +3585,16 @@ __NAV__
           <input id='noiseFloorPercent' type='number' min='0' max='100'>
         </div>
       </div>
+      <div class='row'>
+        <div class='col field'>
+          <label for='noiseGateKnee'>Noise gate knee (0-200)</label>
+          <input id='noiseGateKnee' type='number' min='0' max='200'>
+        </div>
+        <div class='col field'>
+          <label for='agcResponsePercent'>AGC response % (10-200)</label>
+          <input id='agcResponsePercent' type='number' min='10' max='200'>
+        </div>
+      </div>
     </div>
 
     <div class='card'>
@@ -3617,6 +3630,9 @@ __NAV__
   <script>
     if(localStorage.getItem('dux_show_json')==='1') document.body.classList.add('show-json');
 
+    let realtimeTimer = null;
+    let isConfigLoading = true;
+
     function byId(id) { return document.getElementById(id); }
     function setStatus(message, isError) {
       const el = byId('status');
@@ -3646,6 +3662,8 @@ __NAV__
       setValue('fftSize', m.fftSize == null ? 512 : m.fftSize);
       setValue('gainPercent', m.gainPercent == null ? 100 : m.gainPercent);
       setValue('noiseFloorPercent', m.noiseFloorPercent == null ? 8 : m.noiseFloorPercent);
+      setValue('noiseGateKnee', m.noiseGateKnee == null ? 35 : m.noiseGateKnee);
+      setValue('agcResponsePercent', m.agcResponsePercent == null ? 100 : m.agcResponsePercent);
       setValue('din', p.din == null ? 26 : p.din);
       setValue('ws', p.ws == null ? 5 : p.ws);
       setValue('bclk', p.bclk == null ? 21 : p.bclk);
@@ -3661,6 +3679,8 @@ __NAV__
           fftSize: Number(byId('fftSize').value || 512),
           gainPercent: Number(byId('gainPercent').value || 100),
           noiseFloorPercent: Number(byId('noiseFloorPercent').value || 8),
+          noiseGateKnee: Number(byId('noiseGateKnee').value || 35),
+          agcResponsePercent: Number(byId('agcResponsePercent').value || 100),
           pins: {
             din: Number(byId('din').value || 26),
             ws: Number(byId('ws').value || 5),
@@ -3670,7 +3690,20 @@ __NAV__
       };
     }
 
+    function queueRealtimeApply() {
+      if (isConfigLoading || !byId('autoApplyRealtime').checked) {
+        return;
+      }
+      if (realtimeTimer) {
+        clearTimeout(realtimeTimer);
+      }
+      realtimeTimer = setTimeout(function() {
+        saveConfig(true);
+      }, 220);
+    }
+
     async function loadConfig() {
+      isConfigLoading = true;
       setStatus('Leyendo configuracion de microfono...', false);
       try {
         const res = await fetch('/api/v1/config/microphone');
@@ -3682,13 +3715,15 @@ __NAV__
       } catch (error) {
         byId('resultOut').textContent = String(error);
         setStatus('Error leyendo configuracion.', true);
+      } finally {
+        isConfigLoading = false;
       }
     }
 
-    async function saveConfig() {
+    async function saveConfig(isRealtime) {
       const payload = buildPayload();
       byId('payloadOut').textContent = JSON.stringify(payload, null, 2);
-      setStatus('Guardando configuracion de microfono...', false);
+      setStatus(isRealtime ? 'Aplicando sensibilidad en tiempo real...' : 'Guardando configuracion de microfono...', false);
       try {
         const res = await fetch('/api/v1/config/microphone', {
           method: 'PATCH',
@@ -3699,12 +3734,21 @@ __NAV__
         let pretty = text;
         try { pretty = JSON.stringify(JSON.parse(text), null, 2); } catch (_) {}
         byId('resultOut').textContent = pretty;
-        setStatus(res.ok ? 'Microfono guardado (HTTP ' + res.status + ').' : 'Error guardando (HTTP ' + res.status + ').', !res.ok);
+        if (res.ok) {
+          setStatus(isRealtime ? 'Aplicado en tiempo real (HTTP ' + res.status + ').' : 'Microfono guardado (HTTP ' + res.status + ').', false);
+        } else {
+          setStatus('Error guardando (HTTP ' + res.status + ').', true);
+        }
       } catch (error) {
         byId('resultOut').textContent = String(error);
         setStatus('Error de red guardando configuracion.', true);
       }
     }
+
+    ['gainPercent', 'noiseFloorPercent', 'noiseGateKnee', 'agcResponsePercent'].forEach(function(id) {
+      byId(id).addEventListener('input', queueRealtimeApply);
+      byId(id).addEventListener('change', queueRealtimeApply);
+    });
 
     loadConfig();
   </script>

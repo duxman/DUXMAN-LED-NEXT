@@ -87,6 +87,10 @@ void AudioService::handle(unsigned long nowMs) {
       Serial.print(microphoneConfig_.gainPercent);
       Serial.print(" noiseFloor=");
       Serial.print(microphoneConfig_.noiseFloorPercent);
+      Serial.print(" gate=");
+      Serial.print(microphoneConfig_.noiseGateKnee);
+      Serial.print(" agcResp=");
+      Serial.print(microphoneConfig_.agcResponsePercent);
       Serial.print(" baseline=");
       Serial.print(static_cast<int>(ambientBaseline_));
       Serial.print(" pins=");
@@ -228,13 +232,16 @@ void AudioService::processAudioBuffer(unsigned long nowMs) {
   // Primeros 8 s: convergencia rápida para calibrar el entorno en el arranque.
   const float agcDiff  = rawFClamped - ambientBaseline_;
   const bool  isWarmup = (nowMs < 8000UL);
+  const float agcResponseMultiplier = microphoneConfig_.agcResponsePercent / 100.0f;
   float agcFactor;
   if (agcDiff > 0.0f) {
     // Baseline sube: rápido en warmup, lento en estado estacionario.
-    agcFactor = isWarmup ? kAgcBaselineFactor * 12.0f : kAgcBaselineFactor;
+    agcFactor = isWarmup
+                    ? (kAgcBaselineFactor * 12.0f * agcResponseMultiplier)
+                    : (kAgcBaselineFactor * agcResponseMultiplier);
   } else {
     // Baseline baja: siempre muy lento para no exponer ruido como señal.
-    agcFactor = kAgcBaselineFactor * 0.15f;
+    agcFactor = kAgcBaselineFactor * 0.15f * agcResponseMultiplier;
   }
   ambientBaseline_ += agcDiff * agcFactor;
   if (ambientBaseline_ < 0.0f)   ambientBaseline_ = 0.0f;
@@ -250,11 +257,12 @@ void AudioService::processAudioBuffer(unsigned long nowMs) {
   }
 
   // Noise gate suave: elimina la fluctuación del ruido ambiente residual post-AGC.
-  // Señal < kNoiseGateKnee → 0; por encima → rampa lineal hasta 255.
-  if (agcSignal <= kNoiseGateKnee) {
+  // Señal < noiseGateKnee → 0; por encima → rampa lineal hasta 255.
+  const float noiseGateKnee = microphoneConfig_.noiseGateKnee;
+  if (agcSignal <= noiseGateKnee) {
     agcSignal = 0.0f;
   } else {
-    agcSignal = (agcSignal - kNoiseGateKnee) * (255.0f / (255.0f - kNoiseGateKnee));
+    agcSignal = (agcSignal - noiseGateKnee) * (255.0f / (255.0f - noiseGateKnee));
     if (agcSignal > 255.0f) agcSignal = 255.0f;
   }
 

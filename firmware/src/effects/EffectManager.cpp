@@ -7,29 +7,32 @@
 
 #include "effects/EffectManager.h"
 
-#include "effects/EffectAudioPulse.h"
-#include "effects/EffectAudioNeonEq.h"
-#include "effects/EffectAudioSpectrum.h"
-#include "effects/EffectBlinkFixed.h"
-#include "effects/EffectBlinkGradient.h"
-#include "effects/EffectBouncingPhysics.h"
-#include "effects/EffectBreathFixed.h"
-#include "effects/EffectBreathGradient.h"
-#include "effects/EffectDiagnostic.h"
-#include "effects/EffectFixed.h"
-#include "effects/EffectGradient.h"
-#include "effects/EffectGradientMeteor.h"
-#include "effects/EffectLavaFlow.h"
-#include "effects/EffectPolarIce.h"
-#include "effects/EffectRandomColorPop.h"
+#include "effects/audio-reactive/EffectAudioPulse.h"
+#include "effects/audio-reactive/EffectAudioNeonEq.h"
+#include "effects/audio-reactive/EffectAudioSpectrum.h"
+#include "effects/audio-reactive/EffectAudioRainbowWave.h"
+#include "effects/audio-reactive/EffectAudioSpectrumChase.h"
+#include "effects/audio-reactive/EffectAudioSectionStrobe.h"
+#include "effects/audio-reactive/EffectBouncingPhysics.h"
+#include "effects/audio-reactive/EffectStellarTwinkle.h"
+#include "effects/audio-reactive/EffectTrigRibbon.h"
+#include "effects/visual-only/EffectBlinkFixed.h"
+#include "effects/visual-only/EffectBlinkGradient.h"
+#include "effects/visual-only/EffectBreathFixed.h"
+#include "effects/visual-only/EffectBreathGradient.h"
+#include "effects/visual-only/EffectDiagnostic.h"
+#include "effects/visual-only/EffectFixed.h"
+#include "effects/visual-only/EffectGradient.h"
+#include "effects/visual-only/EffectGradientMeteor.h"
+#include "effects/visual-only/EffectLavaFlow.h"
+#include "effects/visual-only/EffectPolarIce.h"
+#include "effects/visual-only/EffectRandomColorPop.h"
 #include "effects/EffectRegistry.h"
-#include "effects/EffectScanningPulse.h"
-#include "effects/EffectStellarTwinkle.h"
-#include "effects/EffectTrigRibbon.h"
-#include "effects/EffectTripleChase.h"
+#include "effects/visual-only/EffectScanningPulse.h"
+#include "effects/visual-only/EffectTripleChase.h"
 
 struct EffectManager::Impl {
-  static constexpr size_t kEffectCount = 19;
+  static constexpr size_t kEffectCount = 22;
 
   CoreState &state;
   LedDriver &driver;
@@ -55,6 +58,9 @@ struct EffectManager::Impl {
   EffectAudioPulse audioPulseEffect;
   EffectAudioSpectrum audioSpectrumEffect;
   EffectAudioNeonEq audioNeonEqEffect;
+  EffectAudioRainbowWave audioRainbowWaveEffect;
+  EffectAudioSpectrumChase audioSpectrumChaseEffect;
+  EffectAudioSectionStrobe audioSectionStrobeEffect;
 
   Impl(CoreState &stateRef, LedDriver &driverRef)
       : state(stateRef),
@@ -77,7 +83,10 @@ struct EffectManager::Impl {
         bouncingPhysicsEffect(stateRef, driverRef),
         audioPulseEffect(stateRef, driverRef),
         audioSpectrumEffect(stateRef, driverRef),
-        audioNeonEqEffect(stateRef, driverRef) {
+        audioNeonEqEffect(stateRef, driverRef),
+        audioRainbowWaveEffect(stateRef, driverRef),
+        audioSpectrumChaseEffect(stateRef, driverRef),
+        audioSectionStrobeEffect(stateRef, driverRef) {
     effects[0] = &fixedEffect;
     effects[1] = &gradientEffect;
     effects[2] = &blinkFixedEffect;
@@ -97,6 +106,9 @@ struct EffectManager::Impl {
     effects[16] = &audioPulseEffect;
     effects[17] = &audioSpectrumEffect;
     effects[18] = &audioNeonEqEffect;
+    effects[19] = &audioRainbowWaveEffect;
+    effects[20] = &audioSpectrumChaseEffect;
+    effects[21] = &audioSectionStrobeEffect;
   }
 };
 

@@ -5,7 +5,7 @@
  * Last commit: 2c35a63 - 2026-04-28
  */
 
-#include "effects/EffectBlinkFixed.h"
+#include "effects/visual-only/EffectBlinkFixed.h"
 
 bool EffectBlinkFixed::supports(uint8_t effectId) const {
   return effectId == EffectRegistry::kEffectBlinkFixed;

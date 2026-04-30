@@ -4,7 +4,7 @@
  * File: firmware/src/effects/EffectAudioNeonEq.cpp
  */
 
-#include "effects/EffectAudioNeonEq.h"
+#include "effects/audio-reactive/EffectAudioNeonEq.h"
 
 #include "effects/EffectRegistry.h"
 

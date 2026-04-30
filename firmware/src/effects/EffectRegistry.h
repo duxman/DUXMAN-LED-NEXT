@@ -35,9 +35,12 @@ constexpr uint8_t kEffectPolarIce = 12;
 constexpr uint8_t kEffectStellarTwinkle = 13;
 constexpr uint8_t kEffectRandomColorPop = 14;
 constexpr uint8_t kEffectBouncingPhysics = 15;
-constexpr uint8_t kEffectAudioPulse      = 16;
-constexpr uint8_t kEffectAudioSpectrum   = 17;
-constexpr uint8_t kEffectAudioNeonEq     = 18;
+constexpr uint8_t kEffectAudioPulse           = 16;
+constexpr uint8_t kEffectAudioSpectrum       = 17;
+constexpr uint8_t kEffectAudioNeonEq         = 18;
+constexpr uint8_t kEffectAudioRainbowWave    = 19;
+constexpr uint8_t kEffectAudioSpectrumChase  = 20;
+constexpr uint8_t kEffectAudioSectionStrobe  = 21;
 
 const EffectDescriptor *all();
 size_t count();

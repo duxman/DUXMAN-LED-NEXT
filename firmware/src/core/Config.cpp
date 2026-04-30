@@ -27,6 +27,9 @@ constexpr uint16_t kMicSampleRateMax = 48000;
 constexpr uint8_t kMicGainMin = 1;
 constexpr uint8_t kMicGainMax = 200;
 constexpr uint8_t kMicNoiseFloorMax = 100;
+constexpr uint8_t kMicNoiseGateKneeMax = 200;
+constexpr uint8_t kMicAgcResponsePercentMin = 10;
+constexpr uint8_t kMicAgcResponsePercentMax = 200;
 constexpr const char *kMicSourceGeneric = "generic_i2c";
 constexpr const char *kMicSourceLegacyI2s = "i2s";
 constexpr const char *kMicProfileGledopto = "gledopto_gl_c_017wl_d";
@@ -266,6 +269,8 @@ MicrophoneConfig MicrophoneConfig::defaults() {
   config.fftSize = 512;
   config.gainPercent = 100;
   config.noiseFloorPercent = 8;
+  config.noiseGateKnee = 35;
+  config.agcResponsePercent = 100;
   config.pins.bclk = kMicGledoptoSckPin;
   config.pins.ws = kMicGledoptoWsPin;
   config.pins.din = kMicGledoptoSdPin;
@@ -282,6 +287,8 @@ String MicrophoneConfig::toJson() const {
   mic["fftSize"] = fftSize;
   mic["gainPercent"] = gainPercent;
   mic["noiseFloorPercent"] = noiseFloorPercent;
+  mic["noiseGateKnee"] = noiseGateKnee;
+  mic["agcResponsePercent"] = agcResponsePercent;
 
   JsonObject pins = mic["pins"].to<JsonObject>();
   pins["bclk"] = this->pins.bclk;
@@ -332,6 +339,21 @@ bool MicrophoneConfig::validate(String *error) const {
   if (noiseFloorPercent > kMicNoiseFloorMax) {
     if (error != nullptr) {
       *error = "invalid_microphone_noise_floor";
+    }
+    return false;
+  }
+
+  if (noiseGateKnee > kMicNoiseGateKneeMax) {
+    if (error != nullptr) {
+      *error = "invalid_microphone_noise_gate_knee";
+    }
+    return false;
+  }
+
+  if (agcResponsePercent < kMicAgcResponsePercentMin ||
+      agcResponsePercent > kMicAgcResponsePercentMax) {
+    if (error != nullptr) {
+      *error = "invalid_microphone_agc_response_percent";
     }
     return false;
   }
@@ -402,6 +424,8 @@ bool MicrophoneConfig::applyPatchJson(const String &payload, String *error) {
   setUInt16IfPresent(micObj, "fftSize", candidate.fftSize);
   setUInt8IfPresent(micObj, "gainPercent", candidate.gainPercent);
   setUInt8IfPresent(micObj, "noiseFloorPercent", candidate.noiseFloorPercent);
+  setUInt8IfPresent(micObj, "noiseGateKnee", candidate.noiseGateKnee);
+  setUInt8IfPresent(micObj, "agcResponsePercent", candidate.agcResponsePercent);
 
   JsonObjectConst pinsObj = micObj["pins"].as<JsonObjectConst>();
   if (!pinsObj.isNull()) {

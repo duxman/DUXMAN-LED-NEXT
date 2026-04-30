@@ -49,6 +49,12 @@ constexpr EffectDescriptor kEffects[] = {
   "VU-meter de 3 bandas (bajos/medios/altos) con colores primarios por banda y segmentos configurables.", false, true},
   {EffectRegistry::kEffectAudioNeonEq, "audio_neon_eq", "AUDIO \xc2\xb7 Neon EQ",
   "Ecualizador neon de 3 bandas con barras alternadas, cabezal brillante y beat flash.", true, true},
+  {EffectRegistry::kEffectAudioRainbowWave, "audio_rainbow_wave", "AUDIO \xc2\xb7 Rainbow Wave",
+  "Onda de arcoiris que cambia de color con el audio. Rojo (silencio) -> Blanco (picos). Muy visual.", true, true},
+  {EffectRegistry::kEffectAudioSpectrumChase, "audio_spectrum_chase", "AUDIO \xc2\xb7 Spectrum Chase",
+  "Chase tipo Knight Rider con colores reactivos: Rojo (bajos) -> Verde (medios) -> Azul (altos).", true, true},
+  {EffectRegistry::kEffectAudioSectionStrobe, "audio_section_strobe", "AUDIO \xc2\xb7 Section Strobe",
+  "Efecto discoteca: secciones de LEDs que flashean por turno en cada beat. Muy dramatico.", false, true},
 };
 }
 

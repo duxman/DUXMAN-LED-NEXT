@@ -127,9 +127,7 @@ private:
   static constexpr float kSqrtMaxRms        = 152.0f;
   static constexpr float kAgcBaselineFactor = 0.002f;  // tau rápido si diff>40, lento si no
   static constexpr float kAgcMinHeadroom    = 10.0f;   // evita divón entre casi-cero
-  // Noise gate: señales post-AGC por debajo de este umbral se suprimen a 0.
-  // Elimina la fluctuación del ruido ambiente residual que queda tras el AGC.
-  static constexpr float kNoiseGateKnee     = 35.0f;
+  // Noise gate: el umbral se configura dinámicamente desde MicrophoneConfig::noiseGateKnee.
 
   int16_t audioBuffer_[kAudioBufferSize] = {0};
 

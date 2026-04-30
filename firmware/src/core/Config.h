@@ -75,6 +75,8 @@ struct MicrophoneConfig {
   uint16_t fftSize = 512;
   uint8_t gainPercent = 100;
   uint8_t noiseFloorPercent = 8;
+  uint8_t noiseGateKnee = 35;
+  uint8_t agcResponsePercent = 100;
   MicrophoneI2sPins pins;
 
   static MicrophoneConfig defaults();
