@@ -9,6 +9,9 @@ Desktop.ini
 # Copilot memory (local only, never commit)
 .copilot-memory/
 
+# Archive documentation (legacy, not synced to GitHub)
+wiki/Archive/
+
 # Build artifacts
 **/.pio/
 **/build/
