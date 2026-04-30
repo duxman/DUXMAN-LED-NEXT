@@ -30,7 +30,7 @@ CoreState state = CoreState::defaults();
 NetworkConfig networkConfig = NetworkConfig::defaults();
 GpioConfig gpioConfig = GpioConfig::defaults();
 MicrophoneConfig microphoneConfig = MicrophoneConfig::defaults();
-DebugConfig debugConfig = DebugConfig::defaults();
+GeneralConfig debugConfig = GeneralConfig::defaults();
 DefaultLedDriver ledDriver;
 EffectManager effectManager(state, ledDriver);
 StorageService storageService(state, networkConfig, gpioConfig, microphoneConfig, debugConfig);
@@ -155,7 +155,7 @@ void setup() {
     Serial.println(o.colorOrder);
   }
   Serial.print("[boot] debug.enabled=");
-  Serial.print(debugConfig.enabled ? "true" : "false");
+  Serial.print(debugConfig.debugEnabled ? "true" : "false");
   Serial.print(" heartbeatMs=");
   Serial.println(debugConfig.heartbeatMs);
 

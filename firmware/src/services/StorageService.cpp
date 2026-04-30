@@ -22,9 +22,9 @@ constexpr const char *kLegacyGpioPath    = "/gpio-config.json";
 
 StorageService::StorageService(CoreState &state, NetworkConfig &networkConfig,
                                GpioConfig &gpioConfig, MicrophoneConfig &microphoneConfig,
-                               DebugConfig &debugConfig)
+                               GeneralConfig &GeneralConfig)
   : state_(state), networkConfig_(networkConfig), gpioConfig_(gpioConfig),
-    microphoneConfig_(microphoneConfig), debugConfig_(debugConfig) {}
+    microphoneConfig_(microphoneConfig), debugConfig_(GeneralConfig) {}
 
 void StorageService::begin() {
   if (!LittleFS.begin(true)) {
@@ -33,7 +33,7 @@ void StorageService::begin() {
     networkConfig_  = NetworkConfig::defaults();
     gpioConfig_     = GpioConfig::defaults();
     microphoneConfig_ = MicrophoneConfig::defaults();
-    debugConfig_    = DebugConfig::defaults();
+    debugConfig_    = GeneralConfig::defaults();
     return;
   }
 
@@ -85,7 +85,7 @@ bool StorageService::loadConfig() {
       networkConfig_    = NetworkConfig::defaults();
       gpioConfig_       = GpioConfig::defaults();
       microphoneConfig_ = MicrophoneConfig::defaults();
-      debugConfig_      = DebugConfig::defaults();
+      debugConfig_      = GeneralConfig::defaults();
       return saveConfig();
     }
     return true;
@@ -96,7 +96,7 @@ bool StorageService::loadConfig() {
     networkConfig_    = NetworkConfig::defaults();
     gpioConfig_       = GpioConfig::defaults();
     microphoneConfig_ = MicrophoneConfig::defaults();
-    debugConfig_      = DebugConfig::defaults();
+    debugConfig_      = GeneralConfig::defaults();
     return saveConfig();
   }
 
@@ -106,7 +106,7 @@ bool StorageService::loadConfig() {
     networkConfig_    = NetworkConfig::defaults();
     gpioConfig_       = GpioConfig::defaults();
     microphoneConfig_ = MicrophoneConfig::defaults();
-    debugConfig_      = DebugConfig::defaults();
+    debugConfig_      = GeneralConfig::defaults();
     return saveConfig();
   }
 
@@ -157,7 +157,7 @@ bool StorageService::loadConfig() {
     String dbgPayload;
     { JsonDocument d; d["debug"] = doc["debug"]; serializeJson(d, dbgPayload); }
     String err;
-    DebugConfig candidate = DebugConfig::defaults();
+    GeneralConfig candidate = GeneralConfig::defaults();
     candidate.applyPatchJson(dbgPayload, &err);
     if (err.isEmpty()) {
       debugConfig_ = candidate;

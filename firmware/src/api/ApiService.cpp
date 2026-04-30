@@ -118,7 +118,7 @@ const char *contentTypeForPath(const String &path) {
 } // namespace
 
 ApiService::ApiService(CoreState &state, NetworkConfig &networkConfig, GpioConfig &gpioConfig,
-                       MicrophoneConfig &microphoneConfig, DebugConfig &debugConfig,
+                       MicrophoneConfig &microphoneConfig, GeneralConfig &debugConfig,
                        StorageService &storageService, WifiService &wifiService,
                        PersistenceSchedulerService &persistenceSchedulerService,
                        EffectPersistenceService &effectPersistenceService,
@@ -582,7 +582,7 @@ void ApiService::processCommand(const String &command) {
     NetworkConfig netCandidate = networkConfig_;
     GpioConfig gpioCandidate = gpioConfig_;
     MicrophoneConfig micCandidate = microphoneConfig_;
-    DebugConfig debugCandidate = generalConfig_;
+    GeneralConfig debugCandidate = generalConfig_;
 
     String netPayload;
     { JsonDocument d; d["network"] = root["network"]; serializeJson(d, netPayload); }
@@ -1594,7 +1594,7 @@ void ApiService::handleHttpConfigAllRoute() {
     NetworkConfig netCandidate = networkConfig_;
     GpioConfig gpioCandidate = gpioConfig_;
     MicrophoneConfig micCandidate = microphoneConfig_;
-    DebugConfig debugCandidate = generalConfig_;
+    GeneralConfig debugCandidate = generalConfig_;
 
     String netPayload;
     { JsonDocument d; d["network"] = root["network"]; serializeJson(d, netPayload); }

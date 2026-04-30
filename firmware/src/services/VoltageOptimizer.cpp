@@ -113,7 +113,7 @@ uint8_t VoltageOptimizer::estimateLedIntensity_(uint8_t r, uint8_t g, uint8_t b)
   // Weighted intensity: favors red (perceived brightness)
   // Relative luminance approximation: 0.299*R + 0.587*G + 0.114*B
   uint16_t weighted = (299U * r + 587U * g + 114U * b) / 1000U;
-  return static_cast<uint8_t>(min(weighted, 255U));
+  return static_cast<uint8_t>(weighted > 255U ? 255U : weighted);
 }
 
 void VoltageOptimizer::updateEnergyPrediction_(uint32_t colorRGB) {

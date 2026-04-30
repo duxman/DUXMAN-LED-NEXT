@@ -4,7 +4,7 @@
 #include <cstdint>
 #include <array>
 #include "Arduino.h"
-#include "Config.h"  // For PowerConfig
+#include "core/Config.h"  // For PowerConfig
 
 /**
  * @file VoltageOptimizer.h

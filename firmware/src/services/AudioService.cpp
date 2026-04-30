@@ -9,7 +9,7 @@
 
 #include <cmath>
 
-AudioService::AudioService(MicrophoneConfig &microphoneConfig, CoreState &coreState, DebugConfig &debugConfig)
+AudioService::AudioService(MicrophoneConfig &microphoneConfig, CoreState &coreState, GeneralConfig &debugConfig)
     : microphoneConfig_(microphoneConfig), coreState_(coreState), debugConfig_(debugConfig) {}
 
 AudioService::~AudioService() {
@@ -66,7 +66,7 @@ void AudioService::end() {
 void AudioService::handle(unsigned long nowMs) {
   if (nowMs - lastLogMs_ >= kAudioLogIntervalMs) {
     lastLogMs_ = nowMs;
-    if (debugConfig_.enabled) {
+    if (debugConfig_.debugEnabled) {
       Serial.print("[audio.dbg] active=");
       Serial.print(isActive_ ? "1" : "0");
       Serial.print(" error=");

@@ -30,13 +30,13 @@ struct AppProfile {
   NetworkConfig   network;
   GpioConfig      gpio;
   MicrophoneConfig microphone;
-  DebugConfig      debug;
+  GeneralConfig    debug;
 };
 
 class ProfileService {
 public:
   ProfileService(NetworkConfig &networkConfig, GpioConfig &gpioConfig,
-                 MicrophoneConfig &microphoneConfig, DebugConfig &debugConfig,
+                 MicrophoneConfig &microphoneConfig, GeneralConfig &debugConfig,
                  StorageService &storageService,
                  PersistenceSchedulerService &persistenceSchedulerService,
                  LedDriver &ledDriver,
@@ -87,7 +87,7 @@ private:
   NetworkConfig    &networkConfig_;
   GpioConfig       &gpioConfig_;
   MicrophoneConfig &microphoneConfig_;
-  DebugConfig      &debugConfig_;
+  GeneralConfig    &debugConfig_;
   StorageService   &storageService_;
   PersistenceSchedulerService &persistenceSchedulerService_;
   LedDriver        &ledDriver_;

@@ -107,11 +107,11 @@ void LedDriver::configure(const GpioConfig &config) {
 		}
 	}
 
-	if (config.powerLimit.enabled && totalAddressableLeds > 0) {
+	if (config.power.powerLimitEnabled && totalAddressableLeds > 0) {
 		const float worstCaseCurrentmA = static_cast<float>(totalAddressableLeds) *
-				static_cast<float>(config.powerLimit.milliAmpsPerLed);
+				static_cast<float>(config.power.milliAmpsPerLedBase);
 		if (worstCaseCurrentmA > 0.0f) {
-			const float scale = static_cast<float>(config.powerLimit.maxCurrentmA) / worstCaseCurrentmA;
+			const float scale = static_cast<float>(config.power.maxTotalCurrentmA) / worstCaseCurrentmA;
 			powerLimitScale_ = min(1.0f, max(0.02f, scale));
 		}
 	}

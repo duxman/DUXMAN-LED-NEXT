@@ -17,7 +17,7 @@ class StorageService {
 public:
   StorageService(CoreState &state, NetworkConfig &networkConfig,
                  GpioConfig &gpioConfig, MicrophoneConfig &microphoneConfig,
-                 DebugConfig &debugConfig);
+                 GeneralConfig &debugConfig);
 
   void begin();
   bool save();
@@ -31,7 +31,7 @@ private:
   NetworkConfig &networkConfig_;
   GpioConfig &gpioConfig_;
   MicrophoneConfig &microphoneConfig_;
-  DebugConfig &debugConfig_;
+  GeneralConfig &debugConfig_;
 
   bool loadState();
   bool migrateFromLegacyFiles();  // Migración desde device-config.json + gpio-config.json

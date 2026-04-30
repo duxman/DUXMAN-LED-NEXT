@@ -90,13 +90,13 @@ bool profileFromJson(const JsonObjectConst &obj, AppProfile &out, String *error)
 } // namespace
 
 ProfileService::ProfileService(NetworkConfig &networkConfig, GpioConfig &gpioConfig,
-                               MicrophoneConfig &microphoneConfig, DebugConfig &debugConfig,
+                               MicrophoneConfig &microphoneConfig, GeneralConfig &GeneralConfig,
                                StorageService &storageService,
                                PersistenceSchedulerService &persistenceSchedulerService,
                                LedDriver &ledDriver,
                                CoreState &coreState)
   : networkConfig_(networkConfig), gpioConfig_(gpioConfig),
-    microphoneConfig_(microphoneConfig), debugConfig_(debugConfig),
+    microphoneConfig_(microphoneConfig), debugConfig_(GeneralConfig),
     storageService_(storageService),
     persistenceSchedulerService_(persistenceSchedulerService),
     ledDriver_(ledDriver), coreState_(coreState) {}
@@ -349,7 +349,7 @@ void ProfileService::initializeBuiltInProfiles() {
     gled.network    = NetworkConfig::defaults();
     gled.gpio       = makeGledoptoGpio();
     gled.microphone = makeGledoptoMicrophone();
-    gled.debug      = DebugConfig::defaults();
+    gled.debug      = GeneralConfig::defaults();
     builtInProfiles_[builtInProfileCount_++] = gled;
   }
 }
