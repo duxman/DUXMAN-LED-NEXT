@@ -106,21 +106,22 @@ private:
   // AGC: baseline del nivel ambiente, actualizado lentamente para calibración automática.
   float ambientBaseline_ = 0.0f;
 
-  // Buffer de audio para lectura
-  static constexpr size_t kAudioBufferSize = 256;
-  static constexpr unsigned long kAudioLogIntervalMs = 1000;
+  // Buffer corto para reducir la latencia de captura por bloque.
+  static constexpr size_t kAudioBufferSize = 64;
+  static constexpr unsigned long kAudioLogIntervalMs = 500;
+  static constexpr unsigned long kProcessIntervalMs = 10;
 
-  // P1: Attack rápido para capturar golpes; decay lento para suavizado visual.
-  static constexpr float kAttackFactor = 0.80f;
-  static constexpr float kDecayFactor  = 0.05f;
+  // P1: En modo live se prioriza respuesta rápida frente a inercia visual.
+  static constexpr float kAttackFactor = 0.45f;
+  static constexpr float kDecayFactor  = 0.15f;
   // P2: Beat = spike instantáneo ≥160% del nivel suavizado, encima del umbral mínimo.
   static constexpr float         kBeatSpikeRatio      = 1.60f;
   static constexpr uint8_t       kBeatMinThreshold    = 30;
-  static constexpr unsigned long kBeatCooldownMs      = 150;
-  // P6: Peak hold 1.2 s; luego descenso de 3 puntos cada 30 ms.
-  static constexpr unsigned long kPeakHoldDurationMs  = 1200;
+  static constexpr unsigned long kBeatCooldownMs      = 50;
+  // Peak hold más corto para evitar sensación de arrastre.
+  static constexpr unsigned long kPeakHoldDurationMs  = 100;
   static constexpr uint8_t       kPeakDecayStep       = 3;
-  static constexpr unsigned long kPeakDecayStepMs     = 30;
+  static constexpr unsigned long kPeakDecayStepMs     = 10;
 
   // AGC: sqrt(32767/sqrt(2)) ≈ 152 = RMS máximo teórico de int16_t.
   // El AGC calibra el nivel ambiente en ~5 s y mapea todo lo que lo supera a 0-255.

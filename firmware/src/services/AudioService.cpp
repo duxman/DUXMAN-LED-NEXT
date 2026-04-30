@@ -106,8 +106,8 @@ void AudioService::handle(unsigned long nowMs) {
     return;
   }
 
-  // Procesar audio cada 50ms (20 Hz)
-  if (nowMs - lastProcessMs_ < 50) {
+  // Procesar audio casi a la cadencia de render para respuesta más en vivo.
+  if (nowMs - lastProcessMs_ < kProcessIntervalMs) {
     return;
   }
 
@@ -124,8 +124,9 @@ bool AudioService::initializeI2S() {
       .channel_format = I2S_CHANNEL_FMT_RIGHT_LEFT,
       .communication_format = I2S_COMM_FORMAT_I2S_MSB,
       .intr_alloc_flags = ESP_INTR_FLAG_LEVEL1,
-      .dma_buf_count = 4,
-      .dma_buf_len = 256,
+      // Menor buffering DMA para reducir retardo extremo en efectos reactivos.
+      .dma_buf_count = 3,
+      .dma_buf_len = 128,
       .use_apll = false,
       .tx_desc_auto_clear = false,
       .fixed_mclk = 0,
@@ -184,7 +185,7 @@ void AudioService::processAudioBuffer(unsigned long nowMs) {
   // Leer datos I2S.
   size_t bytesRead = 0;
   esp_err_t err =
-      i2s_read(i2sPort_, (void *)audioBuffer_, kAudioBufferSize * sizeof(int16_t), &bytesRead, 10);
+      i2s_read(i2sPort_, (void *)audioBuffer_, kAudioBufferSize * sizeof(int16_t), &bytesRead, 2);
   lastBytesRead_ = bytesRead;
   lastReadErr_ = static_cast<int>(err);
 
