@@ -108,20 +108,35 @@ struct LedOutput {
   String colorOrder = "GRB";
 };
 
-struct GpioPowerLimitConfig {
-  // false = deshabilitado, true = aplica limite de consumo estimado.
-  bool enabled = false;
-  // Corriente maxima total permitida para todas las tiras direccionables.
-  uint16_t maxCurrentmA = 2500;
-  // Corriente maxima estimada por LED a blanco pleno (RGB=255,255,255).
-  uint8_t milliAmpsPerLed = 60;
+struct PowerConfig {
+  // ── Power limiting ─────────────────────────────────────────────
+  bool powerLimitEnabled = false;
+  uint16_t maxTotalCurrentmA = 5000;
+  uint8_t milliAmpsPerLedBase = 60;
+  
+  // ── Voltage sag correction (V = Vcc - I*R) ──────────────────────
+  bool voltageSagCorrectionEnabled = false;
+  float cableResistanceOhms = 0.1f;
+  float supplyVoltageNominal = 5.0f;
+  float minAcceptableVoltage = 4.5f;
+  
+  // ── Thermal throttling ─────────────────────────────────────────
+  bool thermalThrottlingEnabled = false;
+  int8_t temperatureSensorPin = -1;
+  int16_t tempThrottleStartC = 50;
+  int16_t tempThrottleMaxC = 70;
+  
+  // ── Smart dimming ─────────────────────────────────────────────
+  bool smartDimmingEnabled = false;
+  bool preserveBlueFrequency = true;
+  uint8_t priorityMode = 0;
 };
 
 // Configuración de salidas LED (pines, tipo, orden de color).
 struct GpioConfig {
   LedOutput outputs[kMaxLedOutputs];
   uint8_t outputCount = 0;
-  GpioPowerLimitConfig powerLimit;
+  PowerConfig power;
 
   static GpioConfig defaults();
   String toJson() const;

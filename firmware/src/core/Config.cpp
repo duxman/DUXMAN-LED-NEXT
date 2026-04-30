@@ -190,6 +190,29 @@ void setUInt16IfPresent(const JsonObjectConst &source, const char *key, uint16_t
   }
 }
 
+void setInt16IfPresent(const JsonObjectConst &source, const char *key, int16_t &target) {
+  JsonVariantConst value = source[key];
+  if (value.isNull()) {
+    return;
+  }
+  if (value.is<int>()) {
+    const int parsed = value.as<int>();
+    if (parsed >= -32768 && parsed <= 32767) {
+      target = static_cast<int16_t>(parsed);
+    }
+  }
+}
+
+void setFloatIfPresent(const JsonObjectConst &source, const char *key, float &target) {
+  JsonVariantConst value = source[key];
+  if (value.isNull()) {
+    return;
+  }
+  if (value.is<float>() || value.is<double>() || value.is<int>()) {
+    target = value.as<float>();
+  }
+}
+
 constexpr int kLedCountMin = 1;
 constexpr int kLedCountMax = 1500;
 constexpr int kGpioPinMin = -1;
@@ -198,6 +221,18 @@ constexpr uint16_t kPowerLimitMaxCurrentMin = 200;
 constexpr uint16_t kPowerLimitMaxCurrentMax = 50000;
 constexpr uint8_t kPowerLimitPerLedMin = 5;
 constexpr uint8_t kPowerLimitPerLedMax = 80;
+
+// Power management constraints
+constexpr float kVoltageNominalMin = 3.0f;
+constexpr float kVoltageNominalMax = 48.0f;
+constexpr float kVoltageMinAcceptableMin = 1.0f;
+constexpr float kVoltageMinAcceptableMax = 48.0f;
+constexpr float kCableResistanceMin = 0.0f;
+constexpr float kCableResistanceMax = 1.0f;
+constexpr int16_t kTempThrottleStartMin = -20;
+constexpr int16_t kTempThrottleStartMax = 100;
+constexpr int16_t kTempThrottleMaxMin = 0;
+constexpr int16_t kTempThrottleMaxMax = 120;
 
 bool isValidLedType(const String &type) {
   return type == "digital" || type == "ws2812b" || type == "ws2811" ||
@@ -475,12 +510,9 @@ GpioConfig GpioConfig::defaults() {
 String GpioConfig::toJson() const {
   JsonDocument doc;
   JsonObject gpio = doc["gpio"].to<JsonObject>();
-  JsonObject powerLimitObj = gpio["powerLimit"].to<JsonObject>();
-  powerLimitObj["enabled"] = powerLimit.enabled;
-  powerLimitObj["maxCurrentmA"] = powerLimit.maxCurrentmA;
-  powerLimitObj["milliAmpsPerLed"] = powerLimit.milliAmpsPerLed;
+  
+  // Outputs
   JsonArray arr = gpio["outputs"].to<JsonArray>();
-
   for (uint8_t i = 0; i < outputCount; ++i) {
     JsonObject item = arr.add<JsonObject>();
     item["id"] = outputs[i].id;
@@ -489,6 +521,31 @@ String GpioConfig::toJson() const {
     item["ledType"] = outputs[i].ledType;
     item["colorOrder"] = outputs[i].colorOrder;
   }
+  
+  // Power configuration (new format)
+  JsonObject powerObj = gpio["power"].to<JsonObject>();
+  
+  // Power limiting
+  powerObj["powerLimitEnabled"] = power.powerLimitEnabled;
+  powerObj["maxTotalCurrentmA"] = power.maxTotalCurrentmA;
+  powerObj["milliAmpsPerLedBase"] = power.milliAmpsPerLedBase;
+  
+  // Voltage sag correction
+  powerObj["voltageSagCorrectionEnabled"] = power.voltageSagCorrectionEnabled;
+  powerObj["cableResistanceOhms"] = serialized(String(power.cableResistanceOhms, 3));
+  powerObj["supplyVoltageNominal"] = serialized(String(power.supplyVoltageNominal, 2));
+  powerObj["minAcceptableVoltage"] = serialized(String(power.minAcceptableVoltage, 2));
+  
+  // Thermal throttling
+  powerObj["thermalThrottlingEnabled"] = power.thermalThrottlingEnabled;
+  powerObj["temperatureSensorPin"] = power.temperatureSensorPin;
+  powerObj["tempThrottleStartC"] = power.tempThrottleStartC;
+  powerObj["tempThrottleMaxC"] = power.tempThrottleMaxC;
+  
+  // Smart dimming
+  powerObj["smartDimmingEnabled"] = power.smartDimmingEnabled;
+  powerObj["preserveBlueFrequency"] = power.preserveBlueFrequency;
+  powerObj["priorityMode"] = power.priorityMode;
 
   String out;
   serializeJson(doc, out);
@@ -501,15 +558,61 @@ bool GpioConfig::validate(String *error) const {
     return false;
   }
 
-  if (powerLimit.maxCurrentmA < kPowerLimitMaxCurrentMin ||
-      powerLimit.maxCurrentmA > kPowerLimitMaxCurrentMax) {
-    if (error) *error = "invalid_power_limit_max_current_ma";
+  // Validate power configuration
+  if (power.maxTotalCurrentmA < kPowerLimitMaxCurrentMin ||
+      power.maxTotalCurrentmA > kPowerLimitMaxCurrentMax) {
+    if (error) *error = "invalid_power_max_total_current_ma";
     return false;
   }
 
-  if (powerLimit.milliAmpsPerLed < kPowerLimitPerLedMin ||
-      powerLimit.milliAmpsPerLed > kPowerLimitPerLedMax) {
-    if (error) *error = "invalid_power_limit_per_led_ma";
+  if (power.milliAmpsPerLedBase < kPowerLimitPerLedMin ||
+      power.milliAmpsPerLedBase > kPowerLimitPerLedMax) {
+    if (error) *error = "invalid_power_milliamps_per_led_base";
+    return false;
+  }
+  
+  if (power.supplyVoltageNominal < kVoltageNominalMin ||
+      power.supplyVoltageNominal > kVoltageNominalMax) {
+    if (error) *error = "invalid_power_supply_voltage_nominal";
+    return false;
+  }
+  
+  if (power.minAcceptableVoltage < kVoltageMinAcceptableMin ||
+      power.minAcceptableVoltage > kVoltageMinAcceptableMax) {
+    if (error) *error = "invalid_power_min_acceptable_voltage";
+    return false;
+  }
+  
+  if (power.minAcceptableVoltage > power.supplyVoltageNominal) {
+    if (error) *error = "power_min_voltage_exceeds_nominal";
+    return false;
+  }
+  
+  if (power.cableResistanceOhms < kCableResistanceMin ||
+      power.cableResistanceOhms > kCableResistanceMax) {
+    if (error) *error = "invalid_power_cable_resistance";
+    return false;
+  }
+  
+  if (power.tempThrottleMaxC <= power.tempThrottleStartC) {
+    if (error) *error = "power_temp_max_must_exceed_start";
+    return false;
+  }
+  
+  if (power.tempThrottleStartC < kTempThrottleStartMin ||
+      power.tempThrottleStartC > kTempThrottleStartMax) {
+    if (error) *error = "invalid_power_temp_throttle_start";
+    return false;
+  }
+  
+  if (power.tempThrottleMaxC < kTempThrottleMaxMin ||
+      power.tempThrottleMaxC > kTempThrottleMaxMax) {
+    if (error) *error = "invalid_power_temp_throttle_max";
+    return false;
+  }
+  
+  if (power.priorityMode > 2) {
+    if (error) *error = "invalid_power_priority_mode";
     return false;
   }
 
@@ -591,17 +694,47 @@ bool GpioConfig::applyPatchJson(const String &payload, String *error) {
     }
   }
 
-  JsonObjectConst powerLimitObj = gpioObj["powerLimit"].as<JsonObjectConst>();
-  if (!powerLimitObj.isNull()) {
-    setBoolIfPresent(powerLimitObj, "enabled", candidate.powerLimit.enabled);
-
-    uint32_t maxCurrent = candidate.powerLimit.maxCurrentmA;
-    setUIntIfPresent(powerLimitObj, "maxCurrentmA", maxCurrent);
+  // Parse power config
+  JsonObjectConst powerObj = gpioObj["power"].as<JsonObjectConst>();
+  if (!powerObj.isNull()) {
+    PowerConfig &power = candidate.power;
+    
+    setBoolIfPresent(powerObj, "powerLimitEnabled", power.powerLimitEnabled);
+    uint32_t maxCurrent = power.maxTotalCurrentmA;
+    setUIntIfPresent(powerObj, "maxTotalCurrentmA", maxCurrent);
     if (maxCurrent <= 65535UL) {
-      candidate.powerLimit.maxCurrentmA = static_cast<uint16_t>(maxCurrent);
+      power.maxTotalCurrentmA = static_cast<uint16_t>(maxCurrent);
     }
-
-    setUInt8IfPresent(powerLimitObj, "milliAmpsPerLed", candidate.powerLimit.milliAmpsPerLed);
+    setUInt8IfPresent(powerObj, "milliAmpsPerLedBase", power.milliAmpsPerLedBase);
+    
+    setBoolIfPresent(powerObj, "voltageSagCorrectionEnabled", power.voltageSagCorrectionEnabled);
+    setFloatIfPresent(powerObj, "cableResistanceOhms", power.cableResistanceOhms);
+    setFloatIfPresent(powerObj, "supplyVoltageNominal", power.supplyVoltageNominal);
+    setFloatIfPresent(powerObj, "minAcceptableVoltage", power.minAcceptableVoltage);
+    
+    setBoolIfPresent(powerObj, "thermalThrottlingEnabled", power.thermalThrottlingEnabled);
+    setInt8IfPresent(powerObj, "temperatureSensorPin", power.temperatureSensorPin);
+    setInt16IfPresent(powerObj, "tempThrottleStartC", power.tempThrottleStartC);
+    setInt16IfPresent(powerObj, "tempThrottleMaxC", power.tempThrottleMaxC);
+    
+    setBoolIfPresent(powerObj, "smartDimmingEnabled", power.smartDimmingEnabled);
+    setBoolIfPresent(powerObj, "preserveBlueFrequency", power.preserveBlueFrequency);
+    setUInt8IfPresent(powerObj, "priorityMode", power.priorityMode);
+  }
+  
+  // Backward compatibility: legacy "powerLimit" field (deprecated)
+  JsonObjectConst legacyPowerLimitObj = gpioObj["powerLimit"].as<JsonObjectConst>();
+  if (!legacyPowerLimitObj.isNull()) {
+    // Map legacy powerLimit to new power config
+    setBoolIfPresent(legacyPowerLimitObj, "enabled", candidate.power.powerLimitEnabled);
+    
+    uint32_t maxCurrent = candidate.power.maxTotalCurrentmA;
+    setUIntIfPresent(legacyPowerLimitObj, "maxCurrentmA", maxCurrent);
+    if (maxCurrent <= 65535UL) {
+      candidate.power.maxTotalCurrentmA = static_cast<uint16_t>(maxCurrent);
+    }
+    
+    setUInt8IfPresent(legacyPowerLimitObj, "milliAmpsPerLed", candidate.power.milliAmpsPerLedBase);
   }
 
   String validationError;

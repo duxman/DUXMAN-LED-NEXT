@@ -2,6 +2,54 @@
 
 Todos los cambios relevantes de este proyecto se documentan en este archivo.
 
+## [0.5.0-alpha] - 2026-04-30
+
+### Added
+- **VoltageOptimizer Service**: Advanced software-based power management system for LED installations.
+  - Real-time power consumption estimation (mA) per output with 100ms sampling
+  - Predictive peak detection using exponential smoothing (lookahead for brownout prevention)
+  - Voltage sag correction modeling (V = Vcc - I*R) with automatic brightness compensation
+  - Thermal throttling with configurable temperature-based power reduction
+  - Smart dimming with color saturation preservation and blue channel PWM noise protection
+  - 60-second consumption history buffer for monitoring and diagnostics
+  - Full integration with existing LedDriver and rendering pipeline
+
+- **Extended PowerConfig Structure** (replaces legacy GpioPowerLimitConfig):
+  - Power limiting section: `powerLimitEnabled`, `maxTotalCurrentmA`, `milliAmpsPerLedBase`
+  - Voltage sag correction: `voltageSagCorrectionEnabled`, `cableResistanceOhms`, `supplyVoltageNominal`, `minAcceptableVoltage`
+  - Thermal management: `thermalThrottlingEnabled`, `temperatureSensorPin`, `tempThrottleStartC`, `tempThrottleMaxC`
+  - Smart dimming: `smartDimmingEnabled`, `preserveBlueFrequency`, `priorityMode`
+  - Comprehensive validation and JSON serialization/deserialization
+
+- **Configuration Documentation**:
+  - `firmware/src/services/VoltageOptimizer-README.md`: Complete usage guide with examples
+  - `firmware/config/POWER_CONFIG_GUIDE.md`: Detailed parameter reference and troubleshooting
+  - `firmware/config/gpio-config-example.json`: Example configuration file with all power options
+
+- **Helper Functions** in Config.cpp:
+  - `setInt16IfPresent()`: Parse signed 16-bit integers from JSON
+  - `setFloatIfPresent()`: Parse floating-point values from JSON
+
+### Changed
+- **Config.h**: Replaced `GpioPowerLimitConfig` with new `PowerConfig` struct in `GpioConfig`
+- **Config.cpp**: Updated `GpioConfig::toJson()` to serialize all PowerConfig fields with proper float formatting
+- **Config.cpp**: Extended `GpioConfig::applyPatchJson()` to parse new power config fields with backward compatibility for legacy `powerLimit`
+- **Config.cpp**: Enhanced `GpioConfig::validate()` with comprehensive PowerConfig validation (14 constraint checks)
+- **VoltageOptimizer.h**: Removed redundant PowerConfig definition, now imports from Config.h
+
+### Deprecated
+- Legacy `GpioPowerLimitConfig` and `powerLimit` field in GPIO config (will be removed in v0.6.0)
+- Use new `power` field in GPIO configuration for all new code
+
+### Backward Compatibility
+- Existing configurations using `powerLimit` field are automatically mapped to new `power` structure
+- API clients can continue using old format; firmware converts transparently on load
+
+### Build Changes
+- Added new validation constants for voltage/temperature ranges
+- RAM usage: +1.5 KB (54.3 KB history buffer, metrics arrays)
+- Flash usage: +15 KB (VoltageOptimizer implementation + documentation)
+
 ## [0.4.2-beta] - 2026-04-30
 
 ### Added
