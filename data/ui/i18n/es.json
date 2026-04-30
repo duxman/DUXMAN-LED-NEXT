@@ -81,8 +81,10 @@
   },
   "generalSettings": {
     "title": "Configuración General",
-    "language": "Idioma",
-    "region": "Región",
+      "hint": "Configuracion de idioma, region, debug y comportamiento general del sistema.",
+      "language": "Idioma de la interfaz",
+      "languageHint": "El idioma se aplica inmediatamente al guardar.",
+      "region": "Region / Locale",
     "defaultBrightness": "Brillo Predeterminado",
     "defaultSpeed": "Velocidad Predeterminada",
     "theme": "Tema",

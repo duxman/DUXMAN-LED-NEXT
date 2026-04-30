@@ -273,10 +273,18 @@ const i18n = new I18nEngine();
 
 // Auto-initialize on page load
 document.addEventListener('DOMContentLoaded', () => {
-  const startLang = localStorage.getItem('i18n_language') || 
-                   (navigator.language?.split('-')[0]) || 
-                   'en';
-  i18n.load(startLang).catch(err => {
-    console.error('[i18n] Initialization failed:', err);
-  });
+  const localLang = localStorage.getItem('i18n_language');
+  if (localLang) {
+    // LocalStorage has a preference — use it directly
+    i18n.load(localLang).catch(err => console.error('[i18n] Init failed:', err));
+  } else {
+    // No local preference — sync from server config
+    fetch('/api/v1/config/general')
+      .then(r => r.ok ? r.json() : Promise.reject(r.status))
+      .then(data => {
+        const lang = data.general?.language || navigator.language?.split('-')[0] || 'en';
+        return i18n.load(lang);
+      })
+      .catch(() => i18n.load('en'));
+  }
 });

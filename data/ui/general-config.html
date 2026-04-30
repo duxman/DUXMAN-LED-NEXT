@@ -12,7 +12,7 @@ __NAV__
   <main>
     <div class='card'>
       <h1>Opciones Generales</h1>
-      <p class='hint'>Configuracion de idioma, region, debug y comportamiento general del sistema.</p>
+      <p class='hint' data-i18n='generalSettings.hint'>Configuracion de idioma, region, debug y comportamiento general del sistema.</p>
       <div class='actions'>
         <button class='btn alt' onclick='loadGeneral()'>Recargar</button>
         <button class='btn' onclick='saveGeneral()'>Guardar</button>
@@ -24,6 +24,7 @@ __NAV__
       <h3>Idioma / Language</h3>
       <div class='field'>
         <label for='language'>Idioma de la interfaz</label>
+          <label for='language' data-i18n='generalSettings.language'>Idioma de la interfaz</label>
         <select id='language'>
           <option value='en'>English</option>
           <option value='es'>Español</option>
@@ -32,9 +33,11 @@ __NAV__
           <option value='it'>Italiano</option>
         </select>
         <p class='hint'>El idioma se aplica inmediatamente al guardar.</p>
+        <p class='hint' data-i18n='generalSettings.languageHint'>El idioma se aplica inmediatamente al guardar.</p>
       </div>
       <div class='field'>
         <label for='regionCode'>Region / Locale</label>
+          <label for='regionCode' data-i18n='generalSettings.region'>Region / Locale</label>
         <select id='regionCode'>
           <option value='US'>United States (US)</option>
           <option value='ES'>España (ES)</option>
@@ -125,9 +128,11 @@ __NAV__
         if (g.language) {
           langSel.value = g.language;
           // Update browser i18n if engine is loaded
-          if (window.i18n && window.i18n.getCurrentLanguage() !== g.language) {
-            window.i18n.load(g.language);
-          }
+            // Always apply language from server config — updates localStorage too
+            if (window.i18n) {
+              localStorage.setItem('i18n_language', g.language);
+              window.i18n.load(g.language);
+            }
         }
 
         // Populate region selector

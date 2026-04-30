@@ -81,8 +81,10 @@
   },
   "generalSettings": {
     "title": "General Settings",
-    "language": "Language",
-    "region": "Region",
+      "hint": "Language, region, debug and general system behaviour settings.",
+      "language": "Interface Language",
+      "languageHint": "Language is applied immediately after saving.",
+      "region": "Region / Locale",
     "defaultBrightness": "Default Brightness",
     "defaultSpeed": "Default Speed",
     "theme": "Theme",
