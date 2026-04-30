@@ -5,6 +5,12 @@
   <meta name='viewport' content='width=device-width,initial-scale=1'>
   <title>DUXMAN - Ayuda rapida</title>
   __CSS__
+  <style>
+    .shot-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;}
+    .shot-card{display:grid;gap:10px;}
+    .shot-card img{width:100%;height:auto;border-radius:10px;border:1px solid var(--line);background:var(--card2);box-shadow:0 8px 24px rgba(0,0,0,.2);}
+    .shot-card p{font-size:13px;line-height:1.45;}
+  </style>
 </head>
 <body>
 <div class='gen-page-outer'>
@@ -23,22 +29,61 @@ __NAV__
 
     <div class='card' id='pantallas'>
       <h2>Pantallas principales</h2>
-      <div class='grid'>
-        <div class='card'>
+      <div class='shot-grid'>
+        <div class='card shot-card'>
           <h3>Home</h3>
+          <img src='/help/home.png' alt='Captura de la pantalla Home'>
           <p>Pantalla principal para colores, paletas, efecto activo, parametros, brillo, lista de secuencia y estado runtime.</p>
         </div>
-        <div class='card'>
+        <div class='card shot-card'>
           <h3>Configuracion</h3>
+          <img src='/help/config-index.png' alt='Captura del indice de configuracion'>
           <p>Indice de acceso a Network, Microfono, GPIO, Profiles, Paletas, Debug y Manual JSON.</p>
         </div>
-        <div class='card'>
-          <h3>Version</h3>
-          <p>Resumen de firmware, hardware, memoria, watchdog y reinicio de la placa.</p>
+        <div class='card shot-card'>
+          <h3>Network</h3>
+          <img src='/help/config-network.png' alt='Captura de configuracion de red'>
+          <p>Editor completo de WiFi, hostname, NTP y direccionamiento AP/STA.</p>
         </div>
-        <div class='card'>
+        <div class='card shot-card'>
+          <h3>Microfono</h3>
+          <img src='/help/config-microphone.png' alt='Captura de configuracion de microfono'>
+          <p>Ajuste fino del micro I2S: ganancia, floor, gate, AGC y pines.</p>
+        </div>
+        <div class='card shot-card'>
+          <h3>GPIO</h3>
+          <img src='/help/config-gpio.png' alt='Captura de configuracion GPIO'>
+          <p>Definicion de salidas LED y limite de consumo estimado.</p>
+        </div>
+        <div class='card shot-card'>
+          <h3>Profiles</h3>
+          <img src='/help/config-profiles.png' alt='Captura de configuracion de perfiles'>
+          <p>Snapshots completos del dispositivo para guardar, clonar, editar y activar.</p>
+        </div>
+        <div class='card shot-card'>
+          <h3>Paletas</h3>
+          <img src='/help/config-palettes.png' alt='Captura del editor de paletas'>
+          <p>Catalogo del sistema y editor inline de paletas de usuario.</p>
+        </div>
+        <div class='card shot-card'>
+          <h3>Debug</h3>
+          <img src='/help/config-debug.png' alt='Captura de configuracion debug'>
+          <p>Control de trazas seriales y preferencia UI para mostrar JSON.</p>
+        </div>
+        <div class='card shot-card'>
+          <h3>Manual JSON</h3>
+          <img src='/help/config-all.png' alt='Captura de configuracion manual JSON'>
+          <p>Importacion/exportacion completa de configuracion con validacion previa.</p>
+        </div>
+        <div class='card shot-card'>
           <h3>API</h3>
-          <p>Conjunto de pantallas de prueba para los endpoints REST principales.</p>
+          <img src='/help/api-index.png' alt='Captura del indice de API'>
+          <p>Entradas de prueba para los endpoints REST principales.</p>
+        </div>
+        <div class='card shot-card'>
+          <h3>Version</h3>
+          <img src='/help/version.png' alt='Captura de la pantalla de version'>
+          <p>Resumen de firmware, hardware, memoria, watchdog y reinicio de la placa.</p>
         </div>
       </div>
     </div>

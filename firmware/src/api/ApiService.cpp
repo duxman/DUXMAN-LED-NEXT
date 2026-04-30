@@ -93,6 +93,28 @@ String normalizeJsonPayload(const String &rawPayload) {
 
   return payload;
 }
+
+const char *contentTypeForPath(const String &path) {
+  if (path.endsWith(".png")) {
+    return "image/png";
+  }
+  if (path.endsWith(".jpg") || path.endsWith(".jpeg")) {
+    return "image/jpeg";
+  }
+  if (path.endsWith(".svg")) {
+    return "image/svg+xml";
+  }
+  if (path.endsWith(".css")) {
+    return "text/css";
+  }
+  if (path.endsWith(".js")) {
+    return "application/javascript";
+  }
+  if (path.endsWith(".html")) {
+    return "text/html";
+  }
+  return "application/octet-stream";
+}
 } // namespace
 
 ApiService::ApiService(CoreState &state, NetworkConfig &networkConfig, GpioConfig &gpioConfig,
@@ -798,9 +820,19 @@ void ApiService::setupHttpRoutes() {
   });
 
   httpServer_.onNotFound([this]() {
+    const String uri = httpServer_.uri();
+    if (uri.startsWith("/help/") && LittleFS.exists(uri)) {
+      File file = LittleFS.open(uri, "r");
+      if (file) {
+        httpServer_.streamFile(file, contentTypeForPath(uri));
+        file.close();
+        return;
+      }
+    }
+
     JsonDocument doc;
     doc["error"] = "not_found";
-    doc["path"] = httpServer_.uri();
+    doc["path"] = uri;
     String out;
     serializeJson(doc, out);
     httpServer_.send(404, "application/json", out);
