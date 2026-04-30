@@ -652,6 +652,12 @@ void ApiService::setupHttpRoutes() {
   });
 
   httpServer_.on("/config/debug", HTTP_GET, [this]() {
+    // Legacy alias -> redirect to /config/general
+    httpServer_.sendHeader("Location", "/config/general", true);
+    httpServer_.send(302, "text/plain", "");
+  });
+
+  httpServer_.on("/config/general", HTTP_GET, [this]() {
     httpServer_.send(200, "text/html", buildGeneralConfigHtml());
   });
 
@@ -792,7 +798,12 @@ void ApiService::setupHttpRoutes() {
   });
 
   httpServer_.on("/api/v1/config/debug", HTTP_ANY, [this]() {
-    handleHttpDebugRoute();
+    // Legacy alias -> forward to general handler
+    handleHttpGeneralRoute();
+  });
+
+  httpServer_.on("/api/v1/config/general", HTTP_ANY, [this]() {
+    handleHttpGeneralRoute();
   });
 
   httpServer_.on("/api/v1/diag", HTTP_GET, [this]() {
@@ -1445,6 +1456,62 @@ void ApiService::handleHttpDebugRoute() {
   httpServer_.send(405, "application/json", "{\"error\":\"method_not_allowed\"}");
 }
 
+void ApiService::handleHttpGeneralRoute() {
+  const HTTPMethod method = httpServer_.method();
+
+  if (method == HTTP_GET) {
+    String response = "{\"general\":{\"language\":\"";
+    response += generalConfig_.language;
+    response += "\",\"regionCode\":\"";
+    response += generalConfig_.regionCode;
+    response += "\",\"debugEnabled\":";
+    response += generalConfig_.debugEnabled ? "true" : "false";
+    response += ",\"heartbeatMs\":";
+    response += generalConfig_.heartbeatMs;
+    response += "}}";
+    httpServer_.send(200, "application/json", response);
+    return;
+  }
+
+  if (method == HTTP_PATCH || method == HTTP_POST) {
+    const String payload = httpServer_.arg("plain");
+    if (payload.isEmpty()) {
+      httpServer_.send(400, "application/json", "{\"error\":\"invalid_payload\"}");
+      return;
+    }
+
+    String error;
+    const bool changed = generalConfig_.applyPatchJson(payload, &error);
+    if (!error.isEmpty()) {
+      String response = "{\"error\":\"";
+      response += error;
+      response += "\"}";
+      httpServer_.send(400, "application/json", response);
+      return;
+    }
+
+    if (changed) {
+      persistenceSchedulerService_.requestSaveConfig();
+    }
+
+    String response = "{\"updated\":";
+    response += changed ? "true" : "false";
+    response += ",\"general\":{\"language\":\"";
+    response += generalConfig_.language;
+    response += "\",\"regionCode\":\"";
+    response += generalConfig_.regionCode;
+    response += "\",\"debugEnabled\":";
+    response += generalConfig_.debugEnabled ? "true" : "false";
+    response += ",\"heartbeatMs\":";
+    response += generalConfig_.heartbeatMs;
+    response += "}}";
+    httpServer_.send(200, "application/json", response);
+    return;
+  }
+
+  httpServer_.send(405, "application/json", "{\"error\":\"method_not_allowed\"}");
+}
+
 void ApiService::handleHttpDiagRoute() {
   // GET /api/v1/diag - System diagnostics (watchdog, uptime, memory)
   if (httpServer_.method() != HTTP_GET) {
@@ -1791,7 +1858,7 @@ String ApiService::buildOpenApiJson() const {
 }
 
 // ---------------------------------------------------------------------------
-// Shared navigation bar — included verbatim in every page builder.
+// Shared navigation bar ï¿½ included verbatim in every page builder.
 // CSS uses .gen-* prefix to avoid collision with per-page styles.
 // ---------------------------------------------------------------------------
 String ApiService::buildCommonCss() const {
@@ -3918,7 +3985,10 @@ __NAV__
 }
 
 String ApiService::buildGeneralConfigHtml() const {
-  String html = loadTemplateFromLittleFs("/ui/debug-config.html");
+  String html = loadTemplateFromLittleFs("/ui/general-config.html");
+  if (html.isEmpty()) {
+    html = loadTemplateFromLittleFs("/ui/debug-config.html");  // Legacy fallback
+  }
   if (html.isEmpty()) {
     html = R"HTML(
 <!doctype html>
@@ -4534,7 +4604,7 @@ __NAV__
 
       // Hero
       document.getElementById('svgVersion').textContent = rel.version || '';
-      document.getElementById('fwBranch').textContent = (rel.branch || '') + ' — ' + (rel.board || '');
+      document.getElementById('fwBranch').textContent = (rel.branch || '') + ' ï¿½ ' + (rel.board || '');
 
       // Release card
       document.getElementById('gridRelease').innerHTML =

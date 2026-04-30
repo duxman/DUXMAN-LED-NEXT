@@ -58,6 +58,7 @@ private:
   void handleHttpMicrophoneRoute();
   void handleHttpGpioRoute();
   void handleHttpDebugRoute();
+  void handleHttpGeneralRoute();
   void handleHttpDiagRoute();
   void handleHttpConfigAllRoute();
   void handleHttpHardwareRoute();
