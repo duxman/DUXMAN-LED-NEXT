@@ -13,8 +13,64 @@ class I18nEngine {
   constructor() {
     this.currentLang = 'en';
     this.strings = {};
+    this.catalogs = {};
+    this.reverseLiteralIndex = {};
+    this.baseCatalogLoaded = false;
     this.fallbackLang = 'en';
     this.listeners = [];
+    this.literalPairs = [
+      { es: 'Sin llamadas aun.', en: 'No calls yet.' },
+      { es: 'Sin datos aun.', en: 'No data yet.' },
+      { es: 'Respuesta', en: 'Response' },
+      { es: 'Payload', en: 'Payload' },
+      { es: 'Guardar', en: 'Save' },
+      { es: 'Recargar', en: 'Reload' },
+      { es: 'Guardar cambios', en: 'Save changes' },
+      { es: 'Cancelar', en: 'Cancel' },
+      { es: 'Configuracion', en: 'Configuration' },
+      { es: 'Configuracion General', en: 'General Settings' },
+      { es: 'Region / Locale', en: 'Region / Locale' },
+      { es: 'Idioma de la interfaz', en: 'Interface language' },
+      { es: 'El idioma se aplica inmediatamente al guardar.', en: 'Language is applied immediately after saving.' },
+      { es: 'Preferencias UI', en: 'UI Preferences' },
+      { es: 'Mostrar respuestas JSON en las paginas de configuracion', en: 'Show JSON responses in configuration pages' },
+      { es: 'Se guarda en el navegador (localStorage). Por defecto desactivado.', en: 'Stored in the browser (localStorage). Disabled by default.' },
+      { es: 'Debug habilitado', en: 'Debug enabled' },
+      { es: 'Home', en: 'Home' },
+      { es: 'Config', en: 'Config' },
+      { es: 'Network', en: 'Network' },
+      { es: 'Microfono', en: 'Microphone' },
+      { es: 'Paletas', en: 'Palettes' },
+      { es: 'General', en: 'General' },
+      { es: 'Manual JSON', en: 'Manual JSON' },
+      { es: 'Sobre', en: 'About' },
+      { es: 'Ayuda', en: 'Help' },
+      { es: 'Version', en: 'Version' },
+      { es: 'Hardware', en: 'Hardware' },
+      { es: 'Seleccion de colores', en: 'Color selection' },
+      { es: 'Define el color de fondo y los tres colores de primer plano del efecto.', en: 'Define the background color and the three foreground colors of the effect.' },
+      { es: 'Fondo / off', en: 'Background / off' },
+      { es: 'Color 1', en: 'Color 1' },
+      { es: 'Color 2', en: 'Color 2' },
+      { es: 'Color 3', en: 'Color 3' },
+      { es: 'Paleta predefinida', en: 'Preset palette' },
+      { es: 'Manual (colores libres)', en: 'Manual (free colors)' },
+      { es: 'Vista previa de paleta', en: 'Palette preview' },
+      { es: 'Aplicar paleta', en: 'Apply palette' },
+      { es: 'Aplicar y guardar', en: 'Apply and save' },
+      { es: 'Seleccion de efecto', en: 'Effect selection' },
+      { es: 'Seleccion y acciones', en: 'Selection and actions' },
+      { es: 'Efecto', en: 'Effect' },
+      { es: 'Aplicar', en: 'Apply' },
+      { es: 'Guardar arranque', en: 'Save startup' },
+      { es: 'Parametros y presets', en: 'Parameters and presets' },
+      { es: 'Numero de secciones', en: 'Number of sections' },
+      { es: 'Rapidez del efecto', en: 'Effect speed' },
+      { es: 'Solo se usa en efectos animados.', en: 'Only used in animated effects.' },
+      { es: 'Nivel del efecto', en: 'Effect level' },
+      { es: 'Brillo global', en: 'Global brightness' },
+      { es: 'No hay efectos guardados en la secuencia.', en: 'No saved effects in sequence.' }
+    ];
     this.formatters = {
       number: (val) => parseInt(val).toLocaleString(),
       percent: (val) => val + '%',
@@ -28,12 +84,15 @@ class I18nEngine {
    */
   async load(langCode) {
     try {
+      await this.preloadBaseCatalogs();
       const response = await fetch(`/ui/i18n/${langCode}.json`);
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       
       const data = await response.json();
       this.strings = data;
       this.currentLang = langCode || data.lang || 'en';
+      this.catalogs[this.currentLang] = data;
+      this.buildReverseIndex();
       
       // Store language preference
       localStorage.setItem('i18n_language', this.currentLang);
@@ -100,6 +159,117 @@ class I18nEngine {
     this.formatters[name] = fn;
   }
 
+  async preloadBaseCatalogs() {
+    if (this.baseCatalogLoaded) return;
+    const baseLangs = ['en', 'es'];
+    await Promise.all(baseLangs.map(async (lang) => {
+      try {
+        const res = await fetch(`/ui/i18n/${lang}.json`);
+        if (!res.ok) return;
+        this.catalogs[lang] = await res.json();
+      } catch (_) {
+        // Ignore preload errors; normal load fallback still applies.
+      }
+    }));
+    this.baseCatalogLoaded = true;
+    this.buildReverseIndex();
+  }
+
+  buildReverseIndex() {
+    const index = {};
+    const add = (text, key) => {
+      if (typeof text !== 'string') return;
+      const normalized = this.normalizeText(text);
+      if (!normalized) return;
+      if (!index[normalized]) index[normalized] = key;
+    };
+
+    const walk = (obj, path = '') => {
+      if (!obj || typeof obj !== 'object') return;
+      Object.keys(obj).forEach((k) => {
+        const value = obj[k];
+        const nextPath = path ? `${path}.${k}` : k;
+        if (typeof value === 'string') add(value, nextPath);
+        else if (value && typeof value === 'object') walk(value, nextPath);
+      });
+    };
+
+    Object.keys(this.catalogs).forEach((lang) => walk(this.catalogs[lang]));
+    this.reverseLiteralIndex = index;
+  }
+
+  normalizeText(text) {
+    return String(text || '')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .toLowerCase();
+  }
+
+  translateByLiteralPair(rawText) {
+    const normalized = this.normalizeText(rawText);
+    if (!normalized) return null;
+    const targetField = this.currentLang === 'es' ? 'es' : 'en';
+
+    for (const pair of this.literalPairs) {
+      if (this.normalizeText(pair.es) === normalized || this.normalizeText(pair.en) === normalized) {
+        return pair[targetField];
+      }
+    }
+    return null;
+  }
+
+  translateLiteral(rawText) {
+    const fromPair = this.translateByLiteralPair(rawText);
+    if (fromPair) return fromPair;
+
+    const key = this.reverseLiteralIndex[this.normalizeText(rawText)];
+    if (!key) return rawText;
+    return this.t(key, { default: rawText });
+  }
+
+  replaceKeepingWhitespace(original, translatedCore) {
+    const match = String(original).match(/^(\s*)([\s\S]*?)(\s*)$/);
+    if (!match) return translatedCore;
+    return `${match[1]}${translatedCore}${match[3]}`;
+  }
+
+  autoTranslateStaticText() {
+    if (!document.body) return;
+
+    const blockedParents = new Set(['SCRIPT', 'STYLE', 'NOSCRIPT', 'CODE', 'PRE', 'TEXTAREA']);
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null);
+    const nodes = [];
+    while (walker.nextNode()) nodes.push(walker.currentNode);
+
+    nodes.forEach((node) => {
+      const parent = node.parentElement;
+      if (!parent) return;
+      if (blockedParents.has(parent.tagName)) return;
+      if (parent.closest('[data-i18n]')) return;
+
+      const raw = node.nodeValue;
+      const trimmed = String(raw || '').trim();
+      if (!trimmed || trimmed.length < 2) return;
+
+      const translated = this.translateLiteral(trimmed);
+      if (translated && translated !== trimmed) {
+        node.nodeValue = this.replaceKeepingWhitespace(raw, translated);
+      }
+    });
+
+    const attrs = document.querySelectorAll('input[placeholder], textarea[placeholder], [title]');
+    attrs.forEach((el) => {
+      if (el.hasAttribute('placeholder')) {
+        const translated = this.translateLiteral(el.getAttribute('placeholder'));
+        if (translated) el.setAttribute('placeholder', translated);
+      }
+      if (el.hasAttribute('title')) {
+        const translated = this.translateLiteral(el.getAttribute('title'));
+        if (translated) el.setAttribute('title', translated);
+      }
+    });
+  }
+
   /**
    * Translate all DOM elements with data-i18n attribute
    */
@@ -130,6 +300,9 @@ class I18nEngine {
         el.title = this.t(el.getAttribute('data-i18n-title'));
       }
     });
+
+    // Best-effort global pass: translates static texts that are not yet tagged with data-i18n.
+    this.autoTranslateStaticText();
   }
 
   /**
