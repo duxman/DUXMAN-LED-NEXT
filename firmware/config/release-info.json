@@ -1,6 +1,6 @@
 {
-  "version": "0.4.1-beta",
-  "versionCode": 15,
+  "version": "0.4.2-beta",
+  "versionCode": 16,
   "buildDate": "2026-04-30",
   "branch": "main",
   "features": [
@@ -23,7 +23,9 @@
     "Endpoints POST /api/v1/palettes/save and /api/v1/palettes/delete for user palette management",
     "Embedded palette editor at /config/palettes with color swatches, form and apply/edit/delete actions",
     "Embedded UI templates served from LittleFS under /ui/*.html with firmware fallback",
-    "Config import/network apply hardened to acknowledge HTTP before WiFi restart"
+    "Config import/network apply hardened to acknowledge HTTP before WiFi restart",
+    "Integrated help page in the embedded UI with screen, field and workflow guidance",
+    "Technical guides for UI screens/fields and full effect catalog documentation"
   ],
   "hardwareSupported": [
     "ESP32-D0WD-V3 (esp32dev)",
@@ -49,7 +51,8 @@
       "Effect slider semantics: speed and level now consistent and more predictable",
       "Audio diagnostics with periodic serial telemetry (level, peak, read bytes and read error)",
       "Embedded UI workflow for palette selection, preview and save",
-      "GET /api/v1/config/all memory footprint by assembling JSON without a large aggregate JsonDocument"
+      "GET /api/v1/config/all memory footprint by assembling JSON without a large aggregate JsonDocument",
+      "Discoverability of embedded UI with direct help access from the navigation"
     ],
     "fixed": [
       "Potential CoreState corruption during concurrent API + render access",

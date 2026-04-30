@@ -1,26 +1,28 @@
-# Roadmap y evolución
+# Roadmap y evolucion
 
 ## Estado actual
-- Configuración persistente de red, debug y GPIO/LEDs en LittleFS
-- API HTTP/Serial versionada (`/api/v1/*`) con páginas HTML embebidas
-- Firmware versionado y perfiles de placa (`esp32c3supermini`, `esp32dev`, `esp32s3`)
-- Partición `huge_app` (3MB app, 960KB LittleFS)
-- Motor de efectos robusto, validado en hardware real
-- Editor visual de paletas de usuario (CRUD)
-- Perfiles GPIO completos y aplicables en caliente
-- Menú de navegación responsive y unificado
 
-## Fases siguientes
-- Sincronización maestro-esclavo (multi-nodo)
-- Integración con LedFx y fuentes audio-reactive externas
-- Editor avanzado de efectos y presets
-- OTA seguro y rollback
-- Soporte ampliado para hardware y sensores
+- Configuracion persistente de red, debug, microfono y GPIO/LEDs en LittleFS.
+- API HTTP/Serial versionada (/api/v1/*).
+- UI embebida basada en plantillas LittleFS (data/ui) con fallback en firmware.
+- FreeRTOS dual-core estable para control y render.
+- Catalogo de efectos visuales y audio-reactivos ampliado.
+- Paletas de usuario con CRUD y perfiles completos aplicables en caliente.
+- Hardening de /config/network y /config/all para robustez en cliente web.
+- Audio reactivo afinado para menor latencia percibida.
 
-## Decisiones técnicas clave
-- Priorizar arquitectura no bloqueante (FreeRTOS, tareas separadas)
-- NeoPixelBus como backend preferente, FastLED como alternativo
-- Efectos configurables por JSON, segmentos virtuales
-- API REST versionada y validada
+## Siguientes fases
 
-Para detalles técnicos, ver [Architecture](./Architecture.md) y el changelog.
+- LedFx realtime (DDP preferente, E1.31 fallback).
+- Sincronizacion maestro-esclavo (SyncState v1, secuencia monotona).
+- Sincronizacion de fase/clock para efectos distribuidos.
+- OTA seguro con estrategia de rollback.
+
+## Decisiones tecnicas clave
+
+- Arquitectura no bloqueante con tareas separadas.
+- NeoPixelBus como backend preferente y FastLED como alternativo.
+- Efectos configurables desacoplados de la cantidad fisica de LEDs.
+- API REST versionada y tolerante a payloads de cliente reales.
+
+Para detalle tecnico, ver docs/roadmap.md y docs/architecture.md.

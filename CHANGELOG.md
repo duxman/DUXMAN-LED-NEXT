@@ -2,6 +2,21 @@
 
 Todos los cambios relevantes de este proyecto se documentan en este archivo.
 
+## [0.4.2-beta] - 2026-04-30
+
+### Added
+- Pagina de ayuda integrada en la aplicacion embebida (`/docs`) con resumen de pantallas, campos clave, catalogo de efectos y flujos rapidos.
+- Documento funcional de pantallas y campos: `docs/ui-guide.md`.
+- Documento de catalogo de efectos y recomendaciones de uso: `docs/effects.md`.
+- Enlace directo a la ayuda desde la navegacion embebida.
+
+### Changed
+- Sincronizacion completa de documentacion principal y wiki con el estado real del firmware en `0.4.2-beta`.
+- README ampliado para reflejar la ayuda integrada y el nuevo nivel de documentacion funcional disponible.
+
+### Fixed
+- Ausencia de documentacion util para pantallas, campos y efectos accesible desde la propia aplicacion.
+
 ## [0.4.1-beta] - 2026-04-30
 
 ### Added
@@ -12,6 +27,7 @@ Todos los cambios relevantes de este proyecto se documentan en este archivo.
 - `platformio.ini` ahora fija explícitamente `board_build.filesystem = littlefs` para que `uploadfs` genere y suba `littlefs.bin` en lugar de `spiffs.bin`.
 - La construcción de `GET /api/v1/config/all` reduce el pico de memoria al ensamblar el JSON completo sin un `JsonDocument` agregado grande.
 - `POST /api/v1/config/network` y `POST /api/v1/config/all` responden antes de reaplicar WiFi para reducir cortes de conexión desde navegador.
+- `AudioService` ajustado para menor latencia percibida: procesamiento cada ~15 ms, buffers I2S más cortos y parámetros de envolvente/peak-hold más rápidos para comportamiento más "live".
 
 ### Fixed
 - Compatibilidad de payloads JSON que llegaban doble-serializados en las rutas de configuración de red e importación completa.

@@ -1,10 +1,10 @@
 # Architecture
 
-Proyecto: DUXMAN-LED-NEXT (firmware v0.3.11-beta)
+Proyecto: DUXMAN-LED-NEXT (firmware v0.4.2-beta)
 
 ## Resumen
 
-Firmware modular para ESP32 con separación por servicios, API HTTP/Serial, persistencia en LittleFS y render de efectos en tarea dedicada.
+Firmware modular para ESP32 con separacion por servicios, API HTTP/Serial, persistencia en LittleFS y render de efectos en tarea dedicada.
 
 ## Concurrencia y tareas
 
@@ -37,24 +37,24 @@ Sin tareas RTOS (fallback), loop() atiende API/WiFi/effects en modo cooperativo.
 - PersistenceSchedulerService: debounce y guardado diferido
 - ProfileService: perfiles completos (network/gpio/microphone/debug)
 - UserPaletteService: paletas de usuario CRUD
-- EffectManager: orquestación de 17 efectos y ciclo de vida
+- EffectManager: orquestacion del catalogo de efectos y ciclo de vida
 - EffectPersistenceService: startup effect + secuencias
-- AudioService: captura I2S + AGC + beat
+- AudioService: captura I2S + AGC + beat detection
 - WifiService: AP/STA/AP+STA
-- WatchdogService: supervisión de tareas
+- WatchdogService: supervision de tareas
 
 ## Flujo de arranque
 
 1. Serial + espera USB CDC opcional
 2. storageService.begin()
-3. creación mutex CoreState y watchdog init
+3. creacion mutex CoreState y watchdog init
 4. begin() de effectPersistenceService, profileService, userPaletteService
 5. applyStartupProfile() y applyStartupEffect()
 6. ledDriver.configure(gpioConfig)
 7. wifiService.begin(), audioService.begin(), effectManager.begin(), apiService.begin()
-8. creación de tareas FreeRTOS
+8. creacion de tareas FreeRTOS
 
-## Configuración y modelo de datos
+## Configuracion y modelo de datos
 
 Configuraciones activas:
 
@@ -69,7 +69,7 @@ GpioConfig:
 - hasta 4 outputs
 - tipos: ws2812b, ws2811, ws2813, ws2815, sk6812, tm1814, digital
 - orden/color: GRB, RGB, BRG, RBG, GBR, BGR, RGBW, GRBW, y en digital R/G/B/W
-- powerLimit (software): `enabled`, `maxCurrentmA`, `milliAmpsPerLed`
+- powerLimit software: enabled, maxCurrentmA, milliAmpsPerLed
 
 Perfiles:
 
@@ -78,42 +78,50 @@ Perfiles:
 
 Paletas:
 
-- catálogo del sistema + hasta 20 paletas de usuario
+- catalogo de sistema + hasta 20 paletas de usuario
 
-Efectos:
+## Motor de efectos y render
 
-- 19 entradas de catálogo en EffectRegistry
-- efectos visuales y audio-reactivos
+Jerarquia de render:
 
-## Render y driver LED
+- EffectManager -> EffectEngine (base) -> LedDriver (abstraccion) -> backend
 
-Jerarquía:
-
-- EffectManager -> EffectEngine (base) -> LedDriver (abstracción) -> backend
-
-Selección de backend en compilación (DUX_LED_BACKEND):
+Seleccion de backend en compilacion (DUX_LED_BACKEND):
 
 - 1: NeoPixelBus
 - 2: FastLED
 - 3: Digital
 
-Limitación de consumo en software:
+Estado actual del catalogo:
 
-- El driver calcula una escala global estimada a partir de `gpio.powerLimit` y del total de LEDs direccionables.
-- Si `powerLimit.enabled=true`, los colores de salida se escalan antes de enviarse al backend (`NeoPixelBus`/`FastLED`) para mantener el consumo dentro de `maxCurrentmA`.
-- Si `powerLimit.enabled=false`, la escala es 1.0 (sin limitación).
+- Efectos visuales y audio-reactivos separados por carpeta
+- IDs de catalogo extendidos hasta la familia audio-reactive reciente (incluye Rainbow Wave, Spectrum Chase y Section Strobe)
+
+## Pipeline de audio reactivo
+
+AudioService usa entrada I2S y publica en CoreState:
+
+- audioLevel (0..255)
+- audioPeakHold (0..255)
+- beatDetected (bool)
+
+Ajustes recientes para modo mas en vivo:
+
+- buffering I2S mas corto
+- frecuencia de proceso mas alta (intervalo de proceso reducido)
+- envolvente y peak hold con menor inercia
 
 ## Persistencia
 
-La persistencia se canaliza por scheduler para evitar escritura excesiva.
+La persistencia se canaliza por scheduler para evitar escrituras excesivas.
 
-Entradas persistidas incluyen:
+Entradas persistidas:
 
-- configuración activa
+- configuracion activa (network/gpio/microphone/debug)
 - estado runtime
 - perfiles y perfil por defecto
 - paletas de usuario
-- persistencia de efectos/secuencia
+- startup effect y secuencias
 
 ## API y UI
 
@@ -121,20 +129,28 @@ ApiService expone:
 
 - API v1 (/api/v1/*)
 - OpenAPI (/api/v1/openapi.json)
-- UI embebida de configuración y testers
+- UI embebida
 
-Rutas canónicas de perfiles:
+Estrategia de UI actual:
 
-- /api/v1/profiles*
+- Plantillas HTML/CSS externas en LittleFS (data/ui/*.html)
+- Fallback a HTML embebido en firmware si no se encuentra plantilla
 
-## Riesgos técnicos abiertos
+Hardening reciente de configuracion:
 
-- Contención de mutex de CoreState durante render
-- Costo por píxel de algunas operaciones de color/gamma en escenarios de alta densidad
-- Limpieza de referencias legacy /profiles/gpio* en páginas de prueba antiguas
+- /api/v1/config/network y /api/v1/config/all responden antes de reaplicar WiFi
+- /api/v1/config/all evita un JsonDocument agregado grande para reducir pico de memoria
+- normalizacion defensiva de payload JSON
+
+## Riesgos tecnicos abiertos
+
+- Contencion de mutex de CoreState durante picos de carga
+- Ajuste fino de sensibilidad de audio segun microfono y entorno
+- Cierre de estrategia final LedFx realtime vs procesamiento local avanzado
 
 ## Referencias
 
 - API: docs/api-v1.md
+- Persistencia: docs/storage-memory.md
+- Roadmap: docs/roadmap.md
 - README: README.md
-- Refactor: docs/analisis-arquitectura-refactor.md

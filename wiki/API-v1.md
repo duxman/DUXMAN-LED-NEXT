@@ -1,6 +1,6 @@
 # API REST v1
 
-Esta página resume la API implementada actualmente por el firmware DUXMAN-LED-NEXT (v0.3.11-beta).
+Resumen de la API implementada por DUXMAN-LED-NEXT (v0.4.2-beta).
 
 Base: /api/v1
 
@@ -13,7 +13,7 @@ Base: /api/v1
 - POST /api/v1/system/restart
 - GET /api/v1/diag
 
-### Configuración
+### Configuracion
 
 - GET /api/v1/config/network
 - PATCH, POST /api/v1/config/network
@@ -25,6 +25,11 @@ Base: /api/v1
 - PATCH, POST /api/v1/config/debug
 - GET /api/v1/config/all
 - POST /api/v1/config/all
+
+Notas:
+
+- /config/network y /config/all responden antes de reaplicar WiFi para reducir cortes de cliente.
+- /config/all normaliza payloads JSON doble-serializados.
 
 ### Perfiles
 
@@ -56,16 +61,12 @@ Base: /api/v1
 - GET /api/v1/release
 - GET /api/v1/openapi.json
 
-## Notas
+## Compatibilidad
 
-- PATCH y POST se aceptan como equivalentes en varios endpoints de mutación.
-- La ruta canónica de perfiles es /api/v1/profiles*.
-- Las referencias antiguas /api/v1/profiles/gpio* son legacy y deben evitarse.
-- `PATCH /api/v1/config/gpio` soporta `gpio.powerLimit` para limitar consumo por software:
-	- `enabled` (bool)
-	- `maxCurrentmA` (mA totales)
-	- `milliAmpsPerLed` (estimación por LED)
+- PATCH y POST se aceptan como equivalentes en varios endpoints de mutacion.
+- La ruta canonica de perfiles es /api/v1/profiles*.
+- Las rutas legacy /api/v1/profiles/gpio* deben evitarse.
 
 ## Detalle ampliado
 
-Consultar el documento técnico completo en docs/api-v1.md.
+Consultar docs/api-v1.md.

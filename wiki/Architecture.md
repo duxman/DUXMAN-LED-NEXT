@@ -1,15 +1,16 @@
 # Architecture
 
-Arquitectura actual del firmware DUXMAN-LED-NEXT (v0.3.11-beta).
+Arquitectura actual del firmware DUXMAN-LED-NEXT (v0.4.2-beta).
 
-## Diseño general
+## Diseno general
 
 - Firmware C++ modular (PlatformIO, Arduino framework)
-- FreeRTOS con dos tareas principales (control y render)
-- API HTTP + comandos Serial equivalentes
+- FreeRTOS con tareas separadas de control y render
+- API HTTP + comandos serial equivalentes
 - Persistencia en LittleFS con scheduler
+- UI embebida servida desde plantillas LittleFS con fallback en firmware
 
-## Tareas y ejecución
+## Tareas y ejecucion
 
 - controlTask (core0): API, WiFi, audio, persistencia
 - renderTask (core1): EffectManager.renderFrame()
@@ -33,13 +34,13 @@ Frecuencia objetivo:
 - WifiService
 - WatchdogService
 
-## Configuración
+## Configuracion
 
 Modelos principales:
 
 - NetworkConfig
 - GpioConfig (hasta 4 outputs)
-- GpioConfig.powerLimit (limite de consumo software)
+- GpioConfig.powerLimit (limite software de consumo)
 - MicrophoneConfig
 - DebugConfig
 - CoreState (runtime)
@@ -50,38 +51,28 @@ Cadena de render:
 
 - EffectManager -> EffectEngine -> LedDriver -> backend
 
-Backends seleccionables en compilación:
+Backends seleccionables en compilacion:
 
 - NeoPixelBus
 - FastLED
 - Digital
 
-Control de consumo (software):
+## Audio reactivo
 
-- `gpio.powerLimit.enabled` activa/desactiva la limitación.
-- `gpio.powerLimit.maxCurrentmA` define el techo de corriente estimada.
-- `gpio.powerLimit.milliAmpsPerLed` ajusta el modelo por tipo de tira.
+AudioService publica audioLevel, audioPeakHold y beatDetected en CoreState.
 
-## API
+Estado actual:
 
-Base: /api/v1
+- AGC + noise gate + beat detection
+- ajustes de baja latencia para respuesta mas en vivo
 
-Grupos funcionales:
+## API y robustez
 
-- state/system
-- config
-- profiles
-- effects
-- palettes
-- metadata
-
-La ruta canónica de perfiles es /api/v1/profiles*.
-
-## Persistencia
-
-Se persisten configuración activa, perfiles, paletas de usuario, estado runtime y datos de efectos/secuencia.
+- Base: /api/v1
+- /config/network y /config/all responden antes de reaplicar WiFi
+- /config/all reduce pico de memoria al ensamblar JSON por secciones
 
 ## Referencias
 
 - API: wiki/API-v1.md
-- Documentación técnica completa: docs/architecture.md y docs/api-v1.md
+- Documentacion tecnica completa: docs/architecture.md y docs/api-v1.md

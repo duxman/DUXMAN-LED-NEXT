@@ -1,6 +1,6 @@
 # DUXMAN-LED-NEXT
 
-Firmware modular para control LED en ESP32 (v0.4.1-beta), con API REST/Serial, UI embebida, perfiles de configuración completos, paletas de usuario y motor de efectos visuales/audio.
+Firmware modular para control LED en ESP32 (v0.4.2-beta), con API REST/Serial, UI embebida, perfiles de configuración completos, paletas de usuario y motor de efectos visuales/audio.
 
 ## Estado actual
 
@@ -122,6 +122,8 @@ Mejoras recientes:
 - Plantillas HTML/CSS externas en LittleFS para mantenimiento más simple.
 - `POST /api/v1/config/network` y `POST /api/v1/config/all` responden antes de reaplicar WiFi para reducir `ERR_CONNECTION_RESET` en cliente.
 - `GET /api/v1/config/all` genera el JSON completo con menor pico de memoria.
+- Pipeline de audio afinado para respuesta más en vivo: menor buffering I2S, mayor frecuencia de proceso y menor inercia en peak-hold.
+- Ayuda integrada en la UI embebida con explicacion de pantallas, campos, efectos y flujos rapidos desde `/docs`.
 
 Rutas principales:
 
@@ -150,6 +152,8 @@ Script auxiliar:
 
 - API detallada: docs/api-v1.md
 - Arquitectura: docs/architecture.md
+- Guía de pantallas y campos: docs/ui-guide.md
+- Catálogo de efectos: docs/effects.md
 - Wiki API: wiki/API-v1.md
 - Wiki Arquitectura: wiki/Architecture.md
-- Plan de refactor: docs/analisis-arquitectura-refactor.md
+- Roadmap: docs/roadmap.md
