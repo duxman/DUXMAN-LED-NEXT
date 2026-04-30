@@ -2116,7 +2116,7 @@ String ApiService::buildNavHtml() const {
         <li><a href='/config/gpio'>GPIO</a></li>
         <li><a href='/config/profiles'>Profiles</a></li>
         <li><a href='/config/palettes'>Paletas</a></li>
-        <li><a href='/config/debug'>Debug</a></li>
+        <li><a href='/config/general'>General</a></li>
         <li><a href='/config/manual'>Manual JSON</a></li>
       </ul>
     </li>
@@ -2127,7 +2127,7 @@ String ApiService::buildNavHtml() const {
         <li><a href='/api/config/network'>Network</a></li>
         <li><a href='/api/config/microphone'>Microphone</a></li>
         <li><a href='/api/config/gpio'>GPIO</a></li>
-        <li><a href='/api/config/debug'>Debug</a></li>
+        <li><a href='/api/v1/config/general'>General</a></li>
         <li><a href='/api/profiles'>Profiles</a></li>
         <li><a href='/api/hardware'>Hardware</a></li>
         <li><a href='/api/release'>Release</a></li>
