@@ -20,6 +20,13 @@ Ejemplos desde la raiz del repo:
 5. Forzar puerto manual:
 	powershell -ExecutionPolicy Bypass -File .\tools\flash.ps1 -Profile esp32dev -Action upload -Port COM12
 
+## LittleFS / plantillas UI
+
+La UI embebida usa plantillas en `data/ui` cargadas desde LittleFS. Si cambias estos archivos, debes volver a subir el filesystem además del firmware cuando corresponda.
+
+Ejemplo:
+	platformio run -e esp32dev -t uploadfs
+
 ## esptool
 
 Tambien se puede consultar la placa conectada directamente con `esptool` usando el Python del sistema.

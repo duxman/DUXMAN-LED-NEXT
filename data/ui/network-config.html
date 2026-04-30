@@ -1,0 +1,284 @@
+﻿
+<!doctype html>
+<html>
+<head>
+  <meta charset='utf-8'>
+  <meta name='viewport' content='width=device-width,initial-scale=1'>
+  <title>DUXMAN Network Config</title>
+  __CSS__
+</head>
+<body>
+<div class='gen-page-outer'>
+__NAV__
+  <main>
+    <div class='card'>
+      <h1>Configuracion de Red</h1>
+      <p class='hint'>Edita WiFi/AP/STA y guarda en el dispositivo. Los cambios se aplican al momento.</p>
+      <div class='actions'>
+        <button class='btn alt' onclick='loadConfig()'>Recargar</button>
+        <button class='btn' onclick='saveConfig()'>Guardar Configuracion</button>
+      </div>
+      <p id='status' class='status-live' aria-live='polite'></p>
+    </div>
+
+    <div class='card'>
+      <h2>WiFi</h2>
+      <div class='row'>
+        <div class='col field'>
+          <label for='wifiMode'>Modo</label>
+          <select id='wifiMode'>
+            <option value='ap'>ap</option>
+            <option value='sta'>sta</option>
+            <option value='ap_sta'>ap_sta</option>
+          </select>
+        </div>
+        <div class='col field'>
+          <label for='apAvailability'>Disponibilidad AP</label>
+          <select id='apAvailability'>
+            <option value='always'>always</option>
+            <option value='untilStaConnected'>untilStaConnected</option>
+          </select>
+        </div>
+      </div>
+      <div class='row'>
+        <div class='col field'>
+          <label for='ssid'>SSID STA</label>
+          <input id='ssid' type='text' placeholder='MiWiFi'>
+        </div>
+        <div class='col field'>
+          <label for='password'>Password STA</label>
+          <input id='password' type='password' placeholder='********'>
+        </div>
+      </div>
+      <div class='field'>
+        <label for='hostname'>Hostname DNS</label>
+        <input id='hostname' type='text' placeholder='duxman-led-1'>
+      </div>
+    </div>
+
+    <div class='card'>
+      <h2>Tiempo / NTP</h2>
+      <p class='hint'>Al arrancar y al conectar STA, el equipo intentara sincronizar la hora con el servidor NTP configurado.</p>
+      <div class='row'>
+        <div class='col field'>
+          <label for='ntpSyncOnBoot'>Sincronizar en arranque</label>
+          <select id='ntpSyncOnBoot'>
+            <option value='true'>true</option>
+            <option value='false'>false</option>
+          </select>
+        </div>
+        <div class='col field'>
+          <label for='ntpServer'>Servidor NTP</label>
+          <input id='ntpServer' type='text' placeholder='europe.pool.ntp.org'>
+        </div>
+      </div>
+    </div>
+
+    <div class='card'>
+      <h2>IP AP</h2>
+      <div class='row'>
+        <div class='col field'>
+          <label for='apMode'>Modo IP AP</label>
+          <select id='apMode'>
+            <option value='dhcp'>dhcp</option>
+            <option value='static'>static</option>
+          </select>
+        </div>
+        <div class='col field'>
+          <label for='apAddress'>IP AP</label>
+          <input id='apAddress' type='text' placeholder='192.168.4.1'>
+        </div>
+      </div>
+      <div class='row'>
+        <div class='col field'>
+          <label for='apGateway'>Gateway AP</label>
+          <input id='apGateway' type='text' placeholder='192.168.4.1'>
+        </div>
+        <div class='col field'>
+          <label for='apSubnet'>Subnet AP</label>
+          <input id='apSubnet' type='text' placeholder='255.255.255.0'>
+        </div>
+      </div>
+    </div>
+
+    <div class='card'>
+      <h2>IP STA</h2>
+      <div class='row'>
+        <div class='col field'>
+          <label for='staMode'>Modo IP STA</label>
+          <select id='staMode'>
+            <option value='dhcp'>dhcp</option>
+            <option value='static'>static</option>
+          </select>
+        </div>
+        <div class='col field'>
+          <label for='staAddress'>IP STA</label>
+          <input id='staAddress' type='text' placeholder='192.168.1.50'>
+        </div>
+      </div>
+      <div class='row'>
+        <div class='col field'>
+          <label for='staGateway'>Gateway STA</label>
+          <input id='staGateway' type='text' placeholder='192.168.1.1'>
+        </div>
+        <div class='col field'>
+          <label for='staSubnet'>Subnet STA</label>
+          <input id='staSubnet' type='text' placeholder='255.255.255.0'>
+        </div>
+      </div>
+      <div class='row'>
+        <div class='col field'>
+          <label for='staDns1'>DNS 1 STA</label>
+          <input id='staDns1' type='text' placeholder='8.8.8.8'>
+        </div>
+        <div class='col field'>
+          <label for='staDns2'>DNS 2 STA</label>
+          <input id='staDns2' type='text' placeholder='1.1.1.1'>
+        </div>
+      </div>
+    </div>
+
+    <div class='card json-card'>
+      <h2>Payload / Respuesta</h2>
+      <h3>Payload Enviado</h3>
+      <pre id='payloadOut'>{}</pre>
+      <h3>Respuesta API</h3>
+      <pre id='resultOut'>Sin llamadas aun.</pre>
+    </div>
+  </main>
+
+  <script>
+    if(localStorage.getItem('dux_show_json')==='1') document.body.classList.add('show-json');
+
+    function byId(id) { return document.getElementById(id); }
+
+    function setStatus(message, isError) {
+      const el = byId('status');
+      if (window.duxUpdateStatus) {
+        window.duxUpdateStatus(el, message, !!isError);
+        return;
+      }
+      el.textContent = message || '';
+    }
+
+    function setValue(id, value) {
+      byId(id).value = value == null ? '' : String(value);
+    }
+
+    function fillFromConfig(cfg) {
+      const network = cfg && cfg.network ? cfg.network : {};
+      const wifi = network.wifi || {};
+      const conn = wifi.connection || {};
+      const ip = network.ip || {};
+      const ap = ip.ap || {};
+      const sta = ip.sta || {};
+      const dns = network.dns || {};
+      const time = network.time || {};
+
+      setValue('wifiMode', wifi.mode || 'ap');
+      setValue('apAvailability', wifi.apAvailability || 'always');
+      setValue('ssid', conn.ssid || '');
+      setValue('password', conn.password || '');
+      setValue('hostname', dns.hostname || 'duxman-led');
+      setValue('ntpSyncOnBoot', String(time.syncOnBoot !== false));
+      setValue('ntpServer', time.ntpServer || 'europe.pool.ntp.org');
+
+      setValue('apMode', ap.mode || 'static');
+      setValue('apAddress', ap.address || '');
+      setValue('apGateway', ap.gateway || '');
+      setValue('apSubnet', ap.subnet || '');
+
+      setValue('staMode', sta.mode || 'dhcp');
+      setValue('staAddress', sta.address || '');
+      setValue('staGateway', sta.gateway || '');
+      setValue('staSubnet', sta.subnet || '');
+      setValue('staDns1', sta.primaryDns || '');
+      setValue('staDns2', sta.secondaryDns || '');
+    }
+
+    function readPayload() {
+      return {
+        network: {
+          wifi: {
+            mode: byId('wifiMode').value,
+            apAvailability: byId('apAvailability').value,
+            connection: {
+              ssid: byId('ssid').value,
+              password: byId('password').value
+            }
+          },
+          ip: {
+            ap: {
+              mode: byId('apMode').value,
+              address: byId('apAddress').value,
+              gateway: byId('apGateway').value,
+              subnet: byId('apSubnet').value
+            },
+            sta: {
+              mode: byId('staMode').value,
+              address: byId('staAddress').value,
+              gateway: byId('staGateway').value,
+              subnet: byId('staSubnet').value,
+              primaryDns: byId('staDns1').value,
+              secondaryDns: byId('staDns2').value
+            }
+          },
+          dns: {
+            hostname: byId('hostname').value
+          },
+          time: {
+            syncOnBoot: byId('ntpSyncOnBoot').value === 'true',
+            ntpServer: byId('ntpServer').value
+          }
+        }
+      };
+    }
+
+    async function loadConfig() {
+      setStatus('Leyendo configuracion...', false);
+      try {
+        const res = await fetch('/api/v1/config/network');
+        const text = await res.text();
+        const parsed = JSON.parse(text);
+        fillFromConfig(parsed);
+        byId('resultOut').textContent = JSON.stringify(parsed, null, 2);
+        setStatus('Configuracion cargada (HTTP ' + res.status + ').', false);
+      } catch (error) {
+        byId('resultOut').textContent = String(error);
+        setStatus('Error leyendo configuracion.', true);
+      }
+    }
+
+    async function saveConfig() {
+      const payload = readPayload();
+      byId('payloadOut').textContent = JSON.stringify(payload, null, 2);
+      setStatus('Guardando configuracion...', false);
+
+      try {
+        const res = await fetch('/api/v1/config/network', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const text = await res.text();
+        let pretty = text;
+        try { pretty = JSON.stringify(JSON.parse(text), null, 2); } catch (_) {}
+        byId('resultOut').textContent = pretty;
+
+        if (res.ok) {
+          setStatus('Configuracion guardada y aplicada (HTTP ' + res.status + ').', false);
+        } else {
+          setStatus('Error al guardar (HTTP ' + res.status + ').', true);
+        }
+      } catch (error) {
+        byId('resultOut').textContent = String(error);
+        setStatus('Error de red al guardar.', true);
+      }
+    }
+
+    loadConfig();
+  </script>
+</div>
+</body>
+</html>
+

@@ -1,0 +1,157 @@
+﻿
+<!doctype html>
+<html>
+<head>
+  <meta charset='utf-8'>
+  <meta name='viewport' content='width=device-width,initial-scale=1'>
+  <title>DUXMAN - Config Manual</title>
+  __CSS__
+</head>
+<body>
+<div class='gen-page-outer'>
+__NAV__
+  <main>
+    <div class='card'>
+      <h1>Configuracion Manual</h1>
+      <p class='hint'>Edita, exporta o importa toda la configuracion del dispositivo como JSON. La importacion solo se aplica si el JSON es completamente valido.</p>
+      <p id='status' class='status-live' aria-live='polite'></p>
+    </div>
+
+    <div class='card'>
+      <h2>Editor JSON</h2>
+      <div class='actions'>
+        <button class='btn alt' onclick='loadConfig()'>Cargar del dispositivo</button>
+        <button class='btn' onclick='applyConfig()'>Aplicar al dispositivo</button>
+        <button class='btn alt' onclick='downloadConfig()'>Descargar .json</button>
+        <button class='btn danger' onclick='validateOnly()'>Solo validar</button>
+      </div>
+      <textarea id='editor'></textarea>
+    </div>
+
+    <div class='card'>
+      <h2>Importar archivo</h2>
+      <div class='file-row'>
+        <input type='file' id='fileInput' accept='.json,application/json'>
+        <button class='btn alt' onclick='loadFile()'>Cargar en editor</button>
+      </div>
+      <p class='hint'>Carga un archivo .json en el editor. Luego pulsa "Aplicar al dispositivo" para importarlo.</p>
+    </div>
+
+    <div class='card json-card'>
+      <h2>Resultado</h2>
+      <pre id='resultOut'>Sin operaciones aun.</pre>
+    </div>
+  </main>
+
+  <script>
+    if(localStorage.getItem('dux_show_json')==='1') document.body.classList.add('show-json');
+
+    function byId(id) { return document.getElementById(id); }
+    function setStatus(msg, isErr) {
+      const el = byId('status');
+      if (window.duxUpdateStatus) {
+        window.duxUpdateStatus(el, msg, !!isErr);
+        return;
+      }
+      el.textContent = msg || '';
+    }
+
+    async function loadConfig() {
+      setStatus('Cargando configuracion...', false);
+      try {
+        const res = await fetch('/api/v1/config/all');
+        const text = await res.text();
+        let pretty = text;
+        try { pretty = JSON.stringify(JSON.parse(text), null, 2); } catch (_) {}
+        byId('editor').value = pretty;
+        byId('resultOut').textContent = 'Configuracion cargada (HTTP ' + res.status + ').';
+        setStatus('Configuracion cargada.', false);
+      } catch (err) {
+        byId('resultOut').textContent = String(err);
+        setStatus('Error al cargar.', true);
+      }
+    }
+
+    function validateOnly() {
+      const raw = byId('editor').value.trim();
+      if (!raw) { setStatus('El editor esta vacio.', true); return; }
+      try {
+        const obj = JSON.parse(raw);
+        byId('editor').value = JSON.stringify(obj, null, 2);
+        setStatus('JSON valido (sintaxis correcta).', false);
+        byId('resultOut').textContent = 'Validacion local OK. Pulsa "Aplicar al dispositivo" para validar contra el firmware y guardar.';
+      } catch (err) {
+        setStatus('JSON invalido: ' + err.message, true);
+        byId('resultOut').textContent = 'Error de sintaxis JSON:\n' + err.message;
+      }
+    }
+
+    async function applyConfig() {
+      const raw = byId('editor').value.trim();
+      if (!raw) { setStatus('El editor esta vacio.', true); return; }
+      let parsed;
+      try { parsed = JSON.parse(raw); } catch (err) {
+        setStatus('JSON invalido: ' + err.message, true);
+        byId('resultOut').textContent = 'Error de sintaxis JSON:\n' + err.message;
+        return;
+      }
+      setStatus('Aplicando configuracion...', false);
+      try {
+        const res = await fetch('/api/v1/config/all', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(parsed)
+        });
+        const text = await res.text();
+        let pretty = text;
+        try { pretty = JSON.stringify(JSON.parse(text), null, 2); } catch (_) {}
+        byId('resultOut').textContent = 'HTTP ' + res.status + '\n\n' + pretty;
+        if (res.ok) {
+          setStatus('Configuracion aplicada correctamente.', false);
+          loadConfig();
+        } else {
+          setStatus('Error al aplicar (HTTP ' + res.status + '). La configuracion NO fue modificada.', true);
+        }
+      } catch (err) {
+        byId('resultOut').textContent = String(err);
+        setStatus('Error de red al aplicar.', true);
+      }
+    }
+
+    function downloadConfig() {
+      const raw = byId('editor').value.trim();
+      if (!raw) { setStatus('Nada que descargar.', true); return; }
+      const blob = new Blob([raw], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'duxman-config.json';
+      a.click();
+      URL.revokeObjectURL(a.href);
+      setStatus('Archivo descargado.', false);
+    }
+
+    function loadFile() {
+      const file = byId('fileInput').files[0];
+      if (!file) { setStatus('Selecciona un archivo primero.', true); return; }
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const text = e.target.result;
+        try {
+          const obj = JSON.parse(text);
+          byId('editor').value = JSON.stringify(obj, null, 2);
+          setStatus('Archivo cargado en editor. Revisa y pulsa "Aplicar al dispositivo".', false);
+          byId('resultOut').textContent = 'Archivo ' + file.name + ' cargado (' + text.length + ' bytes).';
+        } catch (err) {
+          setStatus('Archivo JSON invalido: ' + err.message, true);
+          byId('resultOut').textContent = 'Error parseando ' + file.name + ':\n' + err.message;
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    loadConfig();
+  </script>
+</div>
+</body>
+</html>
+

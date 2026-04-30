@@ -13,6 +13,7 @@
 #include "effects/EffectRegistry.h"
 
 #include <ArduinoJson.h>
+#include <LittleFS.h>
 #include <time.h>
 
 namespace {
@@ -35,6 +36,62 @@ String buildBootedAtLabel() {
 
 String buildMicrophoneJson(const MicrophoneConfig &microphoneConfig) {
   return microphoneConfig.toJson();
+}
+
+String loadTemplateFromLittleFs(const char *path, size_t maxSize = 65535) {
+  if (path == nullptr || !LittleFS.exists(path)) {
+    return String();
+  }
+
+  File file = LittleFS.open(path, "r");
+  if (!file) {
+    return String();
+  }
+
+  const size_t fileSize = static_cast<size_t>(file.size());
+  if (fileSize == 0 || fileSize > maxSize) {
+    file.close();
+    return String();
+  }
+
+  String content;
+  content.reserve(fileSize + 16);
+  while (file.available()) {
+    content += static_cast<char>(file.read());
+  }
+  file.close();
+  return content;
+}
+
+String unwrapRootJsonValue(const String &wrappedJson) {
+  const int colonPos = wrappedJson.indexOf(':');
+  const int lastBracePos = wrappedJson.lastIndexOf('}');
+  if (colonPos < 0 || lastBracePos <= colonPos) {
+    return String("null");
+  }
+
+  String value = wrappedJson.substring(colonPos + 1, lastBracePos);
+  value.trim();
+  return value;
+}
+
+String normalizeJsonPayload(const String &rawPayload) {
+  String payload = rawPayload;
+  payload.trim();
+
+  // Support accidentally double-serialized JSON payloads: "{...}"
+  if (payload.length() >= 2 && payload.charAt(0) == '"' && payload.charAt(payload.length() - 1) == '"') {
+    JsonDocument doc;
+    if (!deserializeJson(doc, payload) && doc.is<String>()) {
+      String decoded = doc.as<String>();
+      decoded.trim();
+      if (!decoded.isEmpty()) {
+        return decoded;
+      }
+    }
+  }
+
+  return payload;
 }
 } // namespace
 
@@ -759,7 +816,7 @@ void ApiService::handleHttpStateRoute() {
   }
 
   if (method == HTTP_PATCH || method == HTTP_POST) {
-    const String payload = httpServer_.arg("plain");
+    const String payload = normalizeJsonPayload(httpServer_.arg("plain"));
     if (payload.isEmpty()) {
       httpServer_.send(400, "application/json", "{\"error\":\"invalid_payload\"}");
       return;
@@ -790,7 +847,7 @@ void ApiService::handleHttpNetworkRoute() {
   }
 
   if (method == HTTP_PATCH || method == HTTP_POST) {
-    const String payload = httpServer_.arg("plain");
+    const String payload = normalizeJsonPayload(httpServer_.arg("plain"));
     if (payload.isEmpty()) {
       httpServer_.send(400, "application/json", "{\"error\":\"invalid_payload\"}");
       return;
@@ -810,17 +867,21 @@ void ApiService::handleHttpNetworkRoute() {
       persistenceSchedulerService_.requestSaveConfig();
     }
 
-    if (changed && !wifiService_.applyConfig()) {
-      httpServer_.send(500, "application/json", "{\"error\":\"wifi_apply_failed\"}");
-      return;
-    }
-
     String response = "{\"updated\":";
     response += changed ? "true" : "false";
     response += ",\"network\":";
     response += networkConfig_.toJson();
     response += "}";
     httpServer_.send(200, "application/json", response);
+
+    // Send HTTP response first to reduce client-side ERR_CONNECTION_RESET
+    // when WiFi restarts after applying network settings.
+    if (changed) {
+      delay(120);
+      if (!wifiService_.applyConfig()) {
+        Serial.println("[api] warning: wifi apply failed after /config/network response");
+      }
+    }
     return;
   }
 
@@ -1388,15 +1449,22 @@ void ApiService::handleHttpDiagRoute() {
 }
 
 String ApiService::buildFullConfigJson() const {
-  JsonDocument doc;
-
-  { JsonDocument d; deserializeJson(d, networkConfig_.toJson());    doc["network"]    = d["network"]; }
-  { JsonDocument d; deserializeJson(d, gpioConfig_.toJson());       doc["gpio"]       = d["gpio"]; }
-  { JsonDocument d; deserializeJson(d, microphoneConfig_.toJson()); doc["microphone"] = d["microphone"]; }
-  { JsonDocument d; deserializeJson(d, debugConfig_.toJson());      doc["debug"]      = d["debug"]; }
-
   String out;
-  serializeJsonPretty(doc, out);
+  const String networkJson = unwrapRootJsonValue(networkConfig_.toJson());
+  const String gpioJson = unwrapRootJsonValue(gpioConfig_.toJson());
+  const String microphoneJson = unwrapRootJsonValue(microphoneConfig_.toJson());
+  const String debugJson = unwrapRootJsonValue(debugConfig_.toJson());
+
+  out.reserve(networkJson.length() + gpioJson.length() + microphoneJson.length() + debugJson.length() + 64);
+  out = "{\"network\":";
+  out += networkJson;
+  out += ",\"gpio\":";
+  out += gpioJson;
+  out += ",\"microphone\":";
+  out += microphoneJson;
+  out += ",\"debug\":";
+  out += debugJson;
+  out += '}';
   return out;
 }
 
@@ -1409,7 +1477,7 @@ void ApiService::handleHttpConfigAllRoute() {
   }
 
   if (method == HTTP_POST) {
-    const String payload = httpServer_.arg("plain");
+    const String payload = normalizeJsonPayload(httpServer_.arg("plain"));
     if (payload.isEmpty()) {
       httpServer_.send(400, "application/json", "{\"error\":\"invalid_payload\"}");
       return;
@@ -1491,13 +1559,18 @@ void ApiService::handleHttpConfigAllRoute() {
       return;
     }
 
-    wifiService_.applyConfig();
-    profileService_.applyActiveConfig();
-
     String response = "{\"imported\":true,\"config\":";
     response += buildFullConfigJson();
     response += "}";
     httpServer_.send(200, "application/json", response);
+
+    // Apply runtime changes after the HTTP response to avoid resetting
+    // the client connection while config import is being acknowledged.
+    profileService_.applyActiveConfig();
+    delay(120);
+    if (!wifiService_.applyConfig()) {
+      Serial.println("[api] warning: wifi apply failed after /config/all response");
+    }
     return;
   }
 
@@ -1690,6 +1763,11 @@ String ApiService::buildOpenApiJson() const {
 // CSS uses .gen-* prefix to avoid collision with per-page styles.
 // ---------------------------------------------------------------------------
 String ApiService::buildCommonCss() const {
+  const String fileCss = loadTemplateFromLittleFs("/ui/common.css.html");
+  if (!fileCss.isEmpty()) {
+    return fileCss;
+  }
+
   return R"CSS(
 <style>
   :root{--bg:#0d1b22;--card:#132530;--card2:#0f2028;--line:#1e3a48;--text:#d8edf5;--muted:#7aacbf;--accent:#0fd0e0;--ok:#22d68a;--warn:#f5a623;--danger:#f87171;}
@@ -1788,12 +1866,22 @@ String ApiService::buildCommonCss() const {
   .menu{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;width:100%;padding:10px;border:1px solid var(--line);border-radius:14px;background:var(--card);}
   .controls{display:grid;gap:14px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;}
   .controls-top{display:grid;grid-template-columns:minmax(280px,1fr) minmax(0,1.35fr);gap:12px;}
-  .controls-bottom{display:grid;grid-template-columns:1fr;gap:12px;}
+  .controls-bottom{display:grid;grid-template-columns:minmax(280px,1fr) minmax(0,1.35fr);gap:12px;}
   .power-card,.saved-effects-card{display:grid;gap:14px;padding:14px;border:1px solid var(--line);border-radius:12px;background:var(--card);}
   .power-copy,.saved-effects-copy{display:grid;gap:6px;}
   .power-copy h2,.saved-effects-copy h2{margin:0;font-size:18px;}
   .power-actions{display:grid;gap:10px;}
   .sequence-tools{display:grid;gap:10px;padding:12px;border:1px solid rgba(15,208,224,.16);border-radius:12px;background:rgba(255,255,255,.04);}
+  .effect-layout{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  .effect-box{display:grid;gap:12px;padding:12px;border:1px solid rgba(15,208,224,.16);border-radius:12px;background:rgba(255,255,255,.04);}
+  .effect-box h3{margin:0;font-size:12px;color:var(--accent);letter-spacing:.08em;}
+  .equal-actions{display:grid;gap:8px;grid-template-columns:repeat(3,minmax(0,1fr));margin-top:10px;}
+  .equal-actions button{width:100%;min-height:40px;display:flex;align-items:center;justify-content:center;white-space:nowrap;}
+  .preset-actions{display:grid;gap:8px;grid-template-columns:repeat(3,minmax(0,1fr));margin-top:6px;}
+  .preset-label{grid-column:1/-1;font-size:12px;color:var(--muted);}
+  .preset-actions button{width:100%;min-height:36px;display:flex;align-items:center;justify-content:center;}
+  .stack-actions{display:grid;grid-template-columns:1fr;gap:8px;}
+  .stack-actions button{width:100%;min-height:40px;justify-content:flex-start;padding-inline:12px;}
   .slider-readout,.effects-status{font-size:12px;font-weight:700;color:var(--accent);}
   .sequence-list{display:grid;gap:10px;}
   .sequence-item{display:grid;gap:8px;padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--card);}
@@ -1867,6 +1955,7 @@ String ApiService::buildCommonCss() const {
   /* ── Responsive ── */
   @media(max-width:760px){
     .menu,.controls-top,.controls-bottom,.control-sections{grid-template-columns:1fr;}
+    .effect-layout,.equal-actions,.preset-actions{grid-template-columns:1fr;}
     .row{flex-direction:column;}
     .runtime-head{flex-direction:column;align-items:stretch;}
     .toggle-btn{width:100%;}
@@ -1878,6 +1967,11 @@ String ApiService::buildCommonCss() const {
 }
 
 String ApiService::buildNavHtml() const {
+  const String fileNav = loadTemplateFromLittleFs("/ui/nav.html");
+  if (!fileNav.isEmpty()) {
+    return fileNav;
+  }
+
   return R"HTML(
 <style>
   /* ── Outer page box: 90% wide, contains nav + content ── */
@@ -2008,7 +2102,9 @@ String ApiService::buildNavHtml() const {
 }
 
 String ApiService::buildHomeHtml() const {
-  String html = R"HTML(
+  String html = loadTemplateFromLittleFs("/ui/home.html");
+  if (html.isEmpty()) {
+    html = R"HTML(
 <!doctype html>
 <html>
 <head>
@@ -2077,9 +2173,9 @@ __NAV__
                 </label>
               </div>
 
-              <div class='actions'>
-                <button class='alt' type='button' onclick='applySelectedPalette(false)'>Aplicar paleta</button>
-                <button class='alt' type='button' onclick='applySelectedPalette(true)'>Aplicar y guardar</button>
+              <div class='actions stack-actions'>
+                <button class='alt' type='button' onclick='applySelectedPalette(false)'>&#127912; Aplicar paleta</button>
+                <button class='alt' type='button' onclick='applySelectedPalette(true)'>&#128190; Aplicar y guardar</button>
               </div>
             </section>
 
@@ -2089,8 +2185,9 @@ __NAV__
                 <p>Elige el render principal, numero de secciones, velocidad y brillo global.</p>
               </div>
 
-              <div class='control-sections'>
-                <div class='row'>
+              <div class='effect-layout'>
+                <div class='effect-box'>
+                  <h3>Seleccion y acciones</h3>
                   <label>
                     Efecto
                     <select id='effect'>
@@ -2098,52 +2195,53 @@ __NAV__
                     </select>
                   </label>
 
+                  <div class='stack-actions'>
+                    <button onclick='applyState()'>&#9654; Aplicar</button>
+                    <button class='alt' onclick='saveStartupEffect()'>&#128190; Guardar arranque</button>
+                    <button class='alt' onclick='loadState()'>&#8635; Recargar</button>
+                  </div>
+                </div>
+
+                <div class='effect-box'>
+                  <h3>Parametros y presets</h3>
                   <label>
                     Numero de secciones
                     <input id='sectionCount' type='range' min='1' max='10' value='3'>
                     <span id='sectionCountValue'>3</span>
                   </label>
-                </div>
 
-                <label id='speedControl'>
-                  Rapidez del efecto
-                  <input id='effectSpeed' type='range' min='1' max='100' value='10'>
-                  <span id='effectSpeedValue'>10</span>
-                  <span id='effectSpeedHint'>Solo se usa en efectos animados.</span>
-                </label>
+                  <label id='speedControl'>
+                    Rapidez del efecto
+                    <input id='effectSpeed' type='range' min='1' max='100' value='10'>
+                    <span id='effectSpeedValue'>10</span>
+                    <span id='effectSpeedHint'>Solo se usa en efectos animados.</span>
+                  </label>
 
-                <label>
-                  Nivel del efecto
-                  <input id='effectLevel' type='range' min='1' max='10' value='5'>
-                  <span id='effectLevelValue'>5</span>
-                </label>
+                  <label>
+                    Nivel del efecto
+                    <input id='effectLevel' type='range' min='1' max='10' value='5'>
+                    <span id='effectLevelValue'>5</span>
+                  </label>
 
-                <label style='display:flex; align-items:center; gap:10px; opacity:0.9;'>
-                  <input id='reactiveToAudio' type='checkbox' style='width:auto; flex-shrink:0;' disabled>
-                  <span id='reactiveToAudioLabel'>Audio del microfono: automatico segun el efecto</span>
-                </label>
+                  <label>
+                    Brillo global
+                    <input id='brightness' type='range' min='0' max='255' value='128'>
+                    <span id='brightnessValue'>128</span>
+                  </label>
 
-                <div id='effectModeBanner' class='badge' style='display:inline-flex; align-items:center; gap:8px;'>Tipo de efecto: cargando...</div>
+                  <label style='display:flex; align-items:center; gap:10px; opacity:0.9;'>
+                    <input id='reactiveToAudio' type='checkbox' style='width:auto; flex-shrink:0;' disabled>
+                    <span id='reactiveToAudioLabel'>Audio del microfono: automatico segun el efecto</span>
+                  </label>
 
-                <label>
-                  Brillo global
-                  <input id='brightness' type='range' min='0' max='255' value='128'>
-                  <span id='brightnessValue'>128</span>
-                </label>
+                  <div id='effectModeBanner' class='badge' style='display:inline-flex; align-items:center; gap:8px;'>Tipo de efecto: cargando...</div>
 
-                <hr style='border:none;border-top:1px solid var(--line);margin:10px 0'>
-
-                <div class='actions' style='flex-wrap:wrap'>
-                  <button onclick='applyState()'>&#9654; Aplicar</button>
-                  <button class='alt' onclick='saveStartupEffect()'>&#128190; Guardar arranque</button>
-                  <button class='alt' onclick='loadState()'>&#8635; Recargar</button>
-                </div>
-
-                <div class='actions' style='flex-wrap:wrap;margin-top:6px'>
-                  <span style='font-size:12px;color:var(--muted);align-self:center'>Preset:</span>
-                  <button class='alt sm' onclick='applyVisualPreset("smooth")'>Suave</button>
-                  <button class='alt sm' onclick='applyVisualPreset("show")'>Show</button>
-                  <button class='alt sm' onclick='applyVisualPreset("aggressive")'>Agresivo</button>
+                  <div class='preset-actions stack-actions'>
+                    <span class='preset-label'>Presets visuales</span>
+                    <button class='alt sm' onclick='applyVisualPreset("smooth")'>&#127752; Suave</button>
+                    <button class='alt sm' onclick='applyVisualPreset("show")'>&#10024; Show</button>
+                    <button class='alt sm' onclick='applyVisualPreset("aggressive")'>&#9889; Agresivo</button>
+                  </div>
                 </div>
               </div>
             </section>
@@ -2171,9 +2269,9 @@ __NAV__
                     <span id='effectDurationSecValue' class='slider-readout'>30 s</span>
                   </label>
 
-                  <div class='actions'>
-                    <button class='alt' onclick='addCurrentEffectToSequence()'>Anadir a lista</button>
-                    <button class='alt' onclick='loadEffectsPersistence()'>Recargar lista</button>
+                  <div class='actions equal-actions'>
+                    <button class='alt' onclick='addCurrentEffectToSequence()'>&#10133; Anadir a lista</button>
+                    <button class='alt' onclick='loadEffectsPersistence()'>&#8635; Recargar lista</button>
                   </div>
                 </div>
               </div>
@@ -2209,7 +2307,7 @@ __NAV__
             <h2>Estado runtime <span class='runtime-pill'>live json</span></h2>
             <p>El efecto se guarda en LittleFS al aplicar cambios.</p>
           </div>
-          <button id='toggleRuntime' class='toggle-btn' type='button' aria-expanded='false'>Mostrar runtime</button>
+          <button id='toggleRuntime' class='toggle-btn' type='button' aria-expanded='false'>&#128065; Mostrar runtime</button>
         </div>
         <div id='runtimeBody' class='runtime-body hidden'>
           <pre id='stateOut'>Sin datos aun.</pre>
@@ -2338,7 +2436,7 @@ __NAV__
 
     function setRuntimeVisible(visible) {
       runtimeBody.classList.toggle('hidden', !visible);
-      toggleRuntime.textContent = visible ? 'Ocultar runtime' : 'Mostrar runtime';
+      toggleRuntime.textContent = visible ? '\uD83D\uDE48 Ocultar runtime' : '\uD83D\uDC41 Mostrar runtime';
       toggleRuntime.setAttribute('aria-expanded', visible ? 'true' : 'false');
     }
 
@@ -2502,7 +2600,7 @@ __NAV__
             + "<strong>#" + entry.id + " - " + effectTypeBadgeHtml(config) + " " + (config.effectLabel || config.effect || 'Efecto') + "</strong>"
             + "<span class='sequence-meta'>Duracion " + (entry.durationSec ?? 0) + " s - " + describeConfig(config) + "</span>"
             + "</div>"
-            + "<button class='delete-btn' type='button' onclick='deleteSequenceEntry(" + entry.id + ")'>Eliminar</button>"
+            + "<button class='delete-btn' type='button' onclick='deleteSequenceEntry(" + entry.id + ")'>&#128465; Eliminar</button>"
             + "</div>"
             + "<div class='sequence-colors'>"
             + colors.map(createColorSwatch).join('')
@@ -2678,6 +2776,8 @@ __NAV__
 </body>
 </html>
 )HTML";
+  }
+
   const String versionLabel = String(BuildProfile::kFwVersion);
   const String bootedAtLabel = buildBootedAtLabel();
   const CoreState stateSnapshot = state_.snapshot();
@@ -2690,7 +2790,9 @@ __NAV__
 }
 
 String ApiService::buildPalettesConfigHtml() const {
-  String html = R"HTML(
+  String html = loadTemplateFromLittleFs("/ui/palettes-config.html");
+  if (html.isEmpty()) {
+    html = R"HTML(
 <!doctype html>
 <html>
 <head>
@@ -2966,12 +3068,15 @@ __NAV__
 </body>
 </html>
 )HTML";
+  }
   html.replace("__CSS__", buildCommonCss());
   html.replace("__NAV__", buildNavHtml());
   return html;
 }
 String ApiService::buildConfigIndexHtml() const {
-  String html = R"HTML(
+  String html = loadTemplateFromLittleFs("/ui/config-index.html");
+  if (html.isEmpty()) {
+    html = R"HTML(
 <!doctype html>
 <html>
 <head>
@@ -3023,13 +3128,16 @@ __NAV__
 </body>
 </html>
 )HTML";
+  }
   html.replace("__CSS__", buildCommonCss());
   html.replace("__NAV__", buildNavHtml());
   return html;
 }
 
 String ApiService::buildDocsHtml() const {
-  String html = R"HTML(
+  String html = loadTemplateFromLittleFs("/ui/docs.html");
+  if (html.isEmpty()) {
+    html = R"HTML(
 <!doctype html>
 <html>
 <head>
@@ -3090,13 +3198,16 @@ __NAV__
 </body>
 </html>
 )HTML";
+  }
   html.replace("__CSS__", buildCommonCss());
   html.replace("__NAV__", buildNavHtml());
   return html;
 }
 
 String ApiService::buildApiStateHtml() const {
-  String html = R"HTML(
+  String html = loadTemplateFromLittleFs("/ui/api-state.html");
+  if (html.isEmpty()) {
+    html = R"HTML(
 <!doctype html>
 <html>
 <head>
@@ -3135,13 +3246,16 @@ __NAV__
 </body>
 </html>
 )HTML";
+  }
   html.replace("__CSS__", buildCommonCss());
   html.replace("__NAV__", buildNavHtml());
   return html;
 }
 
 String ApiService::buildApiConfigNetworkHtml() const {
-  String html = R"HTML(
+  String html = loadTemplateFromLittleFs("/ui/api-config-network.html");
+  if (html.isEmpty()) {
+    html = R"HTML(
 <!doctype html>
 <html>
 <head>
@@ -3180,13 +3294,16 @@ __NAV__
 </body>
 </html>
 )HTML";
+  }
   html.replace("__CSS__", buildCommonCss());
   html.replace("__NAV__", buildNavHtml());
   return html;
 }
 
 String ApiService::buildApiReleaseHtml() const {
-  String html = R"HTML(
+  String html = loadTemplateFromLittleFs("/ui/api-release.html");
+  if (html.isEmpty()) {
+    html = R"HTML(
 <!doctype html>
 <html>
 <head>
@@ -3219,13 +3336,16 @@ __NAV__
 </body>
 </html>
 )HTML";
+  }
   html.replace("__CSS__", buildCommonCss());
   html.replace("__NAV__", buildNavHtml());
   return html;
 }
 
 String ApiService::buildNetworkConfigHtml() const {
-  String html = R"HTML(
+  String html = loadTemplateFromLittleFs("/ui/network-config.html");
+  if (html.isEmpty()) {
+    html = R"HTML(
 <!doctype html>
 <html>
 <head>
@@ -3509,13 +3629,16 @@ __NAV__
 </body>
 </html>
 )HTML";
+  }
   html.replace("__CSS__", buildCommonCss());
   html.replace("__NAV__", buildNavHtml());
   return html;
 }
 
 String ApiService::buildMicrophoneConfigHtml() const {
-  String html = R"HTML(
+  String html = loadTemplateFromLittleFs("/ui/microphone-config.html");
+  if (html.isEmpty()) {
+    html = R"HTML(
 <!doctype html>
 <html>
 <head>
@@ -3756,13 +3879,16 @@ __NAV__
 </body>
 </html>
 )HTML";
+  }
   html.replace("__CSS__", buildCommonCss());
   html.replace("__NAV__", buildNavHtml());
   return html;
 }
 
 String ApiService::buildDebugConfigHtml() const {
-  String html = R"HTML(
+  String html = loadTemplateFromLittleFs("/ui/debug-config.html");
+  if (html.isEmpty()) {
+    html = R"HTML(
 <!doctype html>
 <html>
 <head>
@@ -3887,13 +4013,16 @@ __NAV__
 </body>
 </html>
 )HTML";
+  }
   html.replace("__CSS__", buildCommonCss());
   html.replace("__NAV__", buildNavHtml());
   return html;
 }
 
 String ApiService::buildApiConfigMicrophoneHtml() const {
-  String html = R"HTML(
+  String html = loadTemplateFromLittleFs("/ui/api-config-microphone.html");
+  if (html.isEmpty()) {
+    html = R"HTML(
 <!doctype html>
 <html>
 <head>
@@ -3932,13 +4061,16 @@ __NAV__
 </body>
 </html>
 )HTML";
+  }
   html.replace("__CSS__", buildCommonCss());
   html.replace("__NAV__", buildNavHtml());
   return html;
 }
 
 String ApiService::buildApiConfigDebugHtml() const {
-  String html = R"HTML(
+  String html = loadTemplateFromLittleFs("/ui/api-config-debug.html");
+  if (html.isEmpty()) {
+    html = R"HTML(
 <!doctype html>
 <html>
 <head>
@@ -3977,13 +4109,16 @@ __NAV__
 </body>
 </html>
 )HTML";
+  }
   html.replace("__CSS__", buildCommonCss());
   html.replace("__NAV__", buildNavHtml());
   return html;
 }
 
 String ApiService::buildGpioConfigHtml() const {
-  String html = R"HTML(
+  String html = loadTemplateFromLittleFs("/ui/gpio-config.html");
+  if (html.isEmpty()) {
+    html = R"HTML(
 <!doctype html>
 <html>
 <head>
@@ -4229,6 +4364,7 @@ __NAV__
 </body>
 </html>
 )HTML";
+  }
   const String buildPin = String(BuildProfile::kLedPin);
   const String buildCount = String(BuildProfile::kLedCount);
   const String maxOutputs = String(kMaxLedOutputs);
@@ -4241,7 +4377,9 @@ __NAV__
 }
 
 String ApiService::buildApiConfigGpioHtml() const {
-  String html = R"HTML(
+  String html = loadTemplateFromLittleFs("/ui/api-config-gpio.html");
+  if (html.isEmpty()) {
+    html = R"HTML(
 <!doctype html>
 <html>
 <head>
@@ -4280,13 +4418,16 @@ __NAV__
 </body>
 </html>
 )HTML";
+  }
   html.replace("__CSS__", buildCommonCss());
   html.replace("__NAV__", buildNavHtml());
   return html;
 }
 
 String ApiService::buildVersionHtml() const {
-  String html = R"HTML(
+  String html = loadTemplateFromLittleFs("/ui/version.html");
+  if (html.isEmpty()) {
+    html = R"HTML(
 <!doctype html>
 <html>
 <head>
@@ -4438,13 +4579,16 @@ __NAV__
 </body>
 </html>
 )HTML";
+  }
   html.replace("__CSS__", buildCommonCss());
   html.replace("__NAV__", buildNavHtml());
   return html;
 }
 
 String ApiService::buildProfilesConfigHtml() const {
-  String html = R"HTML(
+  String html = loadTemplateFromLittleFs("/ui/profiles-config.html");
+  if (html.isEmpty()) {
+    html = R"HTML(
 <!doctype html>
 <html>
 <head>
@@ -4704,13 +4848,16 @@ __NAV__
 </body>
 </html>
 )HTML";
+  }
   html.replace("__CSS__", buildCommonCss());
   html.replace("__NAV__", buildNavHtml());
   return html;
 }
 
 String ApiService::buildApiProfilesHtml() const {
-  String html = R"HTML(
+  String html = loadTemplateFromLittleFs("/ui/api-profiles.html");
+  if (html.isEmpty()) {
+    html = R"HTML(
 <!doctype html>
 <html>
 <head>
@@ -4751,13 +4898,16 @@ __NAV__
 </body>
 </html>
 )HTML";
+  }
   html.replace("__CSS__", buildCommonCss());
   html.replace("__NAV__", buildNavHtml());
   return html;
 }
 
 String ApiService::buildApiHardwareHtml() const {
-  String html = R"HTML(
+  String html = loadTemplateFromLittleFs("/ui/api-hardware.html");
+  if (html.isEmpty()) {
+    html = R"HTML(
 <!doctype html>
 <html>
 <head>
@@ -4790,13 +4940,16 @@ __NAV__
 </body>
 </html>
 )HTML";
+  }
   html.replace("__CSS__", buildCommonCss());
   html.replace("__NAV__", buildNavHtml());
   return html;
 }
 
 String ApiService::buildManualConfigHtml() const {
-  String html = R"HTML(
+  String html = loadTemplateFromLittleFs("/ui/manual-config.html");
+  if (html.isEmpty()) {
+    html = R"HTML(
 <!doctype html>
 <html>
 <head>
@@ -4953,13 +5106,16 @@ __NAV__
 </body>
 </html>
 )HTML";
+  }
   html.replace("__CSS__", buildCommonCss());
   html.replace("__NAV__", buildNavHtml());
   return html;
 }
 
 String ApiService::buildApiConfigAllHtml() const {
-  String html = R"HTML(
+  String html = loadTemplateFromLittleFs("/ui/api-config-all.html");
+  if (html.isEmpty()) {
+    html = R"HTML(
 <!doctype html>
 <html>
 <head>
@@ -5002,7 +5158,9 @@ __NAV__
 </body>
 </html>
 )HTML";
+  }
   html.replace("__CSS__", buildCommonCss());
   html.replace("__NAV__", buildNavHtml());
   return html;
 }
+

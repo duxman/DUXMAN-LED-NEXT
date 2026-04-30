@@ -1,0 +1,672 @@
+﻿
+<!doctype html>
+<html>
+<head>
+  <meta charset='utf-8'>
+  <meta name='viewport' content='width=device-width,initial-scale=1'>
+  <title>DUXMAN-LED-NEXT __FW_VERSION__</title>
+  __CSS__
+</head>
+<body>
+<div class='gen-page-outer'>
+__NAV__
+  <main>
+    <section class='hero'>
+      <div>
+      <div class='hero-title'>
+        <h1>DUXMAN-LED-NEXT __FW_VERSION__</h1>
+        <span class='boot-at'>__BOOTED_AT__</span>
+      </div>
+      <p>Control rapido de efectos fijos y navegacion principal.</p>
+      </div>
+
+
+      <div class='panel'>
+        <section class='controls'>
+          <div class='controls-top'>
+            <section class='control-card colors'>
+              <div>
+                <h2>Seleccion de colores</h2>
+                <p>Define el color de fondo y los tres colores de primer plano del efecto.</p>
+              </div>
+
+              <div class='row colors'>
+                <label>
+                  Fondo / off
+                  <input id='backgroundColor' type='color' value='#000000'>
+                </label>
+
+                <label>
+                  Color 1
+                  <input id='color0' type='color' value='#ff4d00'>
+                </label>
+                <label>
+                  Color 2
+                  <input id='color1' type='color' value='#ffd400'>
+                </label>
+                <label>
+                  Color 3
+                  <input id='color2' type='color' value='#00b8d9'>
+                </label>
+              </div>
+
+              <div class='row'>
+                <label>
+                  Paleta predefinida
+                  <select id='paletteId'>
+                    <option value='-1'>Manual (colores libres)</option>
+                  </select>
+                </label>
+                <label>
+                  Vista previa de paleta
+                  <div id='palettePreview' style='display:flex; gap:8px; margin-top:8px;'>
+                    <span class='sequence-color' style='background:#ff4d00;'></span>
+                    <span class='sequence-color' style='background:#ffd400;'></span>
+                    <span class='sequence-color' style='background:#00b8d9;'></span>
+                  </div>
+                </label>
+              </div>
+
+              <div class='actions stack-actions'>
+                <button class='alt' type='button' onclick='applySelectedPalette(false)'>&#127912; Aplicar paleta</button>
+                <button class='alt' type='button' onclick='applySelectedPalette(true)'>&#128190; Aplicar y guardar</button>
+              </div>
+            </section>
+
+            <section class='control-card effect'>
+              <div>
+                <h2>Seleccion de efecto</h2>
+                <p>Elige el render principal, numero de secciones, velocidad y brillo global.</p>
+              </div>
+
+              <div class='effect-layout'>
+                <div class='effect-box'>
+                  <h3>Seleccion y acciones</h3>
+                  <label>
+                    Efecto
+                    <select id='effect'>
+                      __EFFECT_OPTIONS__
+                    </select>
+                  </label>
+
+                  <div class='stack-actions'>
+                    <button onclick='applyState()'>&#9654; Aplicar</button>
+                    <button class='alt' onclick='saveStartupEffect()'>&#128190; Guardar arranque</button>
+                    <button class='alt' onclick='loadState()'>&#8635; Recargar</button>
+                  </div>
+                </div>
+
+                <div class='effect-box'>
+                  <h3>Parametros y presets</h3>
+                  <label>
+                    Numero de secciones
+                    <input id='sectionCount' type='range' min='1' max='10' value='3'>
+                    <span id='sectionCountValue'>3</span>
+                  </label>
+
+                  <label id='speedControl'>
+                    Rapidez del efecto
+                    <input id='effectSpeed' type='range' min='1' max='100' value='10'>
+                    <span id='effectSpeedValue'>10</span>
+                    <span id='effectSpeedHint'>Solo se usa en efectos animados.</span>
+                  </label>
+
+                  <label>
+                    Nivel del efecto
+                    <input id='effectLevel' type='range' min='1' max='10' value='5'>
+                    <span id='effectLevelValue'>5</span>
+                  </label>
+
+                  <label>
+                    Brillo global
+                    <input id='brightness' type='range' min='0' max='255' value='128'>
+                    <span id='brightnessValue'>128</span>
+                  </label>
+
+                  <label style='display:flex; align-items:center; gap:10px; opacity:0.9;'>
+                    <input id='reactiveToAudio' type='checkbox' style='width:auto; flex-shrink:0;' disabled>
+                    <span id='reactiveToAudioLabel'>Audio del microfono: automatico segun el efecto</span>
+                  </label>
+
+                  <div id='effectModeBanner' class='badge' style='display:inline-flex; align-items:center; gap:8px;'>Tipo de efecto: cargando...</div>
+
+                  <div class='preset-actions stack-actions'>
+                    <span class='preset-label'>Presets visuales</span>
+                    <button class='alt sm' onclick='applyVisualPreset("smooth")'>&#127752; Suave</button>
+                    <button class='alt sm' onclick='applyVisualPreset("show")'>&#10024; Show</button>
+                    <button class='alt sm' onclick='applyVisualPreset("aggressive")'>&#9889; Agresivo</button>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </div>
+
+          <div class='controls-bottom'>
+            <section class='power-card'>
+              <div class='power-copy'>
+                <h2>Configuracion playlist</h2>
+              </div>
+
+              <div>
+                <div class='switch'>
+                  <input id='power' type='checkbox'>
+                  <span>Salida activa</span>
+                </div>
+                <span class='badge' id='status'>Cargando estado...</span>
+              </div>
+
+              <div class='power-actions'>
+                <div class='sequence-tools'>
+                  <label>
+                    Duracion para nueva entrada
+                    <input id='effectDurationSec' type='range' min='1' max='600' value='30'>
+                    <span id='effectDurationSecValue' class='slider-readout'>30 s</span>
+                  </label>
+
+                  <div class='actions stack-actions'>
+                    <button class='alt' onclick='addCurrentEffectToSequence()'>&#10133; Anadir a lista</button>
+                    <button class='alt' onclick='loadEffectsPersistence()'>&#8635; Recargar lista</button>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section class='saved-effects-card'>
+              <div class='saved-effects-copy'>
+                <h2>Persistencia de efectos</h2>
+                <p>Guarda el efecto de arranque y prepara la secuencia futura con duracion por entrada.</p>
+              </div>
+
+              <div>
+                <span id='effectsStatus' class='effects-status'>Leyendo persistencia...</span>
+              </div>
+
+              <div>
+                <strong id='startupEffectSummary'>Sin efecto de arranque guardado.</strong>
+              </div>
+
+              <div id='sequenceList' class='sequence-list'>
+                <div class='empty-note'>No hay efectos guardados en la secuencia.</div>
+              </div>
+
+              <pre id='effectsOut' class='json-debug'>Sin datos aun.</pre>
+            </section>
+          </div>
+        </section>
+      </div>
+
+      <section class='runtime-card json-card'>
+        <div class='runtime-head'>
+          <div class='runtime-copy'>
+            <h2>Estado runtime <span class='runtime-pill'>live json</span></h2>
+            <p>El efecto se guarda en LittleFS al aplicar cambios.</p>
+          </div>
+          <button id='toggleRuntime' class='toggle-btn' type='button' aria-expanded='false'>&#128065; Mostrar runtime</button>
+        </div>
+        <div id='runtimeBody' class='runtime-body hidden'>
+          <pre id='stateOut'>Sin datos aun.</pre>
+        </div>
+      </section>
+    </section>
+  </main>
+  <script>
+    if(localStorage.getItem('dux_show_json')==='1') document.body.classList.add('show-json');
+
+    const out = document.getElementById('stateOut');
+    const status = document.getElementById('status');
+    const brightness = document.getElementById('brightness');
+    const brightnessValue = document.getElementById('brightnessValue');
+    const sectionCount = document.getElementById('sectionCount');
+    const sectionCountValue = document.getElementById('sectionCountValue');
+    const effect = document.getElementById('effect');
+    const paletteIdSelect = document.getElementById('paletteId');
+    const palettePreview = document.getElementById('palettePreview');
+    const effectSpeed = document.getElementById('effectSpeed');
+    const effectSpeedValue = document.getElementById('effectSpeedValue');
+    const effectSpeedHint = document.getElementById('effectSpeedHint');
+    const effectLevel = document.getElementById('effectLevel');
+    const effectLevelValue = document.getElementById('effectLevelValue');
+    const speedControl = document.getElementById('speedControl');
+    const reactiveToAudio = document.getElementById('reactiveToAudio');
+    const reactiveToAudioLabel = document.getElementById('reactiveToAudioLabel');
+    const runtimeBody = document.getElementById('runtimeBody');
+    const toggleRuntime = document.getElementById('toggleRuntime');
+    const effectDurationSec = document.getElementById('effectDurationSec');
+    const effectDurationSecValue = document.getElementById('effectDurationSecValue');
+    const effectsStatus = document.getElementById('effectsStatus');
+    const startupEffectSummary = document.getElementById('startupEffectSummary');
+    const sequenceList = document.getElementById('sequenceList');
+    const effectsOut = document.getElementById('effectsOut');
+    const effectModeBanner = document.getElementById('effectModeBanner');
+    let effectsState = null;
+    let allPalettes = [];
+
+    function selectedPaletteId() {
+      const raw = Number(paletteIdSelect.value);
+      return Number.isFinite(raw) && raw >= 0 ? raw : null;
+    }
+
+    function createPaletteSwatch(color) {
+      return "<span class='sequence-color' style='background:" + color + "' title='" + color + "'></span>";
+    }
+
+    function renderPalettePreview(colors) {
+      const safe = Array.isArray(colors) && colors.length >= 3
+        ? colors
+        : ['#ff4d00', '#ffd400', '#00b8d9'];
+      palettePreview.innerHTML = createPaletteSwatch(safe[0])
+        + createPaletteSwatch(safe[1])
+        + createPaletteSwatch(safe[2]);
+    }
+
+    function renderPaletteOptionsFromState(state) {
+      const palettes = allPalettes.length > 0 ? allPalettes : (Array.isArray(state.availablePalettes) ? state.availablePalettes : []);
+      const currentPaletteId = Number.isFinite(Number(state.paletteId)) ? Number(state.paletteId) : -1;
+
+      const sysList = palettes.filter((p) => p.source !== 'user');
+      const userList = palettes.filter((p) => p.source === 'user');
+
+      function makeOpt(palette) {
+        const pid = Number(palette.id);
+        const sel = pid === currentPaletteId ? ' selected' : '';
+        const lbl = palette.label || palette.key || ('Palette ' + pid);
+        return "<option value='" + pid + "'" + sel + ">" + lbl + "</option>";
+      }
+
+      let html = "<option value='-1'>Manual (colores libres)</option>";
+      if (sysList.length) {
+        html += "<optgroup label='Sistema'>" + sysList.map(makeOpt).join('') + "</optgroup>";
+      }
+      if (userList.length) {
+        html += "<optgroup label='Mis paletas'>" + userList.map(makeOpt).join('') + "</optgroup>";
+      }
+      paletteIdSelect.innerHTML = html;
+
+      if (currentPaletteId < 0) {
+        paletteIdSelect.value = '-1';
+      }
+
+      renderPalettePreview(state.primaryColors);
+    }
+
+    function findSelectedPaletteColors() {
+      const selected = selectedPaletteId();
+      if (selected === null) {
+        return null;
+      }
+
+      const match = allPalettes.find((p) => Number(p.id) === selected);
+      if (!match || !Array.isArray(match.primaryColors) || match.primaryColors.length < 3) {
+        return null;
+      }
+      return match.primaryColors;
+    }
+
+    function applyPaletteToInputs(colors) {
+      if (!Array.isArray(colors) || colors.length < 3) {
+        return;
+      }
+      document.getElementById('color0').value = colors[0];
+      document.getElementById('color1').value = colors[1];
+      document.getElementById('color2').value = colors[2];
+      renderPalettePreview(colors);
+    }
+
+    function effectUsesAudio(config) {
+      return !!(config && (config.effectUsesAudio || config.reactiveToAudio));
+    }
+
+    function effectTypeText(config) {
+      return effectUsesAudio(config) ? 'AUDIO REACTIVO' : 'VISUAL';
+    }
+
+    function effectTypeBadgeHtml(config) {
+      const isAudio = effectUsesAudio(config);
+      const bg = isAudio ? '#3f0d12' : '#0b3d20';
+      const fg = isAudio ? '#ffd9de' : '#d8ffe7';
+      const label = isAudio ? 'AUDIO' : 'VISUAL';
+      return "<span style='display:inline-block; padding:2px 8px; border-radius:999px; background:" + bg + "; color:" + fg + "; font-size:12px; font-weight:700; letter-spacing:0.04em;'>" + label + "</span>";
+    }
+
+    function setRuntimeVisible(visible) {
+      runtimeBody.classList.toggle('hidden', !visible);
+      toggleRuntime.textContent = visible ? '\uD83D\uDE48 Ocultar runtime' : '\uD83D\uDC41 Mostrar runtime';
+      toggleRuntime.setAttribute('aria-expanded', visible ? 'true' : 'false');
+    }
+
+    toggleRuntime.addEventListener('click', () => {
+      setRuntimeVisible(runtimeBody.classList.contains('hidden'));
+    });
+
+    brightness.addEventListener('input', () => {
+      brightnessValue.textContent = brightness.value;
+    });
+    sectionCount.addEventListener('input', () => {
+      sectionCountValue.textContent = sectionCount.value;
+    });
+    effectSpeed.addEventListener('input', () => {
+      effectSpeedValue.textContent = effectSpeed.value;
+    });
+    effectLevel.addEventListener('input', () => {
+      effectLevelValue.textContent = effectLevel.value;
+    });
+    effectDurationSec.addEventListener('input', () => {
+      effectDurationSecValue.textContent = effectDurationSec.value + ' s';
+    });
+
+    paletteIdSelect.addEventListener('change', () => {
+      const colors = findSelectedPaletteColors();
+      if (colors) {
+        applyPaletteToInputs(colors);
+      } else {
+        renderPalettePreview([
+          document.getElementById('color0').value,
+          document.getElementById('color1').value,
+          document.getElementById('color2').value,
+        ]);
+      }
+    });
+
+    ['color0', 'color1', 'color2'].forEach((id) => {
+      document.getElementById(id).addEventListener('input', () => {
+        paletteIdSelect.value = '-1';
+        renderPalettePreview([
+          document.getElementById('color0').value,
+          document.getElementById('color1').value,
+          document.getElementById('color2').value,
+        ]);
+      });
+    });
+
+    function selectedEffectUsesAudio() {
+      const option = effect.options[effect.selectedIndex];
+      return !!(option && option.dataset && option.dataset.audio === '1');
+    }
+
+    function updateSpeedControl() {
+      effectSpeed.disabled = false;
+      speedControl.style.opacity = '1';
+      effectSpeedHint.textContent = 'Valor 1..100. Disponible siempre; cada efecto decide si lo usa.';
+
+      const usesAudio = selectedEffectUsesAudio();
+      reactiveToAudio.checked = usesAudio;
+      reactiveToAudioLabel.textContent = usesAudio
+        ? 'Audio del microfono: activado automaticamente para este efecto'
+        : 'Audio del microfono: desactivado en efectos visuales';
+      effectModeBanner.textContent = 'Tipo de efecto: ' + (usesAudio ? 'AUDIO REACTIVO' : 'VISUAL');
+    }
+
+    effect.addEventListener('change', updateSpeedControl);
+
+    function renderState(state) {
+      document.getElementById('power').checked = !!state.power;
+      document.getElementById('effect').value = state.effect || (state.effectId === 1 ? 'gradient' : 'fixed');
+      document.getElementById('brightness').value = state.brightness ?? 128;
+      brightnessValue.textContent = document.getElementById('brightness').value;
+      document.getElementById('sectionCount').value = state.sectionCount ?? 3;
+      sectionCountValue.textContent = document.getElementById('sectionCount').value;
+      document.getElementById('effectSpeed').value = state.effectSpeed ?? 10;
+      effectSpeedValue.textContent = document.getElementById('effectSpeed').value;
+      document.getElementById('effectLevel').value = state.effectLevel ?? 5;
+      effectLevelValue.textContent = document.getElementById('effectLevel').value;
+      reactiveToAudio.checked = !!(state.effectUsesAudio || state.reactiveToAudio);
+      const colors = Array.isArray(state.primaryColors) ? state.primaryColors : ['#ff4d00','#ffd400','#00b8d9'];
+      document.getElementById('color0').value = colors[0] || '#ff4d00';
+      document.getElementById('color1').value = colors[1] || '#ffd400';
+      document.getElementById('color2').value = colors[2] || '#00b8d9';
+      document.getElementById('backgroundColor').value = state.backgroundColor || '#000000';
+      renderPaletteOptionsFromState(state);
+      updateSpeedControl();
+      effectModeBanner.textContent = 'Tipo de efecto: ' + effectTypeText(state);
+      out.textContent = JSON.stringify(state, null, 2);
+      status.textContent = 'Estado cargado';
+    }
+
+    function normalizeEffectsPayload(data) {
+      if (data && data.effects && data.effects.effects) {
+        return data.effects.effects;
+      }
+      if (data && data.effects) {
+        return data.effects;
+      }
+      return data;
+    }
+
+    function createColorSwatch(color) {
+      return "<span class='sequence-color' style='background:" + color + "' title='" + color + "'></span>";
+    }
+
+    function describeConfig(config) {
+      if (!config) {
+        return 'Configuracion no disponible';
+      }
+      const effectName = config.effectLabel || config.effect || ('ID ' + (config.effectId ?? '?'));
+      const paletteName = config.paletteLabel || (Number(config.paletteId) >= 0 ? ('palette ' + config.paletteId) : 'manual');
+      return effectName + ' | paleta ' + paletteName + ' | secciones ' + (config.sectionCount ?? '?') + ' | velocidad ' + (config.effectSpeed ?? '?') + ' | nivel ' + (config.effectLevel ?? '?') + ' | brillo ' + (config.brightness ?? '?');
+    }
+
+    async function applySelectedPalette(saveAfterApply) {
+      const paletteId = selectedPaletteId();
+      if (paletteId === null) {
+        status.textContent = 'Selecciona una paleta predefinida para aplicar.';
+        return;
+      }
+
+      status.textContent = saveAfterApply ? 'Aplicando paleta y guardando...' : 'Aplicando paleta...';
+      const res = await fetch('/api/v1/palettes/apply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ paletteId })
+      });
+
+      const data = await res.json();
+      if (data && data.state) {
+        renderState(data.state);
+      }
+
+      if (saveAfterApply) {
+        await saveStartupEffect();
+      }
+
+      status.textContent = saveAfterApply ? 'Paleta aplicada y guardada' : 'Paleta aplicada';
+    }
+
+    function renderEffectsState(data) {
+      effectsState = normalizeEffectsPayload(data) || {};
+      effectsOut.textContent = JSON.stringify(effectsState, null, 2);
+
+      if (effectsState.hasStartupEffect && effectsState.startupEffect) {
+        startupEffectSummary.innerHTML = 'Arranque: ' + effectTypeBadgeHtml(effectsState.startupEffect) + ' ' + describeConfig(effectsState.startupEffect);
+      } else {
+        startupEffectSummary.textContent = 'Sin efecto de arranque guardado.';
+      }
+
+      const sequence = Array.isArray(effectsState.sequence) ? effectsState.sequence : [];
+      if (!sequence.length) {
+        sequenceList.innerHTML = "<div class='empty-note'>No hay efectos guardados en la secuencia.</div>";
+      } else {
+        sequenceList.innerHTML = sequence.map((entry) => {
+          const config = entry.config || {};
+          const colors = Array.isArray(config.primaryColors) ? config.primaryColors : [];
+          return "<article class='sequence-item'>"
+            + "<div class='sequence-head'>"
+            + "<div class='sequence-title'>"
+            + "<strong>#" + entry.id + " - " + effectTypeBadgeHtml(config) + " " + (config.effectLabel || config.effect || 'Efecto') + "</strong>"
+            + "<span class='sequence-meta'>Duracion " + (entry.durationSec ?? 0) + " s - " + describeConfig(config) + "</span>"
+            + "</div>"
+            + "<button class='delete-btn' type='button' onclick='deleteSequenceEntry(" + entry.id + ")'>&#128465; Eliminar</button>"
+            + "</div>"
+            + "<div class='sequence-colors'>"
+            + colors.map(createColorSwatch).join('')
+            + createColorSwatch(config.backgroundColor || '#000000')
+            + "</div>"
+            + "</article>";
+        }).join('');
+      }
+
+      effectsStatus.textContent = 'Persistencia cargada';
+    }
+
+    async function loadEffectsPersistence() {
+      effectsStatus.textContent = 'Leyendo persistencia...';
+      const res = await fetch('/api/v1/effects');
+      const data = await res.json();
+      renderEffectsState(data);
+    }
+
+    async function saveStartupEffect() {
+      effectsStatus.textContent = 'Guardando arranque...';
+      const res = await fetch('/api/v1/effects/startup/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: '{}'
+      });
+      const data = await res.json();
+      renderEffectsState(data);
+      effectsStatus.textContent = data && data.saved ? 'Efecto de arranque guardado' : 'No se pudo guardar arranque';
+    }
+
+    async function addCurrentEffectToSequence() {
+      effectsStatus.textContent = 'Guardando efecto en la lista...';
+      const res = await fetch('/api/v1/effects/sequence/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ durationSec: Number(effectDurationSec.value) })
+      });
+      const data = await res.json();
+      renderEffectsState(data);
+      effectsStatus.textContent = data && data.added ? 'Entrada anadida a la secuencia' : 'No se pudo anadir la entrada';
+    }
+
+    async function deleteSequenceEntry(id) {
+      effectsStatus.textContent = 'Eliminando entrada...';
+      const res = await fetch('/api/v1/effects/sequence/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id })
+      });
+      const data = await res.json();
+      renderEffectsState(data);
+      effectsStatus.textContent = data && data.deleted ? 'Entrada eliminada' : 'No se pudo eliminar la entrada';
+    }
+
+    async function restartBoard() {
+      const confirmed = window.confirm('Se reiniciara la placa inmediatamente. Continuar?');
+      if (!confirmed) {
+        return;
+      }
+
+      status.textContent = 'Enviando reinicio...';
+      try {
+        await fetch('/api/v1/system/restart', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: '{}'
+        });
+        status.textContent = 'Reinicio enviado. Esperando reconexion...';
+      } catch (_) {
+        status.textContent = 'La placa se esta reiniciando...';
+      }
+
+      setTimeout(() => {
+        loadState().catch(() => {
+          status.textContent = 'Esperando a que la placa vuelva a responder...';
+        });
+      }, 4000);
+    }
+
+    function setSliderWithReadout(sliderId, readoutId, value, suffix = '') {
+      const slider = document.getElementById(sliderId);
+      const readout = document.getElementById(readoutId);
+      slider.value = String(value);
+      readout.textContent = String(value) + suffix;
+    }
+
+    async function applyVisualPreset(presetName) {
+      const presets = {
+        smooth: { sectionCount: 3, effectSpeed: 24, effectLevel: 3, brightness: 120, backgroundColor: '#020202' },
+        show: { sectionCount: 4, effectSpeed: 56, effectLevel: 6, brightness: 170, backgroundColor: '#000000' },
+        aggressive: { sectionCount: 6, effectSpeed: 86, effectLevel: 9, brightness: 220, backgroundColor: '#000000' }
+      };
+
+      const preset = presets[presetName];
+      if (!preset) {
+        status.textContent = 'Preset no valido';
+        return;
+      }
+
+      setSliderWithReadout('sectionCount', 'sectionCountValue', preset.sectionCount);
+      setSliderWithReadout('effectSpeed', 'effectSpeedValue', preset.effectSpeed);
+      setSliderWithReadout('effectLevel', 'effectLevelValue', preset.effectLevel);
+      setSliderWithReadout('brightness', 'brightnessValue', preset.brightness);
+      document.getElementById('backgroundColor').value = preset.backgroundColor;
+      updateSpeedControl();
+
+      status.textContent = 'Aplicando preset ' + presetName + '...';
+      await applyState();
+      status.textContent = 'Preset ' + presetName + ' aplicado';
+    }
+
+    async function loadPalettes() {
+      try {
+        const res = await fetch('/api/v1/palettes');
+        const data = await res.json();
+        allPalettes = Array.isArray(data.palettes) ? data.palettes : [];
+      } catch (_) {
+        allPalettes = [];
+      }
+    }
+
+    async function loadState() {
+      status.textContent = 'Leyendo estado...';
+      const res = await fetch('/api/v1/state');
+      const data = await res.json();
+      renderState(data);
+    }
+
+    async function applyState() {
+      status.textContent = 'Aplicando cambios...';
+      const payload = {
+        power: document.getElementById('power').checked,
+        brightness: Number(document.getElementById('brightness').value),
+        effect: document.getElementById('effect').value,
+        sectionCount: Number(document.getElementById('sectionCount').value),
+        effectSpeed: Number(document.getElementById('effectSpeed').value),
+        effectLevel: Number(document.getElementById('effectLevel').value),
+        reactiveToAudio: selectedEffectUsesAudio(),
+        backgroundColor: document.getElementById('backgroundColor').value
+      };
+
+      const paletteId = selectedPaletteId();
+      if (paletteId !== null) {
+        payload.paletteId = paletteId;
+      } else {
+        payload.primaryColors = [
+          document.getElementById('color0').value,
+          document.getElementById('color1').value,
+          document.getElementById('color2').value
+        ];
+      }
+      const res = await fetch('/api/v1/state', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const text = await res.text();
+      let data = text;
+      try { data = JSON.parse(text); } catch (_) {}
+      if (data && data.state) {
+        renderState(data.state);
+      } else {
+        out.textContent = typeof data === 'string' ? data : JSON.stringify(data, null, 2);
+      }
+      status.textContent = 'Cambios aplicados';
+    }
+
+    setRuntimeVisible(window.matchMedia('(min-width: 761px)').matches);
+    loadPalettes().then(() => Promise.all([loadState(), loadEffectsPersistence()]));
+  </script>
+</div>
+</body>
+</html>
+

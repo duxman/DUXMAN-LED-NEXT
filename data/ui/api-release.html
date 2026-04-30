@@ -1,0 +1,33 @@
+﻿
+<!doctype html>
+<html>
+<head>
+  <meta charset='utf-8'>
+  <meta name='viewport' content='width=device-width,initial-scale=1'>
+  <title>DUXMAN API - Release</title>
+  __CSS__
+</head>
+<body>
+<div class='gen-page-outer'>
+__NAV__
+  <main>
+    <div class='card'>
+      <h1>API Release</h1>
+      <button onclick='getRelease()'>GET /api/v1/release</button>
+    </div>
+    <div class='card'><pre id='out'>Cargando...</pre></div>
+  </main>
+  <script>
+    async function getRelease() {
+      const res = await fetch('/api/v1/release');
+      const text = await res.text();
+      let parsed = text;
+      try { parsed = JSON.stringify(JSON.parse(text), null, 2); } catch (_) {}
+      document.getElementById('out').textContent = 'GET /api/v1/release -> HTTP ' + res.status + '\n\n' + parsed;
+    }
+    getRelease();
+  </script>
+</div>
+</body>
+</html>
+

@@ -1,0 +1,33 @@
+﻿
+<!doctype html>
+<html>
+<head>
+  <meta charset='utf-8'>
+  <meta name='viewport' content='width=device-width,initial-scale=1'>
+  <title>DUXMAN API - Hardware</title>
+  __CSS__
+</head>
+<body>
+<div class='gen-page-outer'>
+__NAV__
+  <main>
+    <div class='card'>
+      <h1>API Hardware</h1>
+      <button onclick='getHardware()'>GET /api/v1/hardware</button>
+    </div>
+    <div class='card'><pre id='out'>Cargando...</pre></div>
+  </main>
+  <script>
+    async function getHardware() {
+      const res = await fetch('/api/v1/hardware');
+      const text = await res.text();
+      let parsed = text;
+      try { parsed = JSON.stringify(JSON.parse(text), null, 2); } catch (_) {}
+      document.getElementById('out').textContent = 'GET /api/v1/hardware -> HTTP ' + res.status + '\n\n' + parsed;
+    }
+    getHardware();
+  </script>
+</div>
+</body>
+</html>
+

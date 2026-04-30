@@ -1,0 +1,41 @@
+﻿
+<!doctype html>
+<html>
+<head>
+  <meta charset='utf-8'>
+  <meta name='viewport' content='width=device-width,initial-scale=1'>
+  <title>DUXMAN API - Profiles GPIO</title>
+  __CSS__
+</head>
+<body>
+<div class='gen-page-outer'>
+__NAV__
+  <main>
+    <div class='card'>
+      <h1>API Profiles GPIO</h1>
+      <p>Aplicar un profile y copiarlo en DEFAULT es ahora el comportamiento normal.</p>
+      <button onclick='callApi("GET","/api/v1/profiles/gpio")'>GET /api/v1/profiles/gpio</button>
+      <button onclick='callApi("POST","/api/v1/profiles/gpio/save")'>POST /api/v1/profiles/gpio/save</button>
+      <button onclick='callApi("POST","/api/v1/profiles/gpio/apply")'>POST /api/v1/profiles/gpio/apply</button>
+      <button onclick='callApi("POST","/api/v1/profiles/gpio/default")'>POST /api/v1/profiles/gpio/default</button>
+      <button onclick='callApi("POST","/api/v1/profiles/gpio/delete")'>POST /api/v1/profiles/gpio/delete</button>
+      <textarea id='payload'>{"profile":{"id":"mi_perfil","name":"Mi perfil","gpio":{"outputs":[{"pin":5,"ledCount":60,"ledType":"ws2812b","colorOrder":"GRB"}]},"applyNow":true}}</textarea>
+    </div>
+    <div class='card'><pre id='out'>Sin llamadas aun.</pre></div>
+  </main>
+  <script>
+    async function callApi(method, url) {
+      const options = { method: method, headers: { 'Content-Type': 'application/json' } };
+      if (method !== 'GET') options.body = document.getElementById('payload').value;
+      const res = await fetch(url, options);
+      const text = await res.text();
+      let parsed = text;
+      try { parsed = JSON.stringify(JSON.parse(text), null, 2); } catch (_) {}
+      document.getElementById('out').textContent = method + ' ' + url + ' -> HTTP ' + res.status + '\n\n' + parsed;
+    }
+    callApi('GET', '/api/v1/profiles/gpio');
+  </script>
+</div>
+</body>
+</html>
+

@@ -1,0 +1,43 @@
+﻿
+<!doctype html>
+<html>
+<head>
+  <meta charset='utf-8'>
+  <meta name='viewport' content='width=device-width,initial-scale=1'>
+  <title>DUXMAN API - Config All</title>
+  __CSS__
+</head>
+<body>
+<div class='gen-page-outer'>
+__NAV__
+  <main>
+    <div class='card'>
+      <h1>API Config All</h1>
+      <p>Exportar e importar toda la configuracion del dispositivo.</p>
+      <button onclick='getCfg()'>GET /api/v1/config/all</button>
+      <button onclick='postCfg()'>POST /api/v1/config/all</button>
+      <textarea id='payload'>{}</textarea>
+    </div>
+    <div class='card'><pre id='out'>Sin llamadas aun.</pre></div>
+  </main>
+  <script>
+    async function callApi(method, body) {
+      const options = { method, headers: { 'Content-Type': 'application/json' } };
+      if (body) options.body = body;
+      const res = await fetch('/api/v1/config/all', options);
+      const text = await res.text();
+      let parsed = text;
+      try { parsed = JSON.stringify(JSON.parse(text), null, 2); } catch (_) {}
+      document.getElementById('out').textContent = method + ' /api/v1/config/all -> HTTP ' + res.status + '\n\n' + parsed;
+      if (method === 'GET') {
+        try { document.getElementById('payload').value = JSON.stringify(JSON.parse(text), null, 2); } catch (_) {}
+      }
+    }
+    function getCfg() { callApi('GET'); }
+    function postCfg() { callApi('POST', document.getElementById('payload').value); }
+    getCfg();
+  </script>
+</div>
+</body>
+</html>
+

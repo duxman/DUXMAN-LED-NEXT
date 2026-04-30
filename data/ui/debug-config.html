@@ -1,0 +1,125 @@
+﻿
+<!doctype html>
+<html>
+<head>
+  <meta charset='utf-8'>
+  <meta name='viewport' content='width=device-width,initial-scale=1'>
+  <title>DUXMAN Debug Config</title>
+  __CSS__
+</head>
+<body>
+<div class='gen-page-outer'>
+__NAV__
+  <main>
+    <div class='card'>
+      <h1>Configuracion Debug</h1>
+      <p class='hint'>Controla trazas debug y el intervalo del heartbeat serial.</p>
+      <div class='actions'>
+        <button class='btn alt' onclick='loadDebug()'>Recargar</button>
+        <button class='btn' onclick='saveDebug()'>Guardar</button>
+      </div>
+      <p id='status' class='status-live' aria-live='polite'></p>
+    </div>
+
+    <div class='card'>
+      <div class='field'>
+        <label><input id='debugEnabled' type='checkbox'> Debug habilitado</label>
+      </div>
+      <div class='field'>
+        <label for='heartbeatMs'>Heartbeat ms (0 desactiva)</label>
+        <input id='heartbeatMs' type='number' min='0' max='600000' step='100'>
+      </div>
+    </div>
+
+    <div class='card'>
+      <h3>Preferencias UI</h3>
+      <div class='field'>
+        <label style='display:flex;align-items:center;gap:8px;cursor:pointer'>
+          <input id='showJsonChk' type='checkbox' onchange='toggleJson(this.checked)'>
+          <span>Mostrar respuestas JSON en las paginas de configuracion</span>
+        </label>
+        <p class='hint' style='margin-top:4px'>Se guarda en el navegador (localStorage). Por defecto desactivado.</p>
+      </div>
+    </div>
+
+    <div class='card json-card'>
+      <h3>Payload</h3>
+      <pre id='payloadOut'>{}</pre>
+      <h3>Respuesta</h3>
+      <pre id='resultOut'>Sin llamadas aun.</pre>
+    </div>
+  </main>
+
+  <script>
+    function byId(id) { return document.getElementById(id); }
+    function setStatus(message, isError) {
+      const el = byId('status');
+      if (window.duxUpdateStatus) {
+        window.duxUpdateStatus(el, message, !!isError);
+        return;
+      }
+      el.textContent = message || '';
+    }
+
+    function toggleJson(checked) {
+      localStorage.setItem('dux_show_json', checked ? '1' : '0');
+      document.body.classList.toggle('show-json', checked);
+    }
+
+    function buildPayload() {
+      return {
+        debug: {
+          enabled: byId('debugEnabled').checked,
+          heartbeatMs: Number(byId('heartbeatMs').value || 0)
+        }
+      };
+    }
+
+    async function loadDebug() {
+      // leer preferencia del browser
+      const showJson = localStorage.getItem('dux_show_json') === '1';
+      byId('showJsonChk').checked = showJson;
+      document.body.classList.toggle('show-json', showJson);
+
+      setStatus('Leyendo configuracion debug...', false);
+      try {
+        const res = await fetch('/api/v1/config/debug');
+        const data = await res.json();
+        const dbg = data.debug || {};
+        byId('debugEnabled').checked = !!dbg.enabled;
+        byId('heartbeatMs').value = dbg.heartbeatMs == null ? 5000 : dbg.heartbeatMs;
+        byId('resultOut').textContent = JSON.stringify(data, null, 2);
+        setStatus('Configuracion debug cargada (HTTP ' + res.status + ').', false);
+      } catch (error) {
+        byId('resultOut').textContent = String(error);
+        setStatus('Error leyendo debug.', true);
+      }
+    }
+
+    async function saveDebug() {
+      const payload = buildPayload();
+      byId('payloadOut').textContent = JSON.stringify(payload, null, 2);
+      setStatus('Guardando configuracion debug...', false);
+      try {
+        const res = await fetch('/api/v1/config/debug', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const text = await res.text();
+        let pretty = text;
+        try { pretty = JSON.stringify(JSON.parse(text), null, 2); } catch (_) {}
+        byId('resultOut').textContent = pretty;
+        setStatus(res.ok ? 'Debug guardado (HTTP ' + res.status + ').' : 'Error guardando debug (HTTP ' + res.status + ').', !res.ok);
+      } catch (error) {
+        byId('resultOut').textContent = String(error);
+        setStatus('Error de red guardando debug.', true);
+      }
+    }
+
+    loadDebug();
+  </script>
+</div>
+</body>
+</html>
+

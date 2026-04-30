@@ -1,6 +1,6 @@
 # DUXMAN-LED-NEXT
 
-Firmware modular para control LED en ESP32 (v0.4.0-beta), con API REST/Serial, UI embebida, perfiles de configuración completos, paletas de usuario y motor de efectos visuales/audio.
+Firmware modular para control LED en ESP32 (v0.4.1-beta), con API REST/Serial, UI embebida, perfiles de configuración completos, paletas de usuario y motor de efectos visuales/audio.
 
 ## Estado actual
 
@@ -114,6 +114,14 @@ Base HTTP: /api/v1
 Nota: existen referencias legacy a rutas /api/v1/profiles/gpio* en algunas páginas de prueba antiguas; la ruta canónica implementada es /api/v1/profiles*.
 
 ## UI embebida
+
+La UI ya no depende solo de cadenas HTML incrustadas en firmware. Las páginas principales se sirven desde plantillas en LittleFS bajo `data/ui`, con fallback automático al HTML embebido si falta algún archivo.
+
+Mejoras recientes:
+
+- Plantillas HTML/CSS externas en LittleFS para mantenimiento más simple.
+- `POST /api/v1/config/network` y `POST /api/v1/config/all` responden antes de reaplicar WiFi para reducir `ERR_CONNECTION_RESET` en cliente.
+- `GET /api/v1/config/all` genera el JSON completo con menor pico de memoria.
 
 Rutas principales:
 

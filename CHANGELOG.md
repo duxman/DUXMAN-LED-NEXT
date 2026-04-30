@@ -2,6 +2,21 @@
 
 Todos los cambios relevantes de este proyecto se documentan en este archivo.
 
+## [0.4.1-beta] - 2026-04-30
+
+### Added
+- Migración completa de las plantillas de UI embebida a `data/ui/*.html` y `data/ui/common.css.html`, cargadas desde LittleFS con fallback en firmware.
+- Ajustes visuales en Home para ordenar acciones de playlist y unificar layout vertical de botones en secciones clave.
+
+### Changed
+- `platformio.ini` ahora fija explícitamente `board_build.filesystem = littlefs` para que `uploadfs` genere y suba `littlefs.bin` en lugar de `spiffs.bin`.
+- La construcción de `GET /api/v1/config/all` reduce el pico de memoria al ensamblar el JSON completo sin un `JsonDocument` agregado grande.
+- `POST /api/v1/config/network` y `POST /api/v1/config/all` responden antes de reaplicar WiFi para reducir cortes de conexión desde navegador.
+
+### Fixed
+- Compatibilidad de payloads JSON que llegaban doble-serializados en las rutas de configuración de red e importación completa.
+- Error de despliegue de plantillas UI por usar filesystem incorrecto durante `uploadfs`.
+
 ## [0.4.0-beta] - 2026-04-30
 
 ### Added
