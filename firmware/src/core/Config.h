@@ -49,12 +49,17 @@ struct NetworkConfig {
   bool validate(String *error = nullptr) const;
 };
 
-// Configuración de depuración (heartbeat serial, nivel de log).
-struct DebugConfig {
-  bool enabled = false;
+// Configuración general (idioma, región, opciones de debug).
+struct GeneralConfig {
+  // Language and localization
+  String language = "en";              // "en", "es", "fr", etc.
+  String regionCode = "US";            // "US", "ES", "FR", etc.
+  
+  // Debug and logging options
+  bool debugEnabled = false;
   uint32_t heartbeatMs = 5000;
 
-  static DebugConfig defaults();
+  static GeneralConfig defaults();
   String toJson() const;
   bool applyPatchJson(const String &payload, String *error = nullptr);
   bool validate(String *error = nullptr) const;

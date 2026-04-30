@@ -42,7 +42,7 @@ Modelos principales:
 - GpioConfig (hasta 4 outputs)
 - GpioConfig.powerLimit (limite software de consumo)
 - MicrophoneConfig
-- DebugConfig
+- GeneralConfig (language, region, debug options)
 - CoreState (runtime)
 
 ## Motor LED

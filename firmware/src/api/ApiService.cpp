@@ -1,4 +1,4 @@
-﻿/*
+/*
  * duxman-led next - v0.3.7-beta
  * Licensed under the Apache License 2.0
  * File: firmware/src/api/ApiService.cpp
@@ -125,7 +125,7 @@ ApiService::ApiService(CoreState &state, NetworkConfig &networkConfig, GpioConfi
                        ProfileService &profileService, UserPaletteService &userPaletteService,
                        WatchdogService &watchdogService)
     : state_(state), networkConfig_(networkConfig), gpioConfig_(gpioConfig),
-      microphoneConfig_(microphoneConfig), debugConfig_(debugConfig),
+      microphoneConfig_(microphoneConfig), generalConfig_(debugConfig),
       storageService_(storageService), wifiService_(wifiService),
       persistenceSchedulerService_(persistenceSchedulerService),
       effectPersistenceService_(effectPersistenceService),
@@ -150,7 +150,7 @@ void ApiService::begin() {
   Serial.println("[api] ready: GET /api/v1/release");
   Serial.println("[api] ui: GET / | GET /config | GET /config/network | GET /config/microphone | GET /config/gpio | GET /config/palettes | GET /config/debug | GET /config/manual | GET /api | GET /version");
 
-  // ── IP summary ────────────────────────────────────────────────────────────
+  // -- IP summary ------------------------------------------------------------
   {
     const IPAddress staIp = WiFi.localIP();
     const IPAddress apIp  = WiFi.softAPIP();
@@ -222,9 +222,9 @@ void ApiService::processCommand(const String &command) {
 
   if (command == "GET /api/v1/config/debug") {
     Serial.print("{\"debug\":{\"enabled\":");
-    Serial.print(debugConfig_.enabled ? "true" : "false");
+    Serial.print(generalConfig_.debugEnabled ? "true" : "false");
     Serial.print(",\"heartbeatMs\":");
-    Serial.print(debugConfig_.heartbeatMs);
+    Serial.print(generalConfig_.heartbeatMs);
     Serial.println("}}");
     return;
   }
@@ -535,7 +535,7 @@ void ApiService::processCommand(const String &command) {
     }
 
     String error;
-    const bool changed = debugConfig_.applyPatchJson(command.substring(payloadPos), &error);
+    const bool changed = generalConfig_.applyPatchJson(command.substring(payloadPos), &error);
     if (!error.isEmpty()) {
       Serial.print("{\"error\":\"");
       Serial.print(error);
@@ -550,9 +550,9 @@ void ApiService::processCommand(const String &command) {
     Serial.print("{\"updated\":");
     Serial.print(changed ? "true" : "false");
     Serial.print(",\"debug\":{\"enabled\":");
-    Serial.print(debugConfig_.enabled ? "true" : "false");
+    Serial.print(generalConfig_.debugEnabled ? "true" : "false");
     Serial.print(",\"heartbeatMs\":");
-    Serial.print(debugConfig_.heartbeatMs);
+    Serial.print(generalConfig_.heartbeatMs);
     Serial.println("}}");
     return;
   }
@@ -582,7 +582,7 @@ void ApiService::processCommand(const String &command) {
     NetworkConfig netCandidate = networkConfig_;
     GpioConfig gpioCandidate = gpioConfig_;
     MicrophoneConfig micCandidate = microphoneConfig_;
-    DebugConfig debugCandidate = debugConfig_;
+    DebugConfig debugCandidate = generalConfig_;
 
     String netPayload;
     { JsonDocument d; d["network"] = root["network"]; serializeJson(d, netPayload); }
@@ -620,7 +620,7 @@ void ApiService::processCommand(const String &command) {
     networkConfig_ = netCandidate;
     gpioConfig_ = gpioCandidate;
     microphoneConfig_ = micCandidate;
-    debugConfig_ = debugCandidate;
+    generalConfig_ = debugCandidate;
     persistenceSchedulerService_.requestSaveConfig();
     profileService_.syncDefaultProfileFromActiveConfig();
     wifiService_.applyConfig();
@@ -652,7 +652,7 @@ void ApiService::setupHttpRoutes() {
   });
 
   httpServer_.on("/config/debug", HTTP_GET, [this]() {
-    httpServer_.send(200, "text/html", buildDebugConfigHtml());
+    httpServer_.send(200, "text/html", buildGeneralConfigHtml());
   });
 
   httpServer_.on("/config/gpio", HTTP_GET, [this]() {
@@ -1402,9 +1402,9 @@ void ApiService::handleHttpDebugRoute() {
 
   if (method == HTTP_GET) {
     String response = "{\"debug\":{\"enabled\":";
-    response += debugConfig_.enabled ? "true" : "false";
+    response += generalConfig_.debugEnabled ? "true" : "false";
     response += ",\"heartbeatMs\":";
-    response += debugConfig_.heartbeatMs;
+    response += generalConfig_.heartbeatMs;
     response += "}}";
     httpServer_.send(200, "application/json", response);
     return;
@@ -1418,7 +1418,7 @@ void ApiService::handleHttpDebugRoute() {
     }
 
     String error;
-    const bool changed = debugConfig_.applyPatchJson(payload, &error);
+    const bool changed = generalConfig_.applyPatchJson(payload, &error);
     if (!error.isEmpty()) {
       String response = "{\"error\":\"";
       response += error;
@@ -1434,9 +1434,9 @@ void ApiService::handleHttpDebugRoute() {
     String response = "{\"updated\":";
     response += changed ? "true" : "false";
     response += ",\"debug\":{\"enabled\":";
-    response += debugConfig_.enabled ? "true" : "false";
+    response += generalConfig_.debugEnabled ? "true" : "false";
     response += ",\"heartbeatMs\":";
-    response += debugConfig_.heartbeatMs;
+    response += generalConfig_.heartbeatMs;
     response += "}}";
     httpServer_.send(200, "application/json", response);
     return;
@@ -1485,7 +1485,7 @@ String ApiService::buildFullConfigJson() const {
   const String networkJson = unwrapRootJsonValue(networkConfig_.toJson());
   const String gpioJson = unwrapRootJsonValue(gpioConfig_.toJson());
   const String microphoneJson = unwrapRootJsonValue(microphoneConfig_.toJson());
-  const String debugJson = unwrapRootJsonValue(debugConfig_.toJson());
+  const String debugJson = unwrapRootJsonValue(generalConfig_.toJson());
 
   out.reserve(networkJson.length() + gpioJson.length() + microphoneJson.length() + debugJson.length() + 64);
   out = "{\"network\":";
@@ -1527,7 +1527,7 @@ void ApiService::handleHttpConfigAllRoute() {
     NetworkConfig netCandidate = networkConfig_;
     GpioConfig gpioCandidate = gpioConfig_;
     MicrophoneConfig micCandidate = microphoneConfig_;
-    DebugConfig debugCandidate = debugConfig_;
+    DebugConfig debugCandidate = generalConfig_;
 
     String netPayload;
     { JsonDocument d; d["network"] = root["network"]; serializeJson(d, netPayload); }
@@ -1578,7 +1578,7 @@ void ApiService::handleHttpConfigAllRoute() {
     networkConfig_ = netCandidate;
     gpioConfig_ = gpioCandidate;
     microphoneConfig_ = micCandidate;
-    debugConfig_ = debugCandidate;
+    generalConfig_ = debugCandidate;
 
     persistenceSchedulerService_.requestSaveConfig();
 
@@ -1791,7 +1791,7 @@ String ApiService::buildOpenApiJson() const {
 }
 
 // ---------------------------------------------------------------------------
-// Shared navigation bar — included verbatim in every page builder.
+// Shared navigation bar � included verbatim in every page builder.
 // CSS uses .gen-* prefix to avoid collision with per-page styles.
 // ---------------------------------------------------------------------------
 String ApiService::buildCommonCss() const {
@@ -1813,9 +1813,9 @@ String ApiService::buildCommonCss() const {
   a{color:var(--accent);}
   .link{color:var(--accent);font-size:12px;text-decoration:none;word-break:break-all;}
   .link:hover{text-decoration:underline;}
-  /* ── Cards ── */
+  /* -- Cards -- */
   .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:12px;box-shadow:0 8px 28px rgba(0,0,0,.2);}
-  /* ── Buttons ── */
+  /* -- Buttons -- */
   .btn,button{border:0;border-radius:8px;padding:9px 14px;font-size:14px;font-weight:600;cursor:pointer;color:var(--bg);background:var(--accent);transition:opacity .2s;}
   .btn.alt,button.alt,button[class~=alt]{background:#1a8fa0;color:#fff;}
   .btn.ghost,.btn-ghost{background:rgba(255,255,255,.1);color:var(--text);}
@@ -1823,7 +1823,7 @@ String ApiService::buildCommonCss() const {
   .btn.sm,.btn-sm{padding:5px 10px;font-size:12px;}
   .btn-primary{background:var(--accent);color:var(--bg);}
   .btn:hover,button:hover{opacity:.85;}
-  /* ── Forms ── */
+  /* -- Forms -- */
   .field{margin-bottom:10px;}
   label{display:block;font-size:13px;color:var(--muted);margin-bottom:4px;}
   input,select,textarea{width:100%;border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:14px;background:var(--card2);color:var(--text);box-sizing:border-box;font-family:inherit;}
@@ -1832,14 +1832,14 @@ String ApiService::buildCommonCss() const {
   input[type=checkbox]{width:auto;}
   input[type=file]{font-size:14px;color:var(--text);}
   input:focus,select:focus,textarea:focus{outline:1px solid var(--accent);}
-  /* ── Code / Pre ── */
+  /* -- Code / Pre -- */
   pre{margin:10px 0;min-height:80px;white-space:pre-wrap;border:1px solid var(--line);border-radius:8px;background:var(--card2);color:var(--text);padding:10px;overflow:auto;font-family:Consolas,Courier New,monospace;font-size:12px;line-height:1.45;}
   code{font-family:Consolas,monospace;background:var(--card2);border-radius:4px;padding:1px 4px;}
-  /* ── Tables ── */
+  /* -- Tables -- */
   table{width:100%;border-collapse:collapse;font-size:13px;margin-top:8px;}
   th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);}
   th{color:var(--muted);font-weight:600;}
-  /* ── Layout helpers ── */
+  /* -- Layout helpers -- */
   .row{display:flex;flex-wrap:wrap;gap:10px;}
   .col{flex:1 1 180px;}
   .actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:10px;}
@@ -1850,7 +1850,7 @@ String ApiService::buildCommonCss() const {
   .lbl{font-size:13px;color:var(--muted);}
   .val{font-size:14px;font-weight:600;color:var(--text);text-align:right;font-family:Consolas,monospace;}
   .val.accent{color:var(--accent);}.val.ok{color:var(--ok);}.val.warn{color:var(--warn);}
-  /* ── Feedback ── */
+  /* -- Feedback -- */
   .hint{font-size:13px;color:var(--muted);}
   .ok{color:var(--ok);}
   .err{color:var(--danger);}
@@ -1873,14 +1873,14 @@ String ApiService::buildCommonCss() const {
   .badge.builtin{background:rgba(255,255,255,.08);color:var(--muted);border:1px solid var(--line);}
   .badge.default{background:rgba(15,208,224,.2);color:var(--accent);}
   .loader{text-align:center;color:var(--muted);padding:30px;}
-  /* ── Progress bars ── */
+  /* -- Progress bars -- */
   .bar-wrap{background:rgba(255,255,255,.06);border-radius:4px;height:6px;width:100%;margin-top:4px;}
   .bar-fill{height:6px;border-radius:4px;background:linear-gradient(90deg,var(--ok),var(--accent));transition:width .4s;}
-  /* ── Connectivity dots ── */
+  /* -- Connectivity dots -- */
   .dot{width:8px;height:8px;border-radius:50%;display:inline-block;}
   .dot.on{background:var(--ok);}.dot.off{background:#444;}
   .chip-bool{display:inline-flex;align-items:center;gap:4px;font-size:12px;}
-  /* ── Hero ── */
+  /* -- Hero -- */
   .hero{display:flex;flex-direction:column;align-items:center;text-align:center;margin-bottom:24px;}
   .hero svg{width:480px;max-width:80%;margin-bottom:16px;}
   .hero h1{font-size:26px;margin:0 0 4px;color:var(--accent);}
@@ -1888,12 +1888,12 @@ String ApiService::buildCommonCss() const {
   .hero-title{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;}
   .boot-at{display:inline-flex;align-items:center;padding:2px 8px;border-radius:999px;background:rgba(15,208,224,.1);color:var(--muted);font-size:11px;font-weight:700;letter-spacing:.02em;}
   .section-title{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin:20px 0 8px;}
-  /* ── Box/card links (config index, docs) ── */
+  /* -- Box/card links (config index, docs) -- */
   a.box{text-decoration:none;color:var(--text);border:1px solid var(--line);border-left:6px solid var(--accent);border-radius:10px;padding:12px;background:var(--card);display:block;transition:transform .14s,box-shadow .14s;}
   a.box:hover{transform:translateY(-2px);box-shadow:0 10px 24px rgba(0,0,0,.3);}
   a.box h2{margin:0 0 4px;font-size:16px;color:var(--accent);}
   a.box p{color:var(--muted);font-size:13px;margin:0;}
-  /* ── Home page ── */
+  /* -- Home page -- */
   .panel{display:block;}
   .menu{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;width:100%;padding:10px;border:1px solid var(--line);border-radius:14px;background:var(--card);}
   .controls{display:grid;gap:14px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;}
@@ -1942,14 +1942,14 @@ String ApiService::buildCommonCss() const {
   .item:hover{transform:translateY(-2px);box-shadow:0 10px 20px rgba(0,0,0,.25);}
   .item h2{margin:0;font-size:16px;}
   .item span{color:var(--muted);font-size:12px;}
-  /* ── GPIO ── */
+  /* -- GPIO -- */
   .output-block{border-top:2px solid var(--line);padding-top:12px;margin-top:12px;}
   .output-block:first-child{border-top:none;padding-top:0;margin-top:0;}
   .output-header{display:flex;align-items:center;justify-content:space-between;}
   .output-header h2{margin:0;}
   .json-card,.json-debug{display:none;}
   body.show-json .json-card,body.show-json .json-debug{display:block;}
-  /* ── Profiles ── */
+  /* -- Profiles -- */
   .profile-grid{display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));margin-top:10px;}
   .profile-card{border:2px solid var(--line);border-radius:10px;padding:12px;background:var(--card);}
   .profile-card.is-default{border-color:var(--accent);}
@@ -1960,7 +1960,7 @@ String ApiService::buildCommonCss() const {
   .pactions{display:flex;gap:6px;flex-wrap:wrap;}
   .resp-card{display:none;}
   body.show-resp .resp-card{display:block;}
-  /* ── Palettes ── */
+  /* -- Palettes -- */
   .palettes-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px;margin-top:10px;}
   .pal-card{border:1px solid var(--line);border-radius:10px;padding:10px;background:var(--card);transition:box-shadow .15s;}
   .pal-card.editing{border-color:var(--accent);box-shadow:0 0 0 2px rgba(15,208,224,.25);}
@@ -1982,9 +1982,9 @@ String ApiService::buildCommonCss() const {
   .section-hdr{display:flex;align-items:center;gap:8px;margin-bottom:4px;}
   .no-palettes{color:var(--muted);font-style:italic;font-size:.85rem;}
   .json-pre{background:var(--card2);border:1px solid var(--line);border-radius:6px;padding:8px;font-size:.75rem;white-space:pre-wrap;overflow:auto;max-height:160px;margin:0;font-family:Consolas,monospace;color:var(--text);}
-  /* ── File input ── */
+  /* -- File input -- */
   .file-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
-  /* ── Responsive ── */
+  /* -- Responsive -- */
   @media(max-width:760px){
     .menu,.controls-top,.controls-bottom,.control-sections{grid-template-columns:1fr;}
     .effect-layout,.equal-actions,.preset-actions{grid-template-columns:1fr;}
@@ -2006,10 +2006,10 @@ String ApiService::buildNavHtml() const {
 
   return R"HTML(
 <style>
-  /* ── Outer page box: 90% wide, contains nav + content ── */
+  /* -- Outer page box: 90% wide, contains nav + content -- */
   .gen-page-outer{width:70%;max-width:940px;margin:20px auto;border-radius:16px;box-shadow:0 12px 36px rgba(10,30,20,.15);overflow:hidden;background:var(--card,#fff);}
   .gen-page-outer>main{max-width:100%!important;width:100%!important;margin:0!important;box-sizing:border-box;}
-  /* ── Nav: flush inside box, no own radius ── */
+  /* -- Nav: flush inside box, no own radius -- */
   .gen-nav{display:flex;align-items:center;background:linear-gradient(135deg,#0a3d4a 0%,#0f6a7a 100%);min-height:52px;border-radius:0;box-shadow:none;padding:0 16px;position:relative;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;margin:0;width:100%;}
   .gen-logo{display:flex;align-items:center;gap:8px;flex-shrink:0;margin-right:auto;text-decoration:none;}
   .gen-logo-text{color:#e8f6f8;font-size:18px;font-weight:600;white-space:nowrap;letter-spacing:.01em;}
@@ -3917,7 +3917,7 @@ __NAV__
   return html;
 }
 
-String ApiService::buildDebugConfigHtml() const {
+String ApiService::buildGeneralConfigHtml() const {
   String html = loadTemplateFromLittleFs("/ui/debug-config.html");
   if (html.isEmpty()) {
     html = R"HTML(
@@ -4534,7 +4534,7 @@ __NAV__
 
       // Hero
       document.getElementById('svgVersion').textContent = rel.version || '';
-      document.getElementById('fwBranch').textContent = (rel.branch || '') + ' — ' + (rel.board || '');
+      document.getElementById('fwBranch').textContent = (rel.branch || '') + ' � ' + (rel.board || '');
 
       // Release card
       document.getElementById('gridRelease').innerHTML =

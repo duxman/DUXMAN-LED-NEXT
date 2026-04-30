@@ -1,0 +1,108 @@
+{
+  "lang": "es",
+  "region": "ES",
+  "name": "Español",
+  "ui": {
+    "nav": {
+      "home": "Inicio",
+      "effects": "Efectos",
+      "profiles": "Perfiles",
+      "settings": "Configuración",
+      "advanced": "Avanzado",
+      "help": "Ayuda"
+    },
+    "button": {
+      "save": "Guardar",
+      "cancel": "Cancelar",
+      "apply": "Aplicar",
+      "delete": "Eliminar",
+      "back": "Atrás",
+      "next": "Siguiente",
+      "edit": "Editar",
+      "add": "Agregar",
+      "remove": "Quitar",
+      "close": "Cerrar",
+      "ok": "Aceptar"
+    },
+    "label": {
+      "brightness": "Brillo",
+      "speed": "Velocidad",
+      "color": "Color",
+      "effect": "Efecto",
+      "palette": "Paleta",
+      "mode": "Modo",
+      "enabled": "Activado",
+      "disabled": "Desactivado",
+      "pin": "Pin",
+      "type": "Tipo",
+      "count": "Cantidad",
+      "order": "Orden de Color"
+    },
+    "settings": {
+      "general": "Configuración General",
+      "network": "Red",
+      "power": "Gestión de Energía",
+      "effects": "Efectos",
+      "language": "Idioma",
+      "region": "Región",
+      "debug": "Debug y Registros",
+      "debugEnabled": "Activar Salida de Debug"
+    },
+    "message": {
+      "saving": "Guardando...",
+      "saved": "Guardado correctamente",
+      "error": "Error",
+      "warning": "Advertencia",
+      "success": "Éxito",
+      "loading": "Cargando...",
+      "connecting": "Conectando..."
+    },
+    "home": {
+      "title": "Inicio",
+      "currentEffect": "Efecto Actual",
+      "brightness": "Brillo",
+      "speed": "Velocidad",
+      "palette": "Paleta",
+      "playlist": "Lista de Reproducción"
+    },
+    "effects": {
+      "title": "Efectos",
+      "search": "Buscar efectos...",
+      "category": "Categoría",
+      "visual": "Visual",
+      "audio": "Reactivo a Audio"
+    }
+  },
+  "effects": {
+    "fixed": "Color Fijo",
+    "gradient": "Gradiente",
+    "blink": "Parpadeo",
+    "breath": "Respiración",
+    "chase": "Persecución",
+    "rainbow": "Arcoíris",
+    "meteor": "Meteoro",
+    "musicPulse": "Pulso Musical",
+    "spectrum": "Espectro"
+  },
+  "palettes": {
+    "rainbow": "Arcoíris",
+    "sunset": "Atardecer",
+    "ocean": "Océano",
+    "fire": "Fuego",
+    "nature": "Naturaleza"
+  },
+  "errors": {
+    "network": "Error de red",
+    "config": "Error de configuración",
+    "timeout": "Tiempo de conexión agotado",
+    "invalid": "Valor inválido"
+  },
+  "time": {
+    "sec": "segundo",
+    "secs": "segundos",
+    "min": "minuto",
+    "mins": "minutos",
+    "hour": "hora",
+    "hours": "horas"
+  }
+}

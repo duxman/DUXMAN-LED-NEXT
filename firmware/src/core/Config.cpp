@@ -778,47 +778,62 @@ NetworkConfig NetworkConfig::defaults() {
   return config;
 }
 
-// ── DebugConfig ─────────────────────────────────────────────────
+// ── GeneralConfig ───────────────────────────────────────────────
 
-DebugConfig DebugConfig::defaults() {
-  DebugConfig config;
-  config.enabled = false;
+GeneralConfig GeneralConfig::defaults() {
+  GeneralConfig config;
+  config.language = "en";
+  config.regionCode = "US";
+  config.debugEnabled = false;
   config.heartbeatMs = 5000;
   return config;
 }
 
-String DebugConfig::toJson() const {
+String GeneralConfig::toJson() const {
   JsonDocument doc;
-  JsonObject debug = doc["debug"].to<JsonObject>();
-  debug["enabled"] = enabled;
-  debug["heartbeatMs"] = heartbeatMs;
+  JsonObject general = doc["general"].to<JsonObject>();
+  general["language"] = language;
+  general["regionCode"] = regionCode;
+  general["debugEnabled"] = debugEnabled;
+  general["heartbeatMs"] = heartbeatMs;
   String out;
   serializeJson(doc, out);
   return out;
 }
 
-bool DebugConfig::validate(String *error) const {
+bool GeneralConfig::validate(String *error) const {
+  // Validate language code (ISO 639-1)
+  if (language != "en" && language != "es" && language != "fr" && 
+      language != "de" && language != "it") {
+    if (error != nullptr) {
+      *error = "invalid_language_code";
+    }
+    return false;
+  }
+  
   if (heartbeatMs < kHeartbeatMinMs || heartbeatMs > kHeartbeatMaxMs) {
     if (error != nullptr) {
-      *error = "invalid_debug_heartbeat_ms";
+      *error = "invalid_general_heartbeat_ms";
     }
     return false;
   }
   return true;
 }
 
-bool DebugConfig::applyPatchJson(const String &payload, String *error) {
+bool GeneralConfig::applyPatchJson(const String &payload, String *error) {
   JsonDocument doc;
   if (deserializeJson(doc, payload)) {
     if (error != nullptr) *error = "invalid_json";
     return false;
   }
   JsonObjectConst root = doc.as<JsonObjectConst>();
-  JsonObjectConst debugObj = root["debug"].isNull() ? root : root["debug"].as<JsonObjectConst>();
+  JsonObjectConst generalObj = root["general"].isNull() ? root : root["general"].as<JsonObjectConst>();
 
-  DebugConfig candidate = *this;
-  setBoolIfPresent(debugObj, "enabled", candidate.enabled);
-  setUIntIfPresent(debugObj, "heartbeatMs", candidate.heartbeatMs);
+  GeneralConfig candidate = *this;
+  setIfPresent(generalObj, "language", candidate.language);
+  setIfPresent(generalObj, "regionCode", candidate.regionCode);
+  setBoolIfPresent(generalObj, "debugEnabled", candidate.debugEnabled);
+  setUIntIfPresent(generalObj, "heartbeatMs", candidate.heartbeatMs);
 
   String validationError;
   if (!candidate.validate(&validationError)) {

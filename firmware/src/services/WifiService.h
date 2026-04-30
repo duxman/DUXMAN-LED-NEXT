@@ -13,7 +13,7 @@
 
 class WifiService {
 public:
-  WifiService(NetworkConfig &networkConfig, DebugConfig &debugConfig);
+  WifiService(NetworkConfig &networkConfig, GeneralConfig &generalConfig);
 
   bool begin();
   bool applyConfig();
@@ -21,7 +21,7 @@ public:
 
 private:
   NetworkConfig &networkConfig_;
-  DebugConfig &debugConfig_;
+  GeneralConfig &generalConfig_;
   bool apEnabled_ = false;
   bool staEnabled_ = false;
   bool staConnected_ = false;

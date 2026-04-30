@@ -76,8 +76,8 @@ void printIpDetails(const char *label, const IPAddress &ip, const IPAddress &gat
 }
 } // namespace
 
-WifiService::WifiService(NetworkConfig &networkConfig, DebugConfig &debugConfig)
-    : networkConfig_(networkConfig), debugConfig_(debugConfig) {}
+WifiService::WifiService(NetworkConfig &networkConfig, GeneralConfig &generalConfig)
+    : networkConfig_(networkConfig), generalConfig_(generalConfig) {}
 
 bool WifiService::begin() {
   const bool ok = applyConfig();
@@ -145,14 +145,14 @@ bool WifiService::applyConfig() {
   dnsApplied_ = false;
   ntpSynced_ = false;
 
-  if (debugConfig_.enabled) {
+  if (generalConfig_.debugEnabled) {
     Serial.print("[wifi][debug] applyConfig mode=");
     Serial.println(mode);
   }
 
   if (!networkConfig_.dns.hostname.isEmpty()) {
     WiFi.setHostname(networkConfig_.dns.hostname.c_str());
-    if (debugConfig_.enabled) {
+    if (generalConfig_.debugEnabled) {
       Serial.print("[wifi][debug] hostname=");
       Serial.println(networkConfig_.dns.hostname);
     }
@@ -219,7 +219,7 @@ void WifiService::handle() {
         ntpSynced_ = false;
       }
 
-      if (debugConfig_.enabled && currentStatus == WL_CONNECTED) {
+      if (generalConfig_.debugEnabled && currentStatus == WL_CONNECTED) {
         Serial.print("[wifi][debug] STA IP=");
         Serial.println(WiFi.localIP());
       }
@@ -251,7 +251,7 @@ bool WifiService::configureSta() {
       return false;
     }
 
-    if (debugConfig_.enabled) {
+    if (generalConfig_.debugEnabled) {
       Serial.print("[wifi][debug] STA static ip=");
       Serial.print(ip);
       Serial.print(" gw=");
@@ -270,7 +270,7 @@ bool WifiService::configureSta() {
   WiFi.begin(ssid.c_str(), password.c_str());
   Serial.print("[wifi] STA connecting to ");
   Serial.println(ssid);
-  if (debugConfig_.enabled) {
+  if (generalConfig_.debugEnabled) {
     Serial.print("[wifi][debug] STA password length=");
     Serial.println(password.length());
   }
@@ -288,7 +288,7 @@ bool WifiService::configureAp() {
       return false;
     }
 
-    if (debugConfig_.enabled) {
+    if (generalConfig_.debugEnabled) {
       Serial.print("[wifi][debug] AP static ip=");
       Serial.print(ip);
       Serial.print(" gw=");
@@ -303,7 +303,7 @@ bool WifiService::configureAp() {
   if (ok) {
     Serial.print("[wifi] AP started: ");
     Serial.println(apSsid);
-    if (debugConfig_.enabled) {
+    if (generalConfig_.debugEnabled) {
       Serial.print("[wifi][debug] AP IP=");
       Serial.println(WiFi.softAPIP());
     }

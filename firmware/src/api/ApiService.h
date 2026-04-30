@@ -25,7 +25,7 @@
 class ApiService {
 public:
   ApiService(CoreState &state, NetworkConfig &networkConfig, GpioConfig &gpioConfig,
-             MicrophoneConfig &microphoneConfig, DebugConfig &debugConfig,
+             MicrophoneConfig &microphoneConfig, GeneralConfig &generalConfig,
              StorageService &storageService, WifiService &wifiService,
              PersistenceSchedulerService &persistenceSchedulerService,
              EffectPersistenceService &effectPersistenceService,
@@ -40,7 +40,7 @@ private:
   NetworkConfig &networkConfig_;
   GpioConfig &gpioConfig_;
   MicrophoneConfig &microphoneConfig_;
-  DebugConfig &debugConfig_;
+  GeneralConfig &generalConfig_;
   StorageService &storageService_;
   WifiService &wifiService_;
   PersistenceSchedulerService &persistenceSchedulerService_;
@@ -100,7 +100,7 @@ private:
   String buildMicrophoneConfigHtml() const;
   String buildGpioConfigHtml() const;
   String buildProfilesConfigHtml() const;
-  String buildDebugConfigHtml() const;
+  String buildGeneralConfigHtml() const;
   String buildManualConfigHtml() const;
   String buildPalettesConfigHtml() const;
 };
