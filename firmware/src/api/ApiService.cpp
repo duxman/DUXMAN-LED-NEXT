@@ -673,6 +673,10 @@ void ApiService::setupHttpRoutes() {
     httpServer_.send(200, "text/html", buildDocsHtml());
   });
 
+  httpServer_.on("/docs", HTTP_GET, [this]() {
+    httpServer_.send(200, "text/html", buildDocsHtml());
+  });
+
   httpServer_.on("/api/state", HTTP_GET, [this]() {
     httpServer_.send(200, "text/html", buildApiStateHtml());
   });
@@ -850,6 +854,98 @@ void ApiService::setupHttpRoutes() {
 
   httpServer_.onNotFound([this]() {
     const String uri = httpServer_.uri();
+
+    if (uri == "/ui/nav.html") {
+      httpServer_.send(200, "text/html", buildNavHtml());
+      return;
+    }
+
+    if (uri == "/ui/common.css.html") {
+      httpServer_.send(200, "text/html", buildCommonCss());
+      return;
+    }
+
+    if (uri == "/ui/home.html") {
+      httpServer_.send(200, "text/html", buildHomeHtml());
+      return;
+    }
+    if (uri == "/ui/config-index.html") {
+      httpServer_.send(200, "text/html", buildConfigIndexHtml());
+      return;
+    }
+    if (uri == "/ui/docs.html") {
+      httpServer_.send(200, "text/html", buildDocsHtml());
+      return;
+    }
+    if (uri == "/ui/api-state.html") {
+      httpServer_.send(200, "text/html", buildApiStateHtml());
+      return;
+    }
+    if (uri == "/ui/api-config-network.html") {
+      httpServer_.send(200, "text/html", buildApiConfigNetworkHtml());
+      return;
+    }
+    if (uri == "/ui/api-config-microphone.html") {
+      httpServer_.send(200, "text/html", buildApiConfigMicrophoneHtml());
+      return;
+    }
+    if (uri == "/ui/api-config-gpio.html") {
+      httpServer_.send(200, "text/html", buildApiConfigGpioHtml());
+      return;
+    }
+    if (uri == "/ui/api-config-debug.html") {
+      httpServer_.send(200, "text/html", buildApiConfigDebugHtml());
+      return;
+    }
+    if (uri == "/ui/api-config-all.html") {
+      httpServer_.send(200, "text/html", buildApiConfigAllHtml());
+      return;
+    }
+    if (uri == "/ui/api-hardware.html") {
+      httpServer_.send(200, "text/html", buildApiHardwareHtml());
+      return;
+    }
+    if (uri == "/ui/api-profiles.html") {
+      httpServer_.send(200, "text/html", buildApiProfilesHtml());
+      return;
+    }
+    if (uri == "/ui/api-release.html") {
+      httpServer_.send(200, "text/html", buildApiReleaseHtml());
+      return;
+    }
+    if (uri == "/ui/network-config.html") {
+      httpServer_.send(200, "text/html", buildNetworkConfigHtml());
+      return;
+    }
+    if (uri == "/ui/microphone-config.html") {
+      httpServer_.send(200, "text/html", buildMicrophoneConfigHtml());
+      return;
+    }
+    if (uri == "/ui/general-config.html" || uri == "/ui/debug-config.html") {
+      httpServer_.send(200, "text/html", buildGeneralConfigHtml());
+      return;
+    }
+    if (uri == "/ui/gpio-config.html") {
+      httpServer_.send(200, "text/html", buildGpioConfigHtml());
+      return;
+    }
+    if (uri == "/ui/profiles-config.html") {
+      httpServer_.send(200, "text/html", buildProfilesConfigHtml());
+      return;
+    }
+    if (uri == "/ui/manual-config.html") {
+      httpServer_.send(200, "text/html", buildManualConfigHtml());
+      return;
+    }
+    if (uri == "/ui/palettes-config.html") {
+      httpServer_.send(200, "text/html", buildPalettesConfigHtml());
+      return;
+    }
+    if (uri == "/ui/version.html") {
+      httpServer_.send(200, "text/html", buildVersionHtml());
+      return;
+    }
+
     if (uri.startsWith("/help/") && LittleFS.exists(uri)) {
       File file = LittleFS.open(uri, "r");
       if (file) {
@@ -2218,6 +2314,25 @@ String ApiService::buildNavHtml() const {
 )HTML";
 }
 
+String ApiService::buildNavMountHtml() const {
+  return R"HTML(
+<script>
+  (function() {
+    try {
+      var request = new XMLHttpRequest();
+      request.open('GET', '/ui/nav.html?v=20260502', false);
+      request.send(null);
+      if (request.status >= 200 && request.status < 300 && request.responseText) {
+        document.write(request.responseText);
+        return;
+      }
+    } catch (_) {}
+    document.write("<nav class='gen-nav' style='padding:12px 16px;'>Navigation unavailable</nav>");
+  })();
+</script>
+)HTML";
+}
+
 String ApiService::buildHomeHtml() const {
   String html = loadTemplateFromLittleFs("/ui/home.html");
   if (html.isEmpty()) {
@@ -2902,7 +3017,7 @@ __NAV__
   html.replace("__BOOTED_AT__", bootedAtLabel);
   html.replace("__EFFECT_OPTIONS__", EffectRegistry::buildHtmlOptions(stateSnapshot.effectId));
   html.replace("__CSS__", buildCommonCss());
-  html.replace("__NAV__", buildNavHtml());
+  html.replace("__NAV__", buildNavMountHtml());
   return html;
 }
 
@@ -3187,7 +3302,7 @@ __NAV__
 )HTML";
   }
   html.replace("__CSS__", buildCommonCss());
-  html.replace("__NAV__", buildNavHtml());
+  html.replace("__NAV__", buildNavMountHtml());
   return html;
 }
 String ApiService::buildConfigIndexHtml() const {
@@ -3247,7 +3362,7 @@ __NAV__
 )HTML";
   }
   html.replace("__CSS__", buildCommonCss());
-  html.replace("__NAV__", buildNavHtml());
+  html.replace("__NAV__", buildNavMountHtml());
   return html;
 }
 
@@ -3317,7 +3432,7 @@ __NAV__
 )HTML";
   }
   html.replace("__CSS__", buildCommonCss());
-  html.replace("__NAV__", buildNavHtml());
+  html.replace("__NAV__", buildNavMountHtml());
   return html;
 }
 
@@ -3365,7 +3480,7 @@ __NAV__
 )HTML";
   }
   html.replace("__CSS__", buildCommonCss());
-  html.replace("__NAV__", buildNavHtml());
+  html.replace("__NAV__", buildNavMountHtml());
   return html;
 }
 
@@ -3413,7 +3528,7 @@ __NAV__
 )HTML";
   }
   html.replace("__CSS__", buildCommonCss());
-  html.replace("__NAV__", buildNavHtml());
+  html.replace("__NAV__", buildNavMountHtml());
   return html;
 }
 
@@ -3455,7 +3570,7 @@ __NAV__
 )HTML";
   }
   html.replace("__CSS__", buildCommonCss());
-  html.replace("__NAV__", buildNavHtml());
+  html.replace("__NAV__", buildNavMountHtml());
   return html;
 }
 
@@ -3748,7 +3863,7 @@ __NAV__
 )HTML";
   }
   html.replace("__CSS__", buildCommonCss());
-  html.replace("__NAV__", buildNavHtml());
+  html.replace("__NAV__", buildNavMountHtml());
   return html;
 }
 
@@ -3998,7 +4113,7 @@ __NAV__
 )HTML";
   }
   html.replace("__CSS__", buildCommonCss());
-  html.replace("__NAV__", buildNavHtml());
+  html.replace("__NAV__", buildNavMountHtml());
   return html;
 }
 
@@ -4135,7 +4250,7 @@ __NAV__
 )HTML";
   }
   html.replace("__CSS__", buildCommonCss());
-  html.replace("__NAV__", buildNavHtml());
+  html.replace("__NAV__", buildNavMountHtml());
   return html;
 }
 
@@ -4183,7 +4298,7 @@ __NAV__
 )HTML";
   }
   html.replace("__CSS__", buildCommonCss());
-  html.replace("__NAV__", buildNavHtml());
+  html.replace("__NAV__", buildNavMountHtml());
   return html;
 }
 
@@ -4231,7 +4346,7 @@ __NAV__
 )HTML";
   }
   html.replace("__CSS__", buildCommonCss());
-  html.replace("__NAV__", buildNavHtml());
+  html.replace("__NAV__", buildNavMountHtml());
   return html;
 }
 
@@ -4492,7 +4607,7 @@ __NAV__
   html.replace("__BUILD_COUNT__", buildCount);
   html.replace("__MAX_OUTPUTS__", maxOutputs);
   html.replace("__CSS__", buildCommonCss());
-  html.replace("__NAV__", buildNavHtml());
+  html.replace("__NAV__", buildNavMountHtml());
   return html;
 }
 
@@ -4540,7 +4655,7 @@ __NAV__
 )HTML";
   }
   html.replace("__CSS__", buildCommonCss());
-  html.replace("__NAV__", buildNavHtml());
+  html.replace("__NAV__", buildNavMountHtml());
   return html;
 }
 
@@ -4701,7 +4816,7 @@ __NAV__
 )HTML";
   }
   html.replace("__CSS__", buildCommonCss());
-  html.replace("__NAV__", buildNavHtml());
+  html.replace("__NAV__", buildNavMountHtml());
   return html;
 }
 
@@ -4970,7 +5085,7 @@ __NAV__
 )HTML";
   }
   html.replace("__CSS__", buildCommonCss());
-  html.replace("__NAV__", buildNavHtml());
+  html.replace("__NAV__", buildNavMountHtml());
   return html;
 }
 
@@ -5020,7 +5135,7 @@ __NAV__
 )HTML";
   }
   html.replace("__CSS__", buildCommonCss());
-  html.replace("__NAV__", buildNavHtml());
+  html.replace("__NAV__", buildNavMountHtml());
   return html;
 }
 
@@ -5062,7 +5177,7 @@ __NAV__
 )HTML";
   }
   html.replace("__CSS__", buildCommonCss());
-  html.replace("__NAV__", buildNavHtml());
+  html.replace("__NAV__", buildNavMountHtml());
   return html;
 }
 
@@ -5228,7 +5343,7 @@ __NAV__
 )HTML";
   }
   html.replace("__CSS__", buildCommonCss());
-  html.replace("__NAV__", buildNavHtml());
+  html.replace("__NAV__", buildNavMountHtml());
   return html;
 }
 
@@ -5280,7 +5395,7 @@ __NAV__
 )HTML";
   }
   html.replace("__CSS__", buildCommonCss());
-  html.replace("__NAV__", buildNavHtml());
+  html.replace("__NAV__", buildNavMountHtml());
   return html;
 }
 

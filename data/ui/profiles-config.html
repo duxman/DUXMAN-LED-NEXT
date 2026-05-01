@@ -9,20 +9,33 @@
 </head>
 <body>
 <div class='gen-page-outer'>
-__NAV__
+<script>
+  (function() {
+    try {
+      var request = new XMLHttpRequest();
+      request.open('GET', '/ui/nav.html?v=20260502', false);
+      request.send(null);
+      if (request.status >= 200 && request.status < 300 && request.responseText) {
+        document.write(request.responseText);
+        return;
+      }
+    } catch (_) {}
+    document.write("<nav class='gen-nav' style='padding:12px 16px;'>Navigation unavailable</nav>");
+  })();
+</script>
 <main>
   <div class='card'>
-    <h1 style='margin:0 0 6px'>Perfiles de Configuracion</h1>
-    <p class='hint'>Un perfil guarda toda la configuracion del dispositivo: red Wi-Fi, GPIO, microfono y debug. El perfil <strong>default</strong> siempre refleja la configuracion activa en el dispositivo.</p>
+    <h1 style='margin:0 0 6px' data-i18n='profilesConfig.title'>Perfiles de Configuracion</h1>
+    <p class='hint' data-i18n='profilesConfig.hint'>Un perfil guarda toda la configuracion del dispositivo: red Wi-Fi, GPIO, microfono y debug. El perfil <strong>default</strong> siempre refleja la configuracion activa en el dispositivo.</p>
     <div class='actions'>
-      <button class='btn alt' onclick='loadProfiles()'>&#8635; Actualizar lista</button>
+      <button class='btn alt' onclick='loadProfiles()' data-i18n='profilesConfig.actions.refresh'>&#8635; Actualizar lista</button>
     </div>
     <p id='status' class='status-live' aria-live='polite'></p>
   </div>
 
   <div class='card'>
-    <h2>Guardar configuracion actual como perfil</h2>
-    <p class='hint'>Captura un snapshot completo de toda la configuracion activa (red, GPIO, microfono, debug) y lo guarda con el nombre indicado. No tienes que escribir ningun JSON.</p>
+    <h2 data-i18n='profilesConfig.sections.save'>Guardar configuracion actual como perfil</h2>
+    <p class='hint' data-i18n='profilesConfig.saveHint'>Captura un snapshot completo de toda la configuracion activa (red, GPIO, microfono, debug) y lo guarda con el nombre indicado. No tienes que escribir ningun JSON.</p>
     <div class='row'>
       <div class='field'>
         <label for='newId'>ID del perfil <span style='color:#a12626'>*</span></label>
@@ -30,55 +43,56 @@ __NAV__
         <span class='hint'>Solo minusculas, numeros, guiones y guion bajo.</span>
       </div>
       <div class='field'>
-        <label for='newName'>Nombre</label>
+        <label for='newName' data-i18n='profilesConfig.fields.name'>Nombre</label>
         <input id='newName' type='text' placeholder='Salon luces RGB'>
       </div>
     </div>
     <div class='field'>
-      <label for='newDesc'>Descripcion (opcional)</label>
+      <label for='newDesc' data-i18n='profilesConfig.fields.descriptionOptional'>Descripcion (opcional)</label>
       <input id='newDesc' type='text' placeholder='4 tiras WS2812B, microfono I2S, red Casa...'>
     </div>
     <div class='actions'>
-      <button class='btn' onclick='saveCurrentAsProfile()'>Guardar como perfil</button>
+      <button class='btn' onclick='saveCurrentAsProfile()' data-i18n='profilesConfig.actions.saveCurrent'>Guardar como perfil</button>
     </div>
   </div>
 
   <div class='card'>
-    <h2>Perfiles disponibles</h2>
-    <p class='hint'>Haz clic en <em>Activar</em> para cargar un perfil y aplicarlo al dispositivo. <em>Ver config</em> muestra el JSON completo guardado.</p>
+    <h2 data-i18n='profilesConfig.sections.available'>Perfiles disponibles</h2>
+    <p class='hint' data-i18n='profilesConfig.availableHint'>Haz clic en <em>Activar</em> para cargar un perfil y aplicarlo al dispositivo. <em>Ver config</em> muestra el JSON completo guardado.</p>
     <div id='profileList'><p class='hint'>Cargando...</p></div>
   </div>
 
   <div id='editPanel' class='card' style='display:none'>
-    <h2 style='margin:0 0 6px'>Editar perfil: <span id='editPanelId' style='color:var(--accent);font-family:Consolas,monospace'></span></h2>
-    <p class='hint'>Modifica el JSON y pulsa <strong>Guardar cambios</strong>. Solo se sobrescriben los campos que edites.</p>
+    <h2 style='margin:0 0 6px'><span data-i18n='profilesConfig.edit.title'>Editar perfil:</span> <span id='editPanelId' style='color:var(--accent);font-family:Consolas,monospace'></span></h2>
+    <p class='hint' data-i18n='profilesConfig.edit.hint'>Modifica el JSON y pulsa <strong>Guardar cambios</strong>. Solo se sobrescriben los campos que edites.</p>
     <div class='row' style='margin-bottom:8px'>
       <div class='field'>
-        <label for='editName'>Nombre</label>
+        <label for='editName' data-i18n='profilesConfig.fields.name'>Nombre</label>
         <input id='editName' type='text'>
       </div>
       <div class='field'>
-        <label for='editDesc'>Descripcion</label>
+        <label for='editDesc' data-i18n='profilesConfig.fields.description'>Descripcion</label>
         <input id='editDesc' type='text'>
       </div>
     </div>
     <div class='field'>
-      <label>JSON completo del perfil (editable)</label>
+      <label data-i18n='profilesConfig.edit.json'>JSON completo del perfil (editable)</label>
       <textarea id='editJson' rows='14' style='font-family:Consolas,monospace;font-size:12px;resize:vertical'></textarea>
     </div>
     <div class='actions'>
-      <button class='btn' onclick='saveEditedProfile()'>Guardar cambios</button>
-      <button class='btn alt' onclick='closeEditPanel()'>Cancelar</button>
+      <button class='btn' onclick='saveEditedProfile()' data-i18n='common.save'>Guardar cambios</button>
+      <button class='btn alt' onclick='closeEditPanel()' data-i18n='common.cancel'>Cancelar</button>
     </div>
   </div>
 
   <div class='resp-card card'>
-    <h3 style='margin:0 0 8px'>Respuesta</h3>
+    <h3 style='margin:0 0 8px' data-i18n='common.response'>Respuesta</h3>
     <pre id='resultOut'>Sin llamadas aun.</pre>
   </div>
 </main>
 <script>
   function byId(id) { return document.getElementById(id); }
+  function tx(key, params, fallback) { return window.duxT ? window.duxT(key, params, fallback) : (fallback || key); }
   function setStatus(msg, isErr) {
     const el = byId('status');
     if (window.duxUpdateStatus) {
@@ -89,15 +103,15 @@ __NAV__
   }
 
   async function loadProfiles() {
-    setStatus('Cargando perfiles...', false);
+    setStatus(tx('profilesConfig.status.loading', null, 'Cargando perfiles...'), false);
     try {
       const res = await fetch('/api/v1/profiles');
       const text = await res.text();
       const data = JSON.parse(text);
       renderProfiles(data);
-      setStatus('Perfiles cargados (HTTP ' + res.status + ').', false);
+      setStatus(tx('profilesConfig.status.loaded', { status: res.status }, 'Perfiles cargados (HTTP ' + res.status + ').'), false);
     } catch (err) {
-      setStatus('Error cargando perfiles: ' + err, true);
+      setStatus(tx('profilesConfig.status.loadError', { error: err }, 'Error cargando perfiles: ' + err), true);
     }
   }
 
@@ -106,7 +120,7 @@ __NAV__
     const items = (((data || {}).profiles || {}).items) || [];
     const defaultId = ((data || {}).profiles || {}).defaultId || '';
     if (items.length === 0) {
-      container.innerHTML = "<p class='hint'>No hay perfiles.</p>";
+      container.innerHTML = "<p class='hint'>" + tx('profilesConfig.status.empty', null, 'No hay perfiles.') + "</p>";
       return;
     }
     const grid = document.createElement('div');
@@ -143,13 +157,13 @@ __NAV__
 
   async function saveCurrentAsProfile() {
     const id = byId('newId').value.trim();
-    if (!id) { setStatus('El ID del perfil es obligatorio.', true); return; }
+    if (!id) { setStatus(tx('profilesConfig.status.idRequired', null, 'El ID del perfil es obligatorio.'), true); return; }
     const payload = { profile: {
       id: id,
       name: byId('newName').value.trim() || id,
       description: byId('newDesc').value.trim()
     }};
-    const ok = await callJson('/api/v1/profiles/save', payload, 'Guardando snapshot de configuracion...');
+    const ok = await callJson('/api/v1/profiles/save', payload, tx('profilesConfig.status.savingSnapshot', null, 'Guardando snapshot de configuracion...'));
     if (ok) {
       byId('newId').value = '';
       byId('newName').value = '';
@@ -159,13 +173,13 @@ __NAV__
   }
 
   async function activateProfile(id) {
-    if (!confirm('Activar el perfil "' + id + '"?\n\nEsto reemplazara toda la configuracion activa del dispositivo (red, GPIO, microfono, debug).')) return;
-    const ok = await callJson('/api/v1/profiles/apply', { profile: { id: id } }, 'Activando perfil "' + id + '"...');
+    if (!confirm(tx('profilesConfig.status.confirmActivate', { id: id }, 'Activar el perfil "' + id + '"?\n\nEsto reemplazara toda la configuracion activa del dispositivo (red, GPIO, microfono, debug).'))) return;
+    const ok = await callJson('/api/v1/profiles/apply', { profile: { id: id } }, tx('profilesConfig.status.activating', { id: id }, 'Activando perfil "' + id + '"...'));
     if (ok) await loadProfiles();
   }
 
   async function viewProfile(id) {
-    setStatus('Cargando configuracion del perfil "' + id + '"...', false);
+    setStatus(tx('profilesConfig.status.loadingProfileConfig', { id: id }, 'Cargando configuracion del perfil "' + id + '"...'), false);
     try {
       const res = await fetch('/api/v1/profiles/get?id=' + encodeURIComponent(id));
       const text = await res.text();
@@ -173,30 +187,30 @@ __NAV__
       try { pretty = JSON.stringify(JSON.parse(text), null, 2); } catch (_) {}
       byId('resultOut').textContent = pretty;
       document.body.classList.add('show-resp');
-      setStatus('Configuracion del perfil "' + id + '" cargada. Ver abajo.', false);
+      setStatus(tx('profilesConfig.status.profileConfigLoaded', { id: id }, 'Configuracion del perfil "' + id + '" cargada. Ver abajo.'), false);
       const respCard = document.querySelector('.resp-card');
       if (respCard) respCard.scrollIntoView({ behavior: 'smooth' });
     } catch (err) {
-      setStatus('Error cargando perfil: ' + err, true);
+      setStatus(tx('profilesConfig.status.profileLoadError', { error: err }, 'Error cargando perfil: ' + err), true);
     }
   }
 
   async function deleteProfile(id) {
-    if (!confirm('Borrar el perfil "' + id + '"?\n\nEsta accion no se puede deshacer.')) return;
-    const ok = await callJson('/api/v1/profiles/delete', { profile: { id: id } }, 'Borrando perfil "' + id + '"...');
+    if (!confirm(tx('profilesConfig.status.confirmDelete', { id: id }, 'Borrar el perfil "' + id + '"?\n\nEsta accion no se puede deshacer.'))) return;
+    const ok = await callJson('/api/v1/profiles/delete', { profile: { id: id } }, tx('profilesConfig.status.deleting', { id: id }, 'Borrando perfil "' + id + '"...'));
     if (ok) await loadProfiles();
   }
 
   async function cloneProfile(id) {
-    const newId = prompt('ID para el perfil clonado (sin espacios):', id + '_copia');
+    const newId = prompt(tx('profilesConfig.status.clonePromptId', null, 'ID para el perfil clonado (sin espacios):'), id + '_copia');
     if (!newId) return;
-    const newName = prompt('Nombre del perfil clonado:', newId);
-    const ok = await callJson('/api/v1/profiles/clone', { profile: { id: id, newId: newId.trim(), name: newName || newId.trim() } }, 'Clonando perfil "' + id + '"...');
+    const newName = prompt(tx('profilesConfig.status.clonePromptName', null, 'Nombre del perfil clonado:'), newId);
+    const ok = await callJson('/api/v1/profiles/clone', { profile: { id: id, newId: newId.trim(), name: newName || newId.trim() } }, tx('profilesConfig.status.cloning', { id: id }, 'Clonando perfil "' + id + '"...'));
     if (ok) await loadProfiles();
   }
 
   async function editProfile(id) {
-    setStatus('Cargando perfil "' + id + '"...', false);
+    setStatus(tx('profilesConfig.status.loadingProfile', { id: id }, 'Cargando perfil "' + id + '"...'), false);
     try {
       const res = await fetch('/api/v1/profiles/get?id=' + encodeURIComponent(id));
       const data = await res.json();
@@ -208,20 +222,20 @@ __NAV__
       byId('editJson').dataset.id = id;
       byId('editPanel').style.display = 'block';
       byId('editPanel').scrollIntoView({ behavior: 'smooth' });
-      setStatus('Perfil "' + id + '" cargado para editar.', false);
+      setStatus(tx('profilesConfig.status.profileLoadedForEdit', { id: id }, 'Perfil "' + id + '" cargado para editar.'), false);
     } catch (err) {
-      setStatus('Error cargando perfil: ' + err, true);
+      setStatus(tx('profilesConfig.status.profileLoadError', { error: err }, 'Error cargando perfil: ' + err), true);
     }
   }
 
   async function saveEditedProfile() {
     let parsed;
     try { parsed = JSON.parse(byId('editJson').value); } catch (e) {
-      setStatus('JSON invalido: ' + e.message, true); return;
+      setStatus(tx('profilesConfig.status.invalidJson', { message: e.message }, 'JSON invalido: ' + e.message), true); return;
     }
     parsed.name = byId('editName').value.trim() || parsed.name;
     parsed.description = byId('editDesc').value.trim() || parsed.description;
-    const ok = await callJson('/api/v1/profiles/save', { profile: parsed }, 'Guardando cambios en "' + parsed.id + '"...');
+    const ok = await callJson('/api/v1/profiles/save', { profile: parsed }, tx('profilesConfig.status.savingChanges', { id: parsed.id }, 'Guardando cambios en "' + parsed.id + '"...'));
     if (ok) { closeEditPanel(); await loadProfiles(); }
   }
 
@@ -243,11 +257,16 @@ __NAV__
       byId('resultOut').textContent = pretty;
       document.body.classList.add('show-resp');
       const ok = res.ok;
-      setStatus((ok ? 'Operacion completada' : 'Error') + ' (HTTP ' + res.status + ').', !ok);
+      setStatus(
+        ok
+          ? tx('profilesConfig.status.operationOk', { status: res.status }, 'Operacion completada (HTTP ' + res.status + ').')
+          : tx('profilesConfig.status.operationError', { status: res.status }, 'Error (HTTP ' + res.status + ').'),
+        !ok
+      );
       return ok;
     } catch (err) {
       byId('resultOut').textContent = String(err);
-      setStatus('Error de red: ' + err, true);
+      setStatus(tx('profilesConfig.status.networkError', { error: err }, 'Error de red: ' + err), true);
       return false;
     }
   }

@@ -9,23 +9,36 @@
 </head>
 <body>
 <div class='gen-page-outer'>
-__NAV__
+<script>
+  (function() {
+    try {
+      var request = new XMLHttpRequest();
+      request.open('GET', '/ui/nav.html?v=20260502', false);
+      request.send(null);
+      if (request.status >= 200 && request.status < 300 && request.responseText) {
+        document.write(request.responseText);
+        return;
+      }
+    } catch (_) {}
+    document.write("<nav class='gen-nav' style='padding:12px 16px;'>Navigation unavailable</nav>");
+  })();
+</script>
   <main>
     <div class='card'>
-      <h1>Configuracion de Red</h1>
-      <p class='hint'>Edita WiFi/AP/STA y guarda en el dispositivo. Los cambios se aplican al momento.</p>
+      <h1 data-i18n='networkConfig.title'>Configuracion de Red</h1>
+      <p class='hint' data-i18n='networkConfig.hint'>Edita WiFi/AP/STA y guarda en el dispositivo. Los cambios se aplican al momento.</p>
       <div class='actions'>
-        <button class='btn alt' onclick='loadConfig()'>Recargar</button>
-        <button class='btn' onclick='saveConfig()'>Guardar Configuracion</button>
+        <button class='btn alt' onclick='loadConfig()' data-i18n='common.reload'>Recargar</button>
+        <button class='btn' onclick='saveConfig()' data-i18n='networkConfig.actions.save'>Guardar Configuracion</button>
       </div>
       <p id='status' class='status-live' aria-live='polite'></p>
     </div>
 
     <div class='card'>
-      <h2>WiFi</h2>
+      <h2 data-i18n='networkConfig.sections.wifi'>WiFi</h2>
       <div class='row'>
         <div class='col field'>
-          <label for='wifiMode'>Modo</label>
+          <label for='wifiMode' data-i18n='networkConfig.fields.mode'>Modo</label>
           <select id='wifiMode'>
             <option value='ap'>ap</option>
             <option value='sta'>sta</option>
@@ -33,7 +46,7 @@ __NAV__
           </select>
         </div>
         <div class='col field'>
-          <label for='apAvailability'>Disponibilidad AP</label>
+          <label for='apAvailability' data-i18n='networkConfig.fields.apAvailability'>Disponibilidad AP</label>
           <select id='apAvailability'>
             <option value='always'>always</option>
             <option value='untilStaConnected'>untilStaConnected</option>
@@ -42,107 +55,107 @@ __NAV__
       </div>
       <div class='row'>
         <div class='col field'>
-          <label for='ssid'>SSID STA</label>
+          <label for='ssid' data-i18n='networkConfig.fields.staSsid'>SSID STA</label>
           <input id='ssid' type='text' placeholder='MiWiFi'>
         </div>
         <div class='col field'>
-          <label for='password'>Password STA</label>
+          <label for='password' data-i18n='networkConfig.fields.staPassword'>Password STA</label>
           <input id='password' type='password' placeholder='********'>
         </div>
       </div>
       <div class='field'>
-        <label for='hostname'>Hostname DNS</label>
+        <label for='hostname' data-i18n='networkConfig.fields.hostname'>Hostname DNS</label>
         <input id='hostname' type='text' placeholder='duxman-led-1'>
       </div>
     </div>
 
     <div class='card'>
-      <h2>Tiempo / NTP</h2>
-      <p class='hint'>Al arrancar y al conectar STA, el equipo intentara sincronizar la hora con el servidor NTP configurado.</p>
+      <h2 data-i18n='networkConfig.sections.time'>Tiempo / NTP</h2>
+      <p class='hint' data-i18n='networkConfig.timeHint'>Al arrancar y al conectar STA, el equipo intentara sincronizar la hora con el servidor NTP configurado.</p>
       <div class='row'>
         <div class='col field'>
-          <label for='ntpSyncOnBoot'>Sincronizar en arranque</label>
+          <label for='ntpSyncOnBoot' data-i18n='networkConfig.fields.syncOnBoot'>Sincronizar en arranque</label>
           <select id='ntpSyncOnBoot'>
             <option value='true'>true</option>
             <option value='false'>false</option>
           </select>
         </div>
         <div class='col field'>
-          <label for='ntpServer'>Servidor NTP</label>
+          <label for='ntpServer' data-i18n='networkConfig.fields.ntpServer'>Servidor NTP</label>
           <input id='ntpServer' type='text' placeholder='europe.pool.ntp.org'>
         </div>
       </div>
     </div>
 
     <div class='card'>
-      <h2>IP AP</h2>
+      <h2 data-i18n='networkConfig.sections.apIp'>IP AP</h2>
       <div class='row'>
         <div class='col field'>
-          <label for='apMode'>Modo IP AP</label>
+          <label for='apMode' data-i18n='networkConfig.fields.apMode'>Modo IP AP</label>
           <select id='apMode'>
             <option value='dhcp'>dhcp</option>
             <option value='static'>static</option>
           </select>
         </div>
         <div class='col field'>
-          <label for='apAddress'>IP AP</label>
+          <label for='apAddress' data-i18n='networkConfig.fields.apAddress'>IP AP</label>
           <input id='apAddress' type='text' placeholder='192.168.4.1'>
         </div>
       </div>
       <div class='row'>
         <div class='col field'>
-          <label for='apGateway'>Gateway AP</label>
+          <label for='apGateway' data-i18n='networkConfig.fields.apGateway'>Gateway AP</label>
           <input id='apGateway' type='text' placeholder='192.168.4.1'>
         </div>
         <div class='col field'>
-          <label for='apSubnet'>Subnet AP</label>
+          <label for='apSubnet' data-i18n='networkConfig.fields.apSubnet'>Subnet AP</label>
           <input id='apSubnet' type='text' placeholder='255.255.255.0'>
         </div>
       </div>
     </div>
 
     <div class='card'>
-      <h2>IP STA</h2>
+      <h2 data-i18n='networkConfig.sections.staIp'>IP STA</h2>
       <div class='row'>
         <div class='col field'>
-          <label for='staMode'>Modo IP STA</label>
+          <label for='staMode' data-i18n='networkConfig.fields.staMode'>Modo IP STA</label>
           <select id='staMode'>
             <option value='dhcp'>dhcp</option>
             <option value='static'>static</option>
           </select>
         </div>
         <div class='col field'>
-          <label for='staAddress'>IP STA</label>
+          <label for='staAddress' data-i18n='networkConfig.fields.staAddress'>IP STA</label>
           <input id='staAddress' type='text' placeholder='192.168.1.50'>
         </div>
       </div>
       <div class='row'>
         <div class='col field'>
-          <label for='staGateway'>Gateway STA</label>
+          <label for='staGateway' data-i18n='networkConfig.fields.staGateway'>Gateway STA</label>
           <input id='staGateway' type='text' placeholder='192.168.1.1'>
         </div>
         <div class='col field'>
-          <label for='staSubnet'>Subnet STA</label>
+          <label for='staSubnet' data-i18n='networkConfig.fields.staSubnet'>Subnet STA</label>
           <input id='staSubnet' type='text' placeholder='255.255.255.0'>
         </div>
       </div>
       <div class='row'>
         <div class='col field'>
-          <label for='staDns1'>DNS 1 STA</label>
+          <label for='staDns1' data-i18n='networkConfig.fields.staDns1'>DNS 1 STA</label>
           <input id='staDns1' type='text' placeholder='8.8.8.8'>
         </div>
         <div class='col field'>
-          <label for='staDns2'>DNS 2 STA</label>
+          <label for='staDns2' data-i18n='networkConfig.fields.staDns2'>DNS 2 STA</label>
           <input id='staDns2' type='text' placeholder='1.1.1.1'>
         </div>
       </div>
     </div>
 
     <div class='card json-card'>
-      <h2>Payload / Respuesta</h2>
-      <h3>Payload Enviado</h3>
+      <h2 data-i18n='networkConfig.sections.payloadResponse'>Payload / Respuesta</h2>
+      <h3 data-i18n='networkConfig.payloadSent'>Payload Enviado</h3>
       <pre id='payloadOut'>{}</pre>
-      <h3>Respuesta API</h3>
+      <h3 data-i18n='networkConfig.apiResponse'>Respuesta API</h3>
       <pre id='resultOut'>Sin llamadas aun.</pre>
     </div>
   </main>
@@ -151,6 +164,7 @@ __NAV__
     if(localStorage.getItem('dux_show_json')==='1') document.body.classList.add('show-json');
 
     function byId(id) { return document.getElementById(id); }
+    function tx(key, params, fallback) { return window.duxT ? window.duxT(key, params, fallback) : (fallback || key); }
 
     function setStatus(message, isError) {
       const el = byId('status');
@@ -235,24 +249,24 @@ __NAV__
     }
 
     async function loadConfig() {
-      setStatus('Leyendo configuracion...', false);
+      setStatus(tx('networkConfig.status.loading', null, 'Reading configuration...'), false);
       try {
         const res = await fetch('/api/v1/config/network');
         const text = await res.text();
         const parsed = JSON.parse(text);
         fillFromConfig(parsed);
         byId('resultOut').textContent = JSON.stringify(parsed, null, 2);
-        setStatus('Configuracion cargada (HTTP ' + res.status + ').', false);
+        setStatus(tx('networkConfig.status.loaded', { status: res.status }, 'Configuration loaded (HTTP ' + res.status + ').'), false);
       } catch (error) {
         byId('resultOut').textContent = String(error);
-        setStatus('Error leyendo configuracion.', true);
+        setStatus(tx('networkConfig.status.loadError', null, 'Error reading configuration.'), true);
       }
     }
 
     async function saveConfig() {
       const payload = readPayload();
       byId('payloadOut').textContent = JSON.stringify(payload, null, 2);
-      setStatus('Guardando configuracion...', false);
+      setStatus(tx('networkConfig.status.saving', null, 'Saving configuration...'), false);
 
       try {
         const res = await fetch('/api/v1/config/network', {
@@ -266,13 +280,13 @@ __NAV__
         byId('resultOut').textContent = pretty;
 
         if (res.ok) {
-          setStatus('Configuracion guardada y aplicada (HTTP ' + res.status + ').', false);
+          setStatus(tx('networkConfig.status.saved', { status: res.status }, 'Configuration saved and applied (HTTP ' + res.status + ').'), false);
         } else {
-          setStatus('Error al guardar (HTTP ' + res.status + ').', true);
+          setStatus(tx('networkConfig.status.saveError', { status: res.status }, 'Error saving (HTTP ' + res.status + ').'), true);
         }
       } catch (error) {
         byId('resultOut').textContent = String(error);
-        setStatus('Error de red al guardar.', true);
+        setStatus(tx('networkConfig.status.networkError', null, 'Network error while saving.'), true);
       }
     }
 

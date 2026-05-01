@@ -1,6 +1,6 @@
 # Storage & Memory
 
-Diseno de persistencia y uso de memoria para DUXMAN-LED-NEXT (estado v0.4.2-beta).
+Diseno de persistencia y uso de memoria para DUXMAN-LED-NEXT (estado v0.6.1-alpha).
 
 ## Objetivos
 

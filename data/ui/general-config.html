@@ -8,23 +8,35 @@
 </head>
 <body>
 <div class='gen-page-outer'>
-__NAV__
+<script>
+  (function() {
+    try {
+      var request = new XMLHttpRequest();
+      request.open('GET', '/ui/nav.html?v=20260502', false);
+      request.send(null);
+      if (request.status >= 200 && request.status < 300 && request.responseText) {
+        document.write(request.responseText);
+        return;
+      }
+    } catch (_) {}
+    document.write("<nav class='gen-nav' style='padding:12px 16px;'>Navigation unavailable</nav>");
+  })();
+</script>
   <main>
     <div class='card'>
-      <h1>Opciones Generales</h1>
+      <h1 data-i18n='generalConfig.title'>Opciones Generales</h1>
       <p class='hint' data-i18n='generalSettings.hint'>Configuracion de idioma, region, debug y comportamiento general del sistema.</p>
       <div class='actions'>
-        <button class='btn alt' onclick='loadGeneral()'>Recargar</button>
-        <button class='btn' onclick='saveGeneral()'>Guardar</button>
+        <button class='btn alt' onclick='loadGeneral()' data-i18n='common.reload'>Recargar</button>
+        <button class='btn' onclick='saveGeneral()' data-i18n='common.save'>Guardar</button>
       </div>
       <p id='status' class='status-live' aria-live='polite'></p>
     </div>
 
     <div class='card'>
-      <h3>Idioma / Language</h3>
+      <h3 data-i18n='generalConfig.sections.language'>Idioma / Language</h3>
       <div class='field'>
-        <label for='language'>Idioma de la interfaz</label>
-          <label for='language' data-i18n='generalSettings.language'>Idioma de la interfaz</label>
+        <label for='language' data-i18n='generalSettings.language'>Idioma de la interfaz</label>
         <select id='language'>
           <option value='en'>English</option>
           <option value='es'>Español</option>
@@ -32,12 +44,10 @@ __NAV__
           <option value='de'>Deutsch</option>
           <option value='it'>Italiano</option>
         </select>
-        <p class='hint'>El idioma se aplica inmediatamente al guardar.</p>
         <p class='hint' data-i18n='generalSettings.languageHint'>El idioma se aplica inmediatamente al guardar.</p>
       </div>
       <div class='field'>
-        <label for='regionCode'>Region / Locale</label>
-          <label for='regionCode' data-i18n='generalSettings.region'>Region / Locale</label>
+        <label for='regionCode' data-i18n='generalSettings.region'>Region / Locale</label>
         <select id='regionCode'>
           <option value='US'>United States (US)</option>
           <option value='ES'>España (ES)</option>
@@ -48,44 +58,45 @@ __NAV__
           <option value='IT'>Italia (IT)</option>
           <option value='GB'>United Kingdom (GB)</option>
         </select>
-        <p class='hint'>Afecta el formato de numeros, fechas y unidades.</p>
+        <p class='hint' data-i18n='generalConfig.regionHint'>Afecta el formato de numeros, fechas y unidades.</p>
       </div>
     </div>
 
     <div class='card'>
-      <h3>Debug</h3>
+      <h3 data-i18n='generalConfig.sections.debug'>Debug</h3>
       <div class='field'>
-        <label><input id='debugEnabled' type='checkbox'> Debug habilitado</label>
-        <p class='hint'>Activa trazas detalladas por puerto serial.</p>
+        <label><input id='debugEnabled' type='checkbox'> <span data-i18n='generalConfig.debugEnabled'>Debug habilitado</span></label>
+        <p class='hint' data-i18n='generalConfig.debugHint'>Activa trazas detalladas por puerto serial.</p>
       </div>
       <div class='field'>
-        <label for='heartbeatMs'>Heartbeat (ms)</label>
+        <label for='heartbeatMs' data-i18n='generalConfig.heartbeat'>Heartbeat (ms)</label>
         <input id='heartbeatMs' type='number' min='0' max='600000' step='100'>
-        <p class='hint'>Intervalo de latido serial. 0 = desactivado.</p>
+        <p class='hint' data-i18n='generalConfig.heartbeatHint'>Intervalo de latido serial. 0 = desactivado.</p>
       </div>
     </div>
 
     <div class='card'>
-      <h3>Preferencias UI</h3>
+      <h3 data-i18n='generalConfig.sections.ui'>Preferencias UI</h3>
       <div class='field'>
         <label style='display:flex;align-items:center;gap:8px;cursor:pointer'>
           <input id='showJsonChk' type='checkbox' onchange='toggleJson(this.checked)'>
-          <span>Mostrar respuestas JSON en las paginas de configuracion</span>
+          <span data-i18n='generalConfig.showJson'>Mostrar respuestas JSON en las paginas de configuracion</span>
         </label>
-        <p class='hint' style='margin-top:4px'>Se guarda en el navegador (localStorage). Por defecto desactivado.</p>
+        <p class='hint' style='margin-top:4px' data-i18n='generalConfig.showJsonHint'>Se guarda en el navegador (localStorage). Por defecto desactivado.</p>
       </div>
     </div>
 
     <div class='card json-card'>
-      <h3>Payload</h3>
+      <h3 data-i18n='common.payload'>Payload</h3>
       <pre id='payloadOut'>{}</pre>
-      <h3>Respuesta</h3>
+      <h3 data-i18n='common.response'>Respuesta</h3>
       <pre id='resultOut'>Sin llamadas aun.</pre>
     </div>
   </main>
 
   <script>
     function byId(id) { return document.getElementById(id); }
+    function tx(key, params, fallback) { return window.duxT ? window.duxT(key, params, fallback) : (fallback || key); }
 
     function setStatus(message, isError) {
       const el = byId('status');
@@ -117,7 +128,7 @@ __NAV__
       byId('showJsonChk').checked = showJson;
       document.body.classList.toggle('show-json', showJson);
 
-      setStatus('Leyendo configuracion general...', false);
+      setStatus(tx('generalConfig.status.loading', null, 'Reading general configuration...'), false);
       try {
         const res = await fetch('/api/v1/config/general');
         const data = await res.json();
@@ -141,17 +152,17 @@ __NAV__
         byId('debugEnabled').checked = !!g.debugEnabled;
         byId('heartbeatMs').value = g.heartbeatMs == null ? 5000 : g.heartbeatMs;
         byId('resultOut').textContent = JSON.stringify(data, null, 2);
-        setStatus('Configuracion cargada (HTTP ' + res.status + ').', false);
+        setStatus(tx('generalConfig.status.loaded', { status: res.status }, 'Configuration loaded (HTTP ' + res.status + ').'), false);
       } catch (error) {
         byId('resultOut').textContent = String(error);
-        setStatus('Error leyendo configuracion general.', true);
+        setStatus(tx('generalConfig.status.loadError', null, 'Error reading general configuration.'), true);
       }
     }
 
     async function saveGeneral() {
       const payload = buildPayload();
       byId('payloadOut').textContent = JSON.stringify(payload, null, 2);
-      setStatus('Guardando configuracion general...', false);
+      setStatus(tx('generalConfig.status.saving', null, 'Saving general configuration...'), false);
       try {
         const res = await fetch('/api/v1/config/general', {
           method: 'PATCH',
@@ -170,13 +181,13 @@ __NAV__
           if (window.i18n) {
             window.i18n.load(newLang);
           }
-          setStatus('Configuracion guardada (HTTP ' + res.status + '). Idioma actualizado a: ' + newLang, false);
+          setStatus(tx('generalConfig.status.saved', { status: res.status, language: newLang }, 'Configuration saved (HTTP ' + res.status + '). Language updated to: ' + newLang), false);
         } else {
-          setStatus('Error guardando (HTTP ' + res.status + ').', true);
+          setStatus(tx('generalConfig.status.saveError', { status: res.status }, 'Error saving (HTTP ' + res.status + ').'), true);
         }
       } catch (error) {
         byId('resultOut').textContent = String(error);
-        setStatus('Error de red guardando configuracion.', true);
+        setStatus(tx('generalConfig.status.networkError', null, 'Network error while saving configuration.'), true);
       }
     }
 

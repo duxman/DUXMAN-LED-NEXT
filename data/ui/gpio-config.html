@@ -9,42 +9,55 @@
 </head>
 <body>
 <div class='gen-page-outer'>
-__NAV__
+<script>
+  (function() {
+    try {
+      var request = new XMLHttpRequest();
+      request.open('GET', '/ui/nav.html?v=20260502', false);
+      request.send(null);
+      if (request.status >= 200 && request.status < 300 && request.responseText) {
+        document.write(request.responseText);
+        return;
+      }
+    } catch (_) {}
+    document.write("<nav class='gen-nav' style='padding:12px 16px;'>Navigation unavailable</nav>");
+  })();
+</script>
   <main>
     <div class='card'>
-      <h1>Configuracion LED (GPIO)</h1>
-      <p class='hint'>Configura las salidas LED del controlador. Max __MAX_OUTPUTS__ salidas.</p>
+      <h1 data-i18n='gpioConfig.title'>Configuracion LED (GPIO)</h1>
+      <p class='hint' data-i18n='gpioConfig.hint'>Configura las salidas LED del controlador. Max __MAX_OUTPUTS__ salidas.</p>
       <div class='actions'>
-        <button class='btn alt' onclick='loadGpio()'>Recargar</button>
-        <button class='btn' onclick='saveGpio()'>Guardar</button>
+        <button class='btn alt' onclick='loadGpio()' data-i18n='common.reload'>Recargar</button>
+        <button class='btn' onclick='saveGpio()' data-i18n='common.save'>Guardar</button>
       </div>
       <p id='status' class='status-live' aria-live='polite'></p>
     </div>
 
     <div class='card' id='outputsCard'>
       <div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:10px'>
-        <h2>Salidas LED</h2>
-        <button class='btn' onclick='addOutput()' id='btnAdd'>+ Agregar salida</button>
+        <h2 data-i18n='gpioConfig.sections.outputs'>Salidas LED</h2>
+        <button class='btn' onclick='addOutput()' id='btnAdd' data-i18n='gpioConfig.actions.addOutput'>+ Agregar salida</button>
       </div>
       <div id='outputsList'></div>
     </div>
 
     <div class='card'>
-      <h2>Limite de consumo (software)</h2>
-      <p class='hint'>Control de corriente estimada para evitar picos de consumo. Si se activa, el firmware escala brillo global automaticamente.</p>
+      <h2 data-i18n='gpioConfig.sections.powerLimit'>Limite de consumo (software)</h2>
+      <p class='hint' data-i18n='gpioConfig.powerHint'>Control de corriente estimada para evitar picos de consumo. Si se activa, el firmware escala brillo global automaticamente.</p>
       <div class='row'>
         <div class='col field'>
-          <label><input type='checkbox' id='plEnabled'> Activar limite</label>
+          <label><input type='checkbox' id='plEnabled'> <span data-i18n='gpioConfig.fields.enableLimit'>Activar limite</span></label>
         </div>
       </div>
       <div class='row'>
-        <div class='col field'><label>Corriente maxima total (mA)</label><input type='number' id='plMaxCurrent' min='200' max='50000' step='50'></div>
-        <div class='col field'><label>Corriente estimada por LED (mA)</label><input type='number' id='plPerLed' min='5' max='80' step='1'></div>
+        <div class='col field'><label data-i18n='gpioConfig.fields.maxCurrent'>Corriente maxima total (mA)</label><input type='number' id='plMaxCurrent' min='200' max='50000' step='50'></div>
+        <div class='col field'><label data-i18n='gpioConfig.fields.perLed'>Corriente estimada por LED (mA)</label><input type='number' id='plPerLed' min='5' max='80' step='1'></div>
       </div>
     </div>
 
     <div class='card'>
-      <h2>Referencia de Pines</h2>
+      <h2 data-i18n='gpioConfig.sections.pinReference'>Referencia de Pines</h2>
       <p class='hint'>Pin de compilacion (BuildProfile): <strong>__BUILD_PIN__</strong> &middot; LEDs: <strong>__BUILD_COUNT__</strong></p>
       <table>
         <tr><th>Placa</th><th>Pin LED tipico</th><th>Notas</th></tr>
@@ -55,9 +68,9 @@ __NAV__
     </div>
 
     <div class='card json-card'>
-      <h3>Payload</h3>
+      <h3 data-i18n='common.payload'>Payload</h3>
       <pre id='payloadOut'>{}</pre>
-      <h3>Respuesta</h3>
+      <h3 data-i18n='common.response'>Respuesta</h3>
       <pre id='resultOut'>Sin llamadas aun.</pre>
     </div>
   </main>
@@ -82,6 +95,7 @@ __NAV__
     let outputs = [];
 
     function byId(id) { return document.getElementById(id); }
+    function tx(key, params, fallback) { return window.duxT ? window.duxT(key, params, fallback) : (fallback || key); }
     function setStatus(msg, isErr) {
       const el = byId('status');
       if (window.duxUpdateStatus) {
@@ -204,23 +218,23 @@ __NAV__
     }
 
     async function loadGpio() {
-      setStatus('Leyendo configuracion GPIO...', false);
+      setStatus(tx('gpioConfig.status.loading', null, 'Leyendo configuracion GPIO...'), false);
       try {
         const res = await fetch('/api/v1/config/gpio');
         const data = await res.json();
         fillFromConfig(data);
         byId('resultOut').textContent = JSON.stringify(data, null, 2);
-        setStatus('Configuracion GPIO cargada (HTTP ' + res.status + ').', false);
+        setStatus(tx('gpioConfig.status.loaded', { status: res.status }, 'Configuracion GPIO cargada (HTTP ' + res.status + ').'), false);
       } catch (err) {
         byId('resultOut').textContent = String(err);
-        setStatus('Error leyendo GPIO.', true);
+        setStatus(tx('gpioConfig.status.loadError', null, 'Error leyendo GPIO.'), true);
       }
     }
 
     async function saveGpio() {
       const payload = buildPayload();
       byId('payloadOut').textContent = JSON.stringify(payload, null, 2);
-      setStatus('Guardando configuracion GPIO...', false);
+      setStatus(tx('gpioConfig.status.saving', null, 'Guardando configuracion GPIO...'), false);
       try {
         const res = await fetch('/api/v1/config/gpio', {
           method: 'PATCH',
@@ -231,10 +245,15 @@ __NAV__
         let pretty = text;
         try { pretty = JSON.stringify(JSON.parse(text), null, 2); } catch (_) {}
         byId('resultOut').textContent = pretty;
-        setStatus(res.ok ? 'GPIO guardado (HTTP ' + res.status + ').' : 'Error guardando GPIO (HTTP ' + res.status + ').', !res.ok);
+        setStatus(
+          res.ok
+            ? tx('gpioConfig.status.saved', { status: res.status }, 'GPIO guardado (HTTP ' + res.status + ').')
+            : tx('gpioConfig.status.saveError', { status: res.status }, 'Error guardando GPIO (HTTP ' + res.status + ').'),
+          !res.ok
+        );
       } catch (err) {
         byId('resultOut').textContent = String(err);
-        setStatus('Error de red guardando GPIO.', true);
+        setStatus(tx('gpioConfig.status.networkError', null, 'Error de red guardando GPIO.'), true);
       }
     }
 

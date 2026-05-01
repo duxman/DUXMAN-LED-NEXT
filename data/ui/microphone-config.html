@@ -9,34 +9,47 @@
 </head>
 <body>
 <div class='gen-page-outer'>
-__NAV__
+<script>
+  (function() {
+    try {
+      var request = new XMLHttpRequest();
+      request.open('GET', '/ui/nav.html?v=20260502', false);
+      request.send(null);
+      if (request.status >= 200 && request.status < 300 && request.responseText) {
+        document.write(request.responseText);
+        return;
+      }
+    } catch (_) {}
+    document.write("<nav class='gen-nav' style='padding:12px 16px;'>Navigation unavailable</nav>");
+  })();
+</script>
   <main>
     <div class='card'>
-      <h1>Configuracion de Microfono</h1>
-      <p class='hint'>Perfil actual soportado: <strong>generic_i2c</strong> con pines GLEDOPTO (SD=26, WS=5, SCK=21). Los cambios se aplican en caliente y se guardan en la configuracion persistente.</p>
+      <h1 data-i18n='microphoneConfig.title'>Configuracion de Microfono</h1>
+      <p class='hint' data-i18n='microphoneConfig.hint'>Perfil actual soportado: <strong>generic_i2c</strong> con pines GLEDOPTO (SD=26, WS=5, SCK=21). Los cambios se aplican en caliente y se guardan en la configuracion persistente.</p>
       <div class='actions'>
-        <button class='btn alt' onclick='loadConfig()'>Recargar</button>
-        <button class='btn' onclick='saveConfig()'>Guardar</button>
+        <button class='btn alt' onclick='loadConfig()' data-i18n='common.reload'>Recargar</button>
+        <button class='btn' onclick='saveConfig()' data-i18n='common.save'>Guardar</button>
       </div>
       <div class='field' style='margin-top:8px'>
-        <label><input id='autoApplyRealtime' type='checkbox' checked> Aplicar sensibilidad en tiempo real al mover controles</label>
+        <label><input id='autoApplyRealtime' type='checkbox' checked> <span data-i18n='microphoneConfig.autoApply'>Aplicar sensibilidad en tiempo real al mover controles</span></label>
       </div>
       <p id='status' class='status-live' aria-live='polite'></p>
     </div>
 
     <div class='card'>
       <div class='field'>
-        <label><input id='enabled' type='checkbox'> Microfono habilitado</label>
+        <label><input id='enabled' type='checkbox'> <span data-i18n='microphoneConfig.enabled'>Microfono habilitado</span></label>
       </div>
       <div class='row'>
         <div class='col field'>
-          <label for='source'>Source</label>
+          <label for='source' data-i18n='microphoneConfig.fields.source'>Source</label>
           <select id='source'>
             <option value='generic_i2c'>generic_i2c</option>
           </select>
         </div>
         <div class='col field'>
-          <label for='profileId'>Profile</label>
+          <label for='profileId' data-i18n='microphoneConfig.fields.profile'>Profile</label>
           <select id='profileId'>
             <option value='gledopto_gl_c_017wl_d'>gledopto_gl_c_017wl_d</option>
             <option value='DEFAULT'>DEFAULT</option>
@@ -45,11 +58,11 @@ __NAV__
       </div>
       <div class='row'>
         <div class='col field'>
-          <label for='sampleRate'>Sample Rate</label>
+          <label for='sampleRate' data-i18n='microphoneConfig.fields.sampleRate'>Sample Rate</label>
           <input id='sampleRate' type='number' min='8000' max='48000' step='1000'>
         </div>
         <div class='col field'>
-          <label for='fftSize'>FFT Size</label>
+          <label for='fftSize' data-i18n='microphoneConfig.fields.fftSize'>FFT Size</label>
           <select id='fftSize'>
             <option value='256'>256</option>
             <option value='512'>512</option>
@@ -60,52 +73,52 @@ __NAV__
       </div>
       <div class='row'>
         <div class='col field'>
-          <label for='gainPercent'>Gain %</label>
+          <label for='gainPercent' data-i18n='microphoneConfig.fields.gain'>Gain %</label>
           <input id='gainPercent' type='number' min='1' max='200'>
         </div>
         <div class='col field'>
-          <label for='noiseFloorPercent'>Noise floor %</label>
+          <label for='noiseFloorPercent' data-i18n='microphoneConfig.fields.noiseFloor'>Noise floor %</label>
           <input id='noiseFloorPercent' type='number' min='0' max='100'>
         </div>
       </div>
       <div class='row'>
         <div class='col field'>
-          <label for='noiseGateKnee'>Noise gate knee (0-200)</label>
+          <label for='noiseGateKnee' data-i18n='microphoneConfig.fields.noiseGate'>Noise gate knee (0-200)</label>
           <input id='noiseGateKnee' type='number' min='0' max='200'>
         </div>
         <div class='col field'>
-          <label for='agcResponsePercent'>AGC response % (10-200)</label>
+          <label for='agcResponsePercent' data-i18n='microphoneConfig.fields.agc'>AGC response % (10-200)</label>
           <input id='agcResponsePercent' type='number' min='10' max='200'>
         </div>
       </div>
     </div>
 
     <div class='card'>
-      <h2>Pines</h2>
-      <p class='hint'>SD = DIN (datos), WS = LRCLK, SCK = BCLK.</p>
+      <h2 data-i18n='microphoneConfig.sections.pins'>Pines</h2>
+      <p class='hint' data-i18n='microphoneConfig.pinsHint'>SD = DIN (datos), WS = LRCLK, SCK = BCLK.</p>
       <div class='row'>
         <div class='col field'>
-          <label for='din'>SD / DIN</label>
+          <label for='din' data-i18n='microphoneConfig.fields.din'>SD / DIN</label>
           <input id='din' type='number' min='-1' max='48'>
         </div>
         <div class='col field'>
-          <label for='ws'>WS</label>
+          <label for='ws' data-i18n='microphoneConfig.fields.ws'>WS</label>
           <input id='ws' type='number' min='-1' max='48'>
         </div>
         <div class='col field'>
-          <label for='bclk'>SCK / BCLK</label>
+          <label for='bclk' data-i18n='microphoneConfig.fields.bclk'>SCK / BCLK</label>
           <input id='bclk' type='number' min='-1' max='48'>
         </div>
       </div>
       <div class='actions'>
-        <button class='btn alt' onclick='applyGledoptoPins()'>Aplicar pines GLEDOPTO (26/5/21)</button>
+        <button class='btn alt' onclick='applyGledoptoPins()' data-i18n='microphoneConfig.actions.applyPins'>Aplicar pines GLEDOPTO (26/5/21)</button>
       </div>
     </div>
 
     <div class='card json-card'>
-      <h3>Payload</h3>
+      <h3 data-i18n='common.payload'>Payload</h3>
       <pre id='payloadOut'>{}</pre>
-      <h3>Respuesta</h3>
+      <h3 data-i18n='common.response'>Respuesta</h3>
       <pre id='resultOut'>Sin llamadas aun.</pre>
     </div>
   </main>
@@ -117,6 +130,7 @@ __NAV__
     let isConfigLoading = true;
 
     function byId(id) { return document.getElementById(id); }
+    function tx(key, params, fallback) { return window.duxT ? window.duxT(key, params, fallback) : (fallback || key); }
     function setStatus(message, isError) {
       const el = byId('status');
       if (window.duxUpdateStatus) {
@@ -187,17 +201,17 @@ __NAV__
 
     async function loadConfig() {
       isConfigLoading = true;
-      setStatus('Leyendo configuracion de microfono...', false);
+      setStatus(tx('microphoneConfig.status.loading', null, 'Leyendo configuracion de microfono...'), false);
       try {
         const res = await fetch('/api/v1/config/microphone');
         const text = await res.text();
         const parsed = JSON.parse(text);
         fillConfig(parsed);
         byId('resultOut').textContent = JSON.stringify(parsed, null, 2);
-        setStatus('Configuracion cargada (HTTP ' + res.status + ').', false);
+        setStatus(tx('microphoneConfig.status.loaded', { status: res.status }, 'Configuracion cargada (HTTP ' + res.status + ').'), false);
       } catch (error) {
         byId('resultOut').textContent = String(error);
-        setStatus('Error leyendo configuracion.', true);
+        setStatus(tx('microphoneConfig.status.loadError', null, 'Error leyendo configuracion.'), true);
       } finally {
         isConfigLoading = false;
       }
@@ -206,7 +220,12 @@ __NAV__
     async function saveConfig(isRealtime) {
       const payload = buildPayload();
       byId('payloadOut').textContent = JSON.stringify(payload, null, 2);
-      setStatus(isRealtime ? 'Aplicando sensibilidad en tiempo real...' : 'Guardando configuracion de microfono...', false);
+      setStatus(
+        isRealtime
+          ? tx('microphoneConfig.status.realtimeApplying', null, 'Aplicando sensibilidad en tiempo real...')
+          : tx('microphoneConfig.status.saving', null, 'Guardando configuracion de microfono...'),
+        false
+      );
       try {
         const res = await fetch('/api/v1/config/microphone', {
           method: 'PATCH',
@@ -218,13 +237,18 @@ __NAV__
         try { pretty = JSON.stringify(JSON.parse(text), null, 2); } catch (_) {}
         byId('resultOut').textContent = pretty;
         if (res.ok) {
-          setStatus(isRealtime ? 'Aplicado en tiempo real (HTTP ' + res.status + ').' : 'Microfono guardado (HTTP ' + res.status + ').', false);
+          setStatus(
+            isRealtime
+              ? tx('microphoneConfig.status.realtimeApplied', { status: res.status }, 'Aplicado en tiempo real (HTTP ' + res.status + ').')
+              : tx('microphoneConfig.status.saved', { status: res.status }, 'Microfono guardado (HTTP ' + res.status + ').'),
+            false
+          );
         } else {
-          setStatus('Error guardando (HTTP ' + res.status + ').', true);
+          setStatus(tx('microphoneConfig.status.saveError', { status: res.status }, 'Error guardando (HTTP ' + res.status + ').'), true);
         }
       } catch (error) {
         byId('resultOut').textContent = String(error);
-        setStatus('Error de red guardando configuracion.', true);
+        setStatus(tx('microphoneConfig.status.networkError', null, 'Error de red guardando configuracion.'), true);
       }
     }
 

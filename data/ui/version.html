@@ -9,7 +9,20 @@
 </head>
 <body>
 <div class='gen-page-outer'>
-__NAV__
+<script>
+  (function() {
+    try {
+      var request = new XMLHttpRequest();
+      request.open('GET', '/ui/nav.html?v=20260502', false);
+      request.send(null);
+      if (request.status >= 200 && request.status < 300 && request.responseText) {
+        document.write(request.responseText);
+        return;
+      }
+    } catch (_) {}
+    document.write("<nav class='gen-nav' style='padding:12px 16px;'>Navigation unavailable</nav>");
+  })();
+</script>
 <main>
   <div class='hero'>
     <svg viewBox="0 0 130 82" xmlns="http://www.w3.org/2000/svg" style="width:300px;max-width:80%;display:block;margin:0 auto 12px;"><defs><linearGradient id="dlg" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#00CFFF"/><stop offset="33%" stop-color="#94FF00"/><stop offset="66%" stop-color="#FFD600"/><stop offset="100%" stop-color="#FF2E2E"/></linearGradient></defs><text x="50%" y="28" text-anchor="middle" font-family="Arial,sans-serif" font-weight="900" font-style="italic" font-size="18" fill="url(#dlg)">duxman-led</text><text x="50%" y="53" text-anchor="middle" font-family="Arial,sans-serif" font-weight="900" font-style="italic" font-size="22" fill="url(#dlg)">next &#xBB;</text><text id="svgVersion" x="50%" y="70" text-anchor="middle" font-family="Consolas,monospace" font-size="8" fill="#0fd0e0" letter-spacing="0.5">...</text></svg>

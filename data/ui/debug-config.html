@@ -9,49 +9,63 @@
 </head>
 <body>
 <div class='gen-page-outer'>
-__NAV__
+<script>
+  (function() {
+    try {
+      var request = new XMLHttpRequest();
+      request.open('GET', '/ui/nav.html?v=20260502', false);
+      request.send(null);
+      if (request.status >= 200 && request.status < 300 && request.responseText) {
+        document.write(request.responseText);
+        return;
+      }
+    } catch (_) {}
+    document.write("<nav class='gen-nav' style='padding:12px 16px;'>Navigation unavailable</nav>");
+  })();
+</script>
   <main>
     <div class='card'>
-      <h1>Configuracion Debug</h1>
-      <p class='hint'>Controla trazas debug y el intervalo del heartbeat serial.</p>
+      <h1 data-i18n='debugConfig.title'>Configuracion Debug</h1>
+      <p class='hint' data-i18n='debugConfig.hint'>Controla trazas debug y el intervalo del heartbeat serial.</p>
       <div class='actions'>
-        <button class='btn alt' onclick='loadDebug()'>Recargar</button>
-        <button class='btn' onclick='saveDebug()'>Guardar</button>
+        <button class='btn alt' onclick='loadDebug()' data-i18n='common.reload'>Recargar</button>
+        <button class='btn' onclick='saveDebug()' data-i18n='common.save'>Guardar</button>
       </div>
       <p id='status' class='status-live' aria-live='polite'></p>
     </div>
 
     <div class='card'>
       <div class='field'>
-        <label><input id='debugEnabled' type='checkbox'> Debug habilitado</label>
+        <label><input id='debugEnabled' type='checkbox'> <span data-i18n='debugConfig.debugEnabled'>Debug habilitado</span></label>
       </div>
       <div class='field'>
-        <label for='heartbeatMs'>Heartbeat ms (0 desactiva)</label>
+        <label for='heartbeatMs' data-i18n='debugConfig.heartbeat'>Heartbeat ms (0 desactiva)</label>
         <input id='heartbeatMs' type='number' min='0' max='600000' step='100'>
       </div>
     </div>
 
     <div class='card'>
-      <h3>Preferencias UI</h3>
+      <h3 data-i18n='generalConfig.sections.ui'>Preferencias UI</h3>
       <div class='field'>
         <label style='display:flex;align-items:center;gap:8px;cursor:pointer'>
           <input id='showJsonChk' type='checkbox' onchange='toggleJson(this.checked)'>
-          <span>Mostrar respuestas JSON en las paginas de configuracion</span>
+          <span data-i18n='generalConfig.showJson'>Mostrar respuestas JSON en las paginas de configuracion</span>
         </label>
-        <p class='hint' style='margin-top:4px'>Se guarda en el navegador (localStorage). Por defecto desactivado.</p>
+        <p class='hint' style='margin-top:4px' data-i18n='generalConfig.showJsonHint'>Se guarda en el navegador (localStorage). Por defecto desactivado.</p>
       </div>
     </div>
 
     <div class='card json-card'>
-      <h3>Payload</h3>
+      <h3 data-i18n='common.payload'>Payload</h3>
       <pre id='payloadOut'>{}</pre>
-      <h3>Respuesta</h3>
+      <h3 data-i18n='common.response'>Respuesta</h3>
       <pre id='resultOut'>Sin llamadas aun.</pre>
     </div>
   </main>
 
   <script>
     function byId(id) { return document.getElementById(id); }
+    function tx(key, params, fallback) { return window.duxT ? window.duxT(key, params, fallback) : (fallback || key); }
     function setStatus(message, isError) {
       const el = byId('status');
       if (window.duxUpdateStatus) {
@@ -81,7 +95,7 @@ __NAV__
       byId('showJsonChk').checked = showJson;
       document.body.classList.toggle('show-json', showJson);
 
-      setStatus('Leyendo configuracion debug...', false);
+      setStatus(tx('debugConfig.status.loading', null, 'Leyendo configuracion debug...'), false);
       try {
         const res = await fetch('/api/v1/config/debug');
         const data = await res.json();
@@ -89,17 +103,17 @@ __NAV__
         byId('debugEnabled').checked = !!dbg.enabled;
         byId('heartbeatMs').value = dbg.heartbeatMs == null ? 5000 : dbg.heartbeatMs;
         byId('resultOut').textContent = JSON.stringify(data, null, 2);
-        setStatus('Configuracion debug cargada (HTTP ' + res.status + ').', false);
+        setStatus(tx('debugConfig.status.loaded', { status: res.status }, 'Configuracion debug cargada (HTTP ' + res.status + ').'), false);
       } catch (error) {
         byId('resultOut').textContent = String(error);
-        setStatus('Error leyendo debug.', true);
+        setStatus(tx('debugConfig.status.loadError', null, 'Error leyendo debug.'), true);
       }
     }
 
     async function saveDebug() {
       const payload = buildPayload();
       byId('payloadOut').textContent = JSON.stringify(payload, null, 2);
-      setStatus('Guardando configuracion debug...', false);
+      setStatus(tx('debugConfig.status.saving', null, 'Guardando configuracion debug...'), false);
       try {
         const res = await fetch('/api/v1/config/debug', {
           method: 'PATCH',
@@ -110,10 +124,15 @@ __NAV__
         let pretty = text;
         try { pretty = JSON.stringify(JSON.parse(text), null, 2); } catch (_) {}
         byId('resultOut').textContent = pretty;
-        setStatus(res.ok ? 'Debug guardado (HTTP ' + res.status + ').' : 'Error guardando debug (HTTP ' + res.status + ').', !res.ok);
+        setStatus(
+          res.ok
+            ? tx('debugConfig.status.saved', { status: res.status }, 'Debug guardado (HTTP ' + res.status + ').')
+            : tx('debugConfig.status.saveError', { status: res.status }, 'Error guardando debug (HTTP ' + res.status + ').'),
+          !res.ok
+        );
       } catch (error) {
         byId('resultOut').textContent = String(error);
-        setStatus('Error de red guardando debug.', true);
+        setStatus(tx('debugConfig.status.networkError', null, 'Error de red guardando debug.'), true);
       }
     }
 

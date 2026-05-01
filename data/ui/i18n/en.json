@@ -3,15 +3,31 @@
   "name": "English",
   "nav": {
     "home": "Home",
+    "config": "Config",
+    "api": "API",
+    "about": "About",
     "effects": "Effects",
     "profiles": "Profiles",
     "palettes": "Palettes",
+    "network": "Network",
+    "microphone": "Microphone",
+    "gpio": "GPIO",
+    "general": "General",
+    "manual": "Manual JSON",
+    "debug": "Debug",
+    "state": "State",
+    "hardware": "Hardware",
+    "release": "Release",
+    "configAll": "Config All",
+    "version": "Version",
+    "menu": "Menu",
     "settings": "Settings",
     "advanced": "Advanced",
     "help": "Help"
   },
   "common": {
     "save": "Save",
+    "reload": "Reload",
     "cancel": "Cancel",
     "apply": "Apply",
     "delete": "Delete",
@@ -27,17 +43,400 @@
     "loading": "Loading...",
     "error": "Error",
     "success": "Success",
-    "warning": "Warning"
+    "warning": "Warning",
+    "payload": "Payload",
+    "response": "Response"
+  },
+  "configIndex": {
+    "title": "Configuration",
+    "hint": "Select the configuration section you want to edit.",
+    "manualTitle": "Manual",
+    "cards": {
+      "network": "WiFi, AP/STA, hostname, IP and DNS.",
+      "microphone": "Configure generic_i2c microphone (SD/WS/SCK) and profile.",
+      "gpio": "LED pin, count, LED type and color order.",
+      "profiles": "Save, apply and set default GPIO profiles.",
+      "palettes": "Create, edit and save custom color palettes.",
+      "debug": "Enable debug and adjust heartbeat interval.",
+      "manual": "Edit, export and import the full JSON configuration."
+    }
+  },
+  "generalConfig": {
+    "title": "General Settings",
+    "regionHint": "Affects number, date and unit formatting.",
+    "debugEnabled": "Debug enabled",
+    "debugHint": "Enable detailed serial debug traces.",
+    "heartbeat": "Heartbeat (ms)",
+    "heartbeatHint": "Serial heartbeat interval. 0 = disabled.",
+    "showJson": "Show JSON responses on configuration pages",
+    "showJsonHint": "Stored in the browser (localStorage). Disabled by default.",
+    "sections": {
+      "language": "Language",
+      "debug": "Debug",
+      "ui": "UI Preferences"
+    },
+    "status": {
+      "loading": "Reading general configuration...",
+      "loaded": "Configuration loaded (HTTP {status}).",
+      "loadError": "Error reading general configuration.",
+      "saving": "Saving general configuration...",
+      "saved": "Configuration saved (HTTP {status}). Language updated to: {language}",
+      "saveError": "Error saving (HTTP {status}).",
+      "networkError": "Network error while saving configuration."
+    }
+  },
+  "networkConfig": {
+    "title": "Network Configuration",
+    "hint": "Edit WiFi/AP/STA and save to the device. Changes are applied immediately.",
+    "actions": {
+      "save": "Save Configuration"
+    },
+    "sections": {
+      "wifi": "WiFi",
+      "time": "Time / NTP",
+      "apIp": "AP IP",
+      "staIp": "STA IP",
+      "payloadResponse": "Payload / Response"
+    },
+    "fields": {
+      "mode": "Mode",
+      "apAvailability": "AP Availability",
+      "staSsid": "STA SSID",
+      "staPassword": "STA Password",
+      "hostname": "DNS Hostname",
+      "syncOnBoot": "Sync on boot",
+      "ntpServer": "NTP Server",
+      "apMode": "AP IP Mode",
+      "apAddress": "AP IP",
+      "apGateway": "AP Gateway",
+      "apSubnet": "AP Subnet",
+      "staMode": "STA IP Mode",
+      "staAddress": "STA IP",
+      "staGateway": "STA Gateway",
+      "staSubnet": "STA Subnet",
+      "staDns1": "STA DNS 1",
+      "staDns2": "STA DNS 2"
+    },
+    "timeHint": "On boot and on STA connect, the device will try to synchronize time with the configured NTP server.",
+    "payloadSent": "Sent Payload",
+    "apiResponse": "API Response",
+    "status": {
+      "loading": "Reading configuration...",
+      "loaded": "Configuration loaded (HTTP {status}).",
+      "loadError": "Error reading configuration.",
+      "saving": "Saving configuration...",
+      "saved": "Configuration saved and applied (HTTP {status}).",
+      "saveError": "Error saving (HTTP {status}).",
+      "networkError": "Network error while saving."
+    }
+  },
+  "manualConfig": {
+    "title": "Manual Configuration",
+    "hint": "Edit, export or import the full device configuration as JSON. Import is applied only if the JSON is completely valid.",
+    "sections": {
+      "editor": "JSON Editor",
+      "import": "Import file",
+      "result": "Result"
+    },
+    "actions": {
+      "load": "Load from device",
+      "apply": "Apply to device",
+      "download": "Download .json",
+      "validate": "Validate only",
+      "loadIntoEditor": "Load into editor"
+    },
+    "importHint": "Load a .json file into the editor. Then press \"Apply to device\" to import it.",
+    "status": {
+      "loading": "Loading configuration...",
+      "loaded": "Configuration loaded.",
+      "loadedInline": "Configuration loaded (HTTP {status}).",
+      "loadError": "Error loading configuration.",
+      "emptyEditor": "Editor is empty.",
+      "validJson": "Valid JSON (correct syntax).",
+      "validationOk": "Local validation OK. Press \"Apply to device\" to validate against firmware and save.",
+      "invalidJson": "Invalid JSON: {message}",
+      "invalidJsonDetail": "JSON syntax error:\n{message}",
+      "applying": "Applying configuration...",
+      "applied": "Configuration applied successfully.",
+      "applyError": "Error applying (HTTP {status}). Configuration was not modified.",
+      "networkError": "Network error while applying.",
+      "nothingToDownload": "Nothing to download.",
+      "downloaded": "File downloaded.",
+      "selectFile": "Select a file first.",
+      "fileLoaded": "File loaded into editor. Review it and press \"Apply to device\".",
+      "fileLoadedDetail": "File {file} loaded ({size} bytes).",
+      "invalidFile": "Invalid JSON file: {message}",
+      "invalidFileDetail": "Error parsing {file}:\n{message}"
+    }
+  },
+  "debugConfig": {
+    "title": "Debug Configuration",
+    "hint": "Control debug traces and the serial heartbeat interval.",
+    "debugEnabled": "Debug enabled",
+    "heartbeat": "Heartbeat ms (0 disables)",
+    "status": {
+      "loading": "Reading debug configuration...",
+      "loaded": "Debug configuration loaded (HTTP {status}).",
+      "loadError": "Error reading debug configuration.",
+      "saving": "Saving debug configuration...",
+      "saved": "Debug saved (HTTP {status}).",
+      "saveError": "Error saving debug (HTTP {status}).",
+      "networkError": "Network error while saving debug."
+    }
+  },
+  "microphoneConfig": {
+    "title": "Microphone Configuration",
+    "hint": "Supported profile: <strong>generic_i2c</strong> with GLEDOPTO pins (SD=26, WS=5, SCK=21). Changes apply live and are stored in persistent configuration.",
+    "autoApply": "Apply sensitivity in real time while moving controls",
+    "enabled": "Microphone enabled",
+    "sections": {
+      "pins": "Pins"
+    },
+    "pinsHint": "SD = DIN (data), WS = LRCLK, SCK = BCLK.",
+    "fields": {
+      "source": "Source",
+      "profile": "Profile",
+      "sampleRate": "Sample Rate",
+      "fftSize": "FFT Size",
+      "gain": "Gain %",
+      "noiseFloor": "Noise floor %",
+      "noiseGate": "Noise gate knee (0-200)",
+      "agc": "AGC response % (10-200)",
+      "din": "SD / DIN",
+      "ws": "WS",
+      "bclk": "SCK / BCLK"
+    },
+    "actions": {
+      "applyPins": "Apply GLEDOPTO pins (26/5/21)"
+    },
+    "status": {
+      "loading": "Reading microphone configuration...",
+      "loaded": "Configuration loaded (HTTP {status}).",
+      "loadError": "Error reading configuration.",
+      "realtimeApplying": "Applying sensitivity in real time...",
+      "saving": "Saving microphone configuration...",
+      "realtimeApplied": "Applied in real time (HTTP {status}).",
+      "saved": "Microphone saved (HTTP {status}).",
+      "saveError": "Error saving (HTTP {status}).",
+      "networkError": "Network error while saving configuration."
+    }
+  },
+  "gpioConfig": {
+    "title": "LED Configuration (GPIO)",
+    "hint": "Configure the controller LED outputs. Max __MAX_OUTPUTS__ outputs.",
+    "sections": {
+      "outputs": "LED Outputs",
+      "powerLimit": "Power limit (software)",
+      "pinReference": "Pin Reference"
+    },
+    "powerHint": "Estimated current limiting to avoid consumption spikes. When enabled, firmware scales global brightness automatically.",
+    "fields": {
+      "enableLimit": "Enable limit",
+      "maxCurrent": "Maximum total current (mA)",
+      "perLed": "Estimated current per LED (mA)"
+    },
+    "actions": {
+      "addOutput": "+ Add output"
+    },
+    "status": {
+      "loading": "Reading GPIO configuration...",
+      "loaded": "GPIO configuration loaded (HTTP {status}).",
+      "loadError": "Error reading GPIO.",
+      "saving": "Saving GPIO configuration...",
+      "saved": "GPIO saved (HTTP {status}).",
+      "saveError": "Error saving GPIO (HTTP {status}).",
+      "networkError": "Network error while saving GPIO."
+    }
+  },
+  "palettesConfig": {
+    "systemTitle": "System Palettes",
+    "systemBadge": "System",
+    "systemHint": "Factory palettes. Read only.",
+    "userTitle": "My Palettes",
+    "userBadge": "User",
+    "userHint": "Custom palettes. Edit or delete from each card.",
+    "lastApiResponse": "Last API response",
+    "actions": {
+      "new": "+ New"
+    },
+    "edit": {
+      "newTitle": "New Palette",
+      "editing": "Editing: {label}",
+      "id": "ID (slug)",
+      "label": "Display name",
+      "style": "Style",
+      "description": "Description (optional)",
+      "color1": "Color 1",
+      "color2": "Color 2",
+      "color3": "Color 3"
+    },
+    "status": {
+      "applied": "Applied: {key}",
+      "error": "Error: {error}",
+      "confirmDelete": "Delete palette \"{key}\"?",
+      "idRequired": "ID is required",
+      "idInvalid": "ID may only contain a-z, 0-9, _ -",
+      "labelRequired": "Name is required",
+      "saved": "Saved successfully.",
+      "noSystem": "No system palettes.",
+      "noUser": "No user palettes yet.",
+      "loadError": "Error loading."
+    }
+  },
+  "profilesConfig": {
+    "title": "Configuration Profiles",
+    "hint": "A profile stores the full device configuration: Wi-Fi network, GPIO, microphone and debug. The <strong>default</strong> profile always mirrors the active configuration in the device.",
+    "saveHint": "Capture a complete snapshot of the active configuration (network, GPIO, microphone, debug) and save it with the chosen name. You do not need to write any JSON.",
+    "availableHint": "Click <em>Activate</em> to load a profile and apply it to the device. <em>View config</em> shows the full stored JSON.",
+    "sections": {
+      "save": "Save current configuration as profile",
+      "available": "Available profiles"
+    },
+    "fields": {
+      "name": "Name",
+      "description": "Description",
+      "descriptionOptional": "Description (optional)"
+    },
+    "actions": {
+      "refresh": "Refresh list",
+      "saveCurrent": "Save as profile"
+    },
+    "edit": {
+      "title": "Edit profile:",
+      "hint": "Modify the JSON and press <strong>Save changes</strong>. Only the fields you edit are overwritten.",
+      "json": "Full profile JSON (editable)"
+    },
+    "status": {
+      "loading": "Loading profiles...",
+      "loaded": "Profiles loaded (HTTP {status}).",
+      "loadError": "Error loading profiles: {error}",
+      "empty": "No profiles.",
+      "idRequired": "Profile ID is required.",
+      "savingSnapshot": "Saving configuration snapshot...",
+      "confirmActivate": "Activate profile \"{id}\"?\n\nThis will replace the entire active device configuration (network, GPIO, microphone, debug).",
+      "activating": "Activating profile \"{id}\"...",
+      "loadingProfileConfig": "Loading profile \"{id}\" configuration...",
+      "profileConfigLoaded": "Profile \"{id}\" configuration loaded. See below.",
+      "profileLoadError": "Error loading profile: {error}",
+      "confirmDelete": "Delete profile \"{id}\"?\n\nThis action cannot be undone.",
+      "deleting": "Deleting profile \"{id}\"...",
+      "clonePromptId": "ID for the cloned profile (no spaces):",
+      "clonePromptName": "Name for the cloned profile:",
+      "cloning": "Cloning profile \"{id}\"...",
+      "loadingProfile": "Loading profile \"{id}\"...",
+      "profileLoadedForEdit": "Profile \"{id}\" loaded for editing.",
+      "invalidJson": "Invalid JSON: {message}",
+      "savingChanges": "Saving changes to \"{id}\"...",
+      "operationOk": "Operation completed (HTTP {status}).",
+      "operationError": "Error (HTTP {status}).",
+      "networkError": "Network error: {error}"
+    }
   },
   "home": {
     "title": "Home",
+    "subtitle": "Quick control for fixed effects and main navigation.",
     "currentEffect": "Current Effect",
     "currentPalette": "Current Palette",
     "brightness": "Brightness",
     "speed": "Speed",
     "volume": "Audio Sensitivity",
     "color": "Color",
-    "noEffectRunning": "No effect running"
+    "noEffectRunning": "No effect running",
+    "actions": {
+      "applyPalette": "Apply palette",
+      "applyPaletteSave": "Apply and save",
+      "saveStartup": "Save startup"
+    },
+    "colors": {
+      "title": "Color selection",
+      "hint": "Define the background color and the three foreground colors for the effect.",
+      "background": "Background / off",
+      "color1": "Color 1",
+      "color2": "Color 2",
+      "color3": "Color 3",
+      "palette": "Preset palette",
+      "paletteManual": "Manual (free colors)",
+      "preview": "Palette preview"
+    },
+    "effect": {
+      "title": "Effect selection",
+      "hint": "Choose the main render, section count, speed and global brightness.",
+      "selectionActions": "Selection and actions",
+      "effect": "Effect",
+      "parameters": "Parameters and presets",
+      "sections": "Number of sections",
+      "speed": "Effect speed",
+      "speedHint": "Only used in animated effects.",
+      "level": "Effect level",
+      "brightness": "Global brightness",
+      "audioMode": "Microphone audio: automatic according to the effect",
+      "modeLoading": "Effect type: loading...",
+      "modeLabel": "Effect type: {type}",
+      "presets": "Visual presets",
+      "presetsSmooth": "Smooth",
+      "presetsShow": "Show",
+      "presetsAggressive": "Aggressive",
+      "speedHintDetailed": "Value 1..100. Always available; each effect decides whether to use it.",
+      "audioModeEnabled": "Microphone audio: automatically enabled for this effect",
+      "audioModeDisabled": "Microphone audio: disabled in visual effects",
+      "typeAudio": "AUDIO REACTIVE",
+      "typeVisual": "VISUAL"
+    },
+    "playlist": {
+      "title": "Playlist configuration",
+      "outputActive": "Active output",
+      "newEntryDuration": "Duration for new entry",
+      "addToList": "Add to list",
+      "reloadList": "Reload list"
+    },
+    "persistence": {
+      "title": "Effect persistence",
+      "hint": "Save the startup effect and prepare the future sequence with duration per entry.",
+      "empty": "There are no effects saved in the sequence.",
+      "noStartup": "No startup effect saved.",
+      "loaded": "Persistence loaded",
+      "loading": "Reading persistence...",
+      "savingStartup": "Saving startup...",
+      "startupSaved": "Startup effect saved",
+      "startupSaveError": "Could not save startup",
+      "addingEntry": "Saving effect into the list...",
+      "entryAdded": "Entry added to the sequence",
+      "entryAddError": "Could not add the entry",
+      "deletingEntry": "Deleting entry...",
+      "entryDeleted": "Entry deleted",
+      "entryDeleteError": "Could not delete the entry"
+    },
+    "runtime": {
+      "title": "Runtime state",
+      "hint": "The effect is stored in LittleFS when applying changes.",
+      "show": "Show runtime"
+    },
+    "status": {
+      "loaded": "State loaded",
+      "configUnavailable": "Configuration unavailable",
+      "paletteLabel": "palette {id}",
+      "manual": "manual",
+      "paletteWord": "palette",
+      "sectionsWord": "sections",
+      "speedWord": "speed",
+      "levelWord": "level",
+      "brightnessWord": "brightness",
+      "selectPalette": "Select a preset palette to apply.",
+      "applyingPaletteSaving": "Applying palette and saving...",
+      "applyingPalette": "Applying palette...",
+      "paletteAppliedSaved": "Palette applied and saved",
+      "paletteApplied": "Palette applied",
+      "restarting": "Sending restart...",
+      "restartSent": "Restart sent. Waiting for reconnection...",
+      "restartingBoard": "The board is restarting...",
+      "waitingBoard": "Waiting for the board to respond again...",
+      "invalidPreset": "Invalid preset",
+      "applyingPreset": "Applying preset {preset}...",
+      "presetApplied": "Preset {preset} applied",
+      "loading": "Reading state...",
+      "applying": "Applying changes...",
+      "applied": "Changes applied"
+    }
   },
   "effects": {
     "title": "Effects",

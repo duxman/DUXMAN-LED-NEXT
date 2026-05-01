@@ -9,7 +9,20 @@
 </head>
 <body>
 <div class='gen-page-outer'>
-__NAV__
+<script>
+  (function() {
+    try {
+      var request = new XMLHttpRequest();
+      request.open('GET', '/ui/nav.html?v=20260502', false);
+      request.send(null);
+      if (request.status >= 200 && request.status < 300 && request.responseText) {
+        document.write(request.responseText);
+        return;
+      }
+    } catch (_) {}
+    document.write("<nav class='gen-nav' style='padding:12px 16px;'>Navigation unavailable</nav>");
+  })();
+</script>
   <main>
     <section class='hero'>
       <div>
@@ -17,7 +30,7 @@ __NAV__
         <h1>DUXMAN-LED-NEXT __FW_VERSION__</h1>
         <span class='boot-at'>__BOOTED_AT__</span>
       </div>
-      <p>Control rapido de efectos fijos y navegacion principal.</p>
+      <p data-i18n='home.subtitle'>Control rapido de efectos fijos y navegacion principal.</p>
       </div>
 
 
@@ -26,39 +39,39 @@ __NAV__
           <div class='controls-top'>
             <section class='control-card colors'>
               <div>
-                <h2>Seleccion de colores</h2>
-                <p>Define el color de fondo y los tres colores de primer plano del efecto.</p>
+                <h2 data-i18n='home.colors.title'>Seleccion de colores</h2>
+                <p data-i18n='home.colors.hint'>Define el color de fondo y los tres colores de primer plano del efecto.</p>
               </div>
 
               <div class='row colors'>
                 <label>
-                  Fondo / off
+                  <span data-i18n='home.colors.background'>Fondo / off</span>
                   <input id='backgroundColor' type='color' value='#000000'>
                 </label>
 
                 <label>
-                  Color 1
+                  <span data-i18n='home.colors.color1'>Color 1</span>
                   <input id='color0' type='color' value='#ff4d00'>
                 </label>
                 <label>
-                  Color 2
+                  <span data-i18n='home.colors.color2'>Color 2</span>
                   <input id='color1' type='color' value='#ffd400'>
                 </label>
                 <label>
-                  Color 3
+                  <span data-i18n='home.colors.color3'>Color 3</span>
                   <input id='color2' type='color' value='#00b8d9'>
                 </label>
               </div>
 
               <div class='row'>
                 <label>
-                  Paleta predefinida
+                  <span data-i18n='home.colors.palette'>Paleta predefinida</span>
                   <select id='paletteId'>
-                    <option value='-1'>Manual (colores libres)</option>
+                    <option value='-1' data-i18n='home.colors.paletteManual'>Manual (colores libres)</option>
                   </select>
                 </label>
                 <label>
-                  Vista previa de paleta
+                  <span data-i18n='home.colors.preview'>Vista previa de paleta</span>
                   <div id='palettePreview' style='display:flex; gap:8px; margin-top:8px;'>
                     <span class='sequence-color' style='background:#ff4d00;'></span>
                     <span class='sequence-color' style='background:#ffd400;'></span>
@@ -68,73 +81,73 @@ __NAV__
               </div>
 
               <div class='actions stack-actions'>
-                <button class='alt' type='button' onclick='applySelectedPalette(false)'>&#127912; Aplicar paleta</button>
-                <button class='alt' type='button' onclick='applySelectedPalette(true)'>&#128190; Aplicar y guardar</button>
+                <button class='alt' type='button' onclick='applySelectedPalette(false)'>&#127912; <span data-i18n='home.actions.applyPalette'>Aplicar paleta</span></button>
+                <button class='alt' type='button' onclick='applySelectedPalette(true)'>&#128190; <span data-i18n='home.actions.applyPaletteSave'>Aplicar y guardar</span></button>
               </div>
             </section>
 
             <section class='control-card effect'>
               <div>
-                <h2>Seleccion de efecto</h2>
-                <p>Elige el render principal, numero de secciones, velocidad y brillo global.</p>
+                <h2 data-i18n='home.effect.title'>Seleccion de efecto</h2>
+                <p data-i18n='home.effect.hint'>Elige el render principal, numero de secciones, velocidad y brillo global.</p>
               </div>
 
               <div class='effect-layout'>
                 <div class='effect-box'>
-                  <h3>Seleccion y acciones</h3>
+                  <h3 data-i18n='home.effect.selectionActions'>Seleccion y acciones</h3>
                   <label>
-                    Efecto
+                    <span data-i18n='home.effect.effect'>Efecto</span>
                     <select id='effect'>
                       __EFFECT_OPTIONS__
                     </select>
                   </label>
 
                   <div class='stack-actions'>
-                    <button onclick='applyState()'>&#9654; Aplicar</button>
-                    <button class='alt' onclick='saveStartupEffect()'>&#128190; Guardar arranque</button>
-                    <button class='alt' onclick='loadState()'>&#8635; Recargar</button>
+                    <button onclick='applyState()'>&#9654; <span data-i18n='common.apply'>Aplicar</span></button>
+                    <button class='alt' onclick='saveStartupEffect()'>&#128190; <span data-i18n='home.actions.saveStartup'>Guardar arranque</span></button>
+                    <button class='alt' onclick='loadState()'>&#8635; <span data-i18n='common.reload'>Recargar</span></button>
                   </div>
                 </div>
 
                 <div class='effect-box'>
-                  <h3>Parametros y presets</h3>
+                  <h3 data-i18n='home.effect.parameters'>Parametros y presets</h3>
                   <label>
-                    Numero de secciones
+                    <span data-i18n='home.effect.sections'>Numero de secciones</span>
                     <input id='sectionCount' type='range' min='1' max='10' value='3'>
                     <span id='sectionCountValue'>3</span>
                   </label>
 
                   <label id='speedControl'>
-                    Rapidez del efecto
+                    <span data-i18n='home.effect.speed'>Rapidez del efecto</span>
                     <input id='effectSpeed' type='range' min='1' max='100' value='10'>
                     <span id='effectSpeedValue'>10</span>
-                    <span id='effectSpeedHint'>Solo se usa en efectos animados.</span>
+                    <span id='effectSpeedHint' data-i18n='home.effect.speedHint'>Solo se usa en efectos animados.</span>
                   </label>
 
                   <label>
-                    Nivel del efecto
+                    <span data-i18n='home.effect.level'>Nivel del efecto</span>
                     <input id='effectLevel' type='range' min='1' max='10' value='5'>
                     <span id='effectLevelValue'>5</span>
                   </label>
 
                   <label>
-                    Brillo global
+                    <span data-i18n='home.effect.brightness'>Brillo global</span>
                     <input id='brightness' type='range' min='0' max='255' value='128'>
                     <span id='brightnessValue'>128</span>
                   </label>
 
                   <label style='display:flex; align-items:center; gap:10px; opacity:0.9;'>
                     <input id='reactiveToAudio' type='checkbox' style='width:auto; flex-shrink:0;' disabled>
-                    <span id='reactiveToAudioLabel'>Audio del microfono: automatico segun el efecto</span>
+                    <span id='reactiveToAudioLabel' data-i18n='home.effect.audioMode'>Audio del microfono: automatico segun el efecto</span>
                   </label>
 
-                  <div id='effectModeBanner' class='badge' style='display:inline-flex; align-items:center; gap:8px;'>Tipo de efecto: cargando...</div>
+                  <div id='effectModeBanner' class='badge' style='display:inline-flex; align-items:center; gap:8px;' data-i18n='home.effect.modeLoading'>Tipo de efecto: cargando...</div>
 
                   <div class='preset-actions stack-actions'>
-                    <span class='preset-label'>Presets visuales</span>
-                    <button class='alt sm' onclick='applyVisualPreset("smooth")'>&#127752; Suave</button>
-                    <button class='alt sm' onclick='applyVisualPreset("show")'>&#10024; Show</button>
-                    <button class='alt sm' onclick='applyVisualPreset("aggressive")'>&#9889; Agresivo</button>
+                    <span class='preset-label' data-i18n='home.effect.presets'>Presets visuales</span>
+                    <button class='alt sm' onclick='applyVisualPreset("smooth")'>&#127752; <span data-i18n='home.effect.presetsSmooth'>Suave</span></button>
+                    <button class='alt sm' onclick='applyVisualPreset("show")'>&#10024; <span data-i18n='home.effect.presetsShow'>Show</span></button>
+                    <button class='alt sm' onclick='applyVisualPreset("aggressive")'>&#9889; <span data-i18n='home.effect.presetsAggressive'>Agresivo</span></button>
                   </div>
                 </div>
               </div>
@@ -144,13 +157,13 @@ __NAV__
           <div class='controls-bottom'>
             <section class='power-card'>
               <div class='power-copy'>
-                <h2>Configuracion playlist</h2>
+                <h2 data-i18n='home.playlist.title'>Configuracion playlist</h2>
               </div>
 
               <div>
                 <div class='switch'>
                   <input id='power' type='checkbox'>
-                  <span>Salida activa</span>
+                  <span data-i18n='home.playlist.outputActive'>Salida activa</span>
                 </div>
                 <span class='badge' id='status'>Cargando estado...</span>
               </div>
@@ -158,14 +171,14 @@ __NAV__
               <div class='power-actions'>
                 <div class='sequence-tools'>
                   <label>
-                    Duracion para nueva entrada
+                    <span data-i18n='home.playlist.newEntryDuration'>Duracion para nueva entrada</span>
                     <input id='effectDurationSec' type='range' min='1' max='600' value='30'>
                     <span id='effectDurationSecValue' class='slider-readout'>30 s</span>
                   </label>
 
                   <div class='actions stack-actions'>
-                    <button class='alt' onclick='addCurrentEffectToSequence()'>&#10133; Anadir a lista</button>
-                    <button class='alt' onclick='loadEffectsPersistence()'>&#8635; Recargar lista</button>
+                    <button class='alt' onclick='addCurrentEffectToSequence()'>&#10133; <span data-i18n='home.playlist.addToList'>Anadir a lista</span></button>
+                    <button class='alt' onclick='loadEffectsPersistence()'>&#8635; <span data-i18n='home.playlist.reloadList'>Recargar lista</span></button>
                   </div>
                 </div>
               </div>
@@ -173,8 +186,8 @@ __NAV__
 
             <section class='saved-effects-card'>
               <div class='saved-effects-copy'>
-                <h2>Persistencia de efectos</h2>
-                <p>Guarda el efecto de arranque y prepara la secuencia futura con duracion por entrada.</p>
+                <h2 data-i18n='home.persistence.title'>Persistencia de efectos</h2>
+                <p data-i18n='home.persistence.hint'>Guarda el efecto de arranque y prepara la secuencia futura con duracion por entrada.</p>
               </div>
 
               <div>
@@ -182,11 +195,11 @@ __NAV__
               </div>
 
               <div>
-                <strong id='startupEffectSummary'>Sin efecto de arranque guardado.</strong>
+                <strong id='startupEffectSummary' data-i18n='home.persistence.noStartup'>Sin efecto de arranque guardado.</strong>
               </div>
 
               <div id='sequenceList' class='sequence-list'>
-                <div class='empty-note'>No hay efectos guardados en la secuencia.</div>
+                <div class='empty-note' data-i18n='home.persistence.empty'>No hay efectos guardados en la secuencia.</div>
               </div>
 
               <pre id='effectsOut' class='json-debug'>Sin datos aun.</pre>
@@ -198,10 +211,10 @@ __NAV__
       <section class='runtime-card json-card'>
         <div class='runtime-head'>
           <div class='runtime-copy'>
-            <h2>Estado runtime <span class='runtime-pill'>live json</span></h2>
-            <p>El efecto se guarda en LittleFS al aplicar cambios.</p>
+            <h2><span data-i18n='home.runtime.title'>Estado runtime</span> <span class='runtime-pill'>live json</span></h2>
+            <p data-i18n='home.runtime.hint'>El efecto se guarda en LittleFS al aplicar cambios.</p>
           </div>
-          <button id='toggleRuntime' class='toggle-btn' type='button' aria-expanded='false'>&#128065; Mostrar runtime</button>
+          <button id='toggleRuntime' class='toggle-btn' type='button' aria-expanded='false'>&#128065; <span data-i18n='home.runtime.show'>Mostrar runtime</span></button>
         </div>
         <div id='runtimeBody' class='runtime-body hidden'>
           <pre id='stateOut'>Sin datos aun.</pre>
@@ -211,6 +224,7 @@ __NAV__
   </main>
   <script>
     if(localStorage.getItem('dux_show_json')==='1') document.body.classList.add('show-json');
+    function tx(key, params, fallback) { return window.duxT ? window.duxT(key, params, fallback) : (fallback || key); }
 
     const out = document.getElementById('stateOut');
     const status = document.getElementById('status');
@@ -386,14 +400,14 @@ __NAV__
     function updateSpeedControl() {
       effectSpeed.disabled = false;
       speedControl.style.opacity = '1';
-      effectSpeedHint.textContent = 'Valor 1..100. Disponible siempre; cada efecto decide si lo usa.';
+      effectSpeedHint.textContent = tx('home.effect.speedHintDetailed', null, 'Valor 1..100. Disponible siempre; cada efecto decide si lo usa.');
 
       const usesAudio = selectedEffectUsesAudio();
       reactiveToAudio.checked = usesAudio;
       reactiveToAudioLabel.textContent = usesAudio
-        ? 'Audio del microfono: activado automaticamente para este efecto'
-        : 'Audio del microfono: desactivado en efectos visuales';
-      effectModeBanner.textContent = 'Tipo de efecto: ' + (usesAudio ? 'AUDIO REACTIVO' : 'VISUAL');
+        ? tx('home.effect.audioModeEnabled', null, 'Audio del microfono: activado automaticamente para este efecto')
+        : tx('home.effect.audioModeDisabled', null, 'Audio del microfono: desactivado en efectos visuales');
+      effectModeBanner.textContent = tx('home.effect.modeLabel', { type: usesAudio ? tx('home.effect.typeAudio', null, 'AUDIO REACTIVO') : tx('home.effect.typeVisual', null, 'VISUAL') }, 'Tipo de efecto: ' + (usesAudio ? 'AUDIO REACTIVO' : 'VISUAL'));
     }
 
     effect.addEventListener('change', updateSpeedControl);
@@ -417,9 +431,9 @@ __NAV__
       document.getElementById('backgroundColor').value = state.backgroundColor || '#000000';
       renderPaletteOptionsFromState(state);
       updateSpeedControl();
-      effectModeBanner.textContent = 'Tipo de efecto: ' + effectTypeText(state);
+      effectModeBanner.textContent = tx('home.effect.modeLabel', { type: effectTypeText(state) }, 'Tipo de efecto: ' + effectTypeText(state));
       out.textContent = JSON.stringify(state, null, 2);
-      status.textContent = 'Estado cargado';
+      status.textContent = tx('home.status.loaded', null, 'Estado cargado');
     }
 
     function normalizeEffectsPayload(data) {
@@ -438,21 +452,21 @@ __NAV__
 
     function describeConfig(config) {
       if (!config) {
-        return 'Configuracion no disponible';
+        return tx('home.status.configUnavailable', null, 'Configuracion no disponible');
       }
       const effectName = config.effectLabel || config.effect || ('ID ' + (config.effectId ?? '?'));
-      const paletteName = config.paletteLabel || (Number(config.paletteId) >= 0 ? ('palette ' + config.paletteId) : 'manual');
-      return effectName + ' | paleta ' + paletteName + ' | secciones ' + (config.sectionCount ?? '?') + ' | velocidad ' + (config.effectSpeed ?? '?') + ' | nivel ' + (config.effectLevel ?? '?') + ' | brillo ' + (config.brightness ?? '?');
+      const paletteName = config.paletteLabel || (Number(config.paletteId) >= 0 ? (tx('home.status.paletteLabel', { id: config.paletteId }, 'palette ' + config.paletteId)) : tx('home.status.manual', null, 'manual'));
+      return effectName + ' | ' + tx('home.status.paletteWord', null, 'paleta') + ' ' + paletteName + ' | ' + tx('home.status.sectionsWord', null, 'secciones') + ' ' + (config.sectionCount ?? '?') + ' | ' + tx('home.status.speedWord', null, 'velocidad') + ' ' + (config.effectSpeed ?? '?') + ' | ' + tx('home.status.levelWord', null, 'nivel') + ' ' + (config.effectLevel ?? '?') + ' | ' + tx('home.status.brightnessWord', null, 'brillo') + ' ' + (config.brightness ?? '?');
     }
 
     async function applySelectedPalette(saveAfterApply) {
       const paletteId = selectedPaletteId();
       if (paletteId === null) {
-        status.textContent = 'Selecciona una paleta predefinida para aplicar.';
+        status.textContent = tx('home.status.selectPalette', null, 'Selecciona una paleta predefinida para aplicar.');
         return;
       }
 
-      status.textContent = saveAfterApply ? 'Aplicando paleta y guardando...' : 'Aplicando paleta...';
+      status.textContent = saveAfterApply ? tx('home.status.applyingPaletteSaving', null, 'Aplicando paleta y guardando...') : tx('home.status.applyingPalette', null, 'Aplicando paleta...');
       const res = await fetch('/api/v1/palettes/apply', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -468,7 +482,7 @@ __NAV__
         await saveStartupEffect();
       }
 
-      status.textContent = saveAfterApply ? 'Paleta aplicada y guardada' : 'Paleta aplicada';
+      status.textContent = saveAfterApply ? tx('home.status.paletteAppliedSaved', null, 'Paleta aplicada y guardada') : tx('home.status.paletteApplied', null, 'Paleta aplicada');
     }
 
     function renderEffectsState(data) {
@@ -478,12 +492,12 @@ __NAV__
       if (effectsState.hasStartupEffect && effectsState.startupEffect) {
         startupEffectSummary.innerHTML = 'Arranque: ' + effectTypeBadgeHtml(effectsState.startupEffect) + ' ' + describeConfig(effectsState.startupEffect);
       } else {
-        startupEffectSummary.textContent = 'Sin efecto de arranque guardado.';
+        startupEffectSummary.textContent = tx('home.persistence.noStartup', null, 'Sin efecto de arranque guardado.');
       }
 
       const sequence = Array.isArray(effectsState.sequence) ? effectsState.sequence : [];
       if (!sequence.length) {
-        sequenceList.innerHTML = "<div class='empty-note'>No hay efectos guardados en la secuencia.</div>";
+        sequenceList.innerHTML = "<div class='empty-note'>" + tx('home.persistence.empty', null, 'No hay efectos guardados en la secuencia.') + "</div>";
       } else {
         sequenceList.innerHTML = sequence.map((entry) => {
           const config = entry.config || {};
@@ -504,18 +518,18 @@ __NAV__
         }).join('');
       }
 
-      effectsStatus.textContent = 'Persistencia cargada';
+      effectsStatus.textContent = tx('home.persistence.loaded', null, 'Persistencia cargada');
     }
 
     async function loadEffectsPersistence() {
-      effectsStatus.textContent = 'Leyendo persistencia...';
+      effectsStatus.textContent = tx('home.persistence.loading', null, 'Leyendo persistencia...');
       const res = await fetch('/api/v1/effects');
       const data = await res.json();
       renderEffectsState(data);
     }
 
     async function saveStartupEffect() {
-      effectsStatus.textContent = 'Guardando arranque...';
+      effectsStatus.textContent = tx('home.persistence.savingStartup', null, 'Guardando arranque...');
       const res = await fetch('/api/v1/effects/startup/save', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -523,11 +537,11 @@ __NAV__
       });
       const data = await res.json();
       renderEffectsState(data);
-      effectsStatus.textContent = data && data.saved ? 'Efecto de arranque guardado' : 'No se pudo guardar arranque';
+      effectsStatus.textContent = data && data.saved ? tx('home.persistence.startupSaved', null, 'Efecto de arranque guardado') : tx('home.persistence.startupSaveError', null, 'No se pudo guardar arranque');
     }
 
     async function addCurrentEffectToSequence() {
-      effectsStatus.textContent = 'Guardando efecto en la lista...';
+      effectsStatus.textContent = tx('home.persistence.addingEntry', null, 'Guardando efecto en la lista...');
       const res = await fetch('/api/v1/effects/sequence/add', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -535,11 +549,11 @@ __NAV__
       });
       const data = await res.json();
       renderEffectsState(data);
-      effectsStatus.textContent = data && data.added ? 'Entrada anadida a la secuencia' : 'No se pudo anadir la entrada';
+      effectsStatus.textContent = data && data.added ? tx('home.persistence.entryAdded', null, 'Entrada anadida a la secuencia') : tx('home.persistence.entryAddError', null, 'No se pudo anadir la entrada');
     }
 
     async function deleteSequenceEntry(id) {
-      effectsStatus.textContent = 'Eliminando entrada...';
+      effectsStatus.textContent = tx('home.persistence.deletingEntry', null, 'Eliminando entrada...');
       const res = await fetch('/api/v1/effects/sequence/delete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -547,7 +561,7 @@ __NAV__
       });
       const data = await res.json();
       renderEffectsState(data);
-      effectsStatus.textContent = data && data.deleted ? 'Entrada eliminada' : 'No se pudo eliminar la entrada';
+      effectsStatus.textContent = data && data.deleted ? tx('home.persistence.entryDeleted', null, 'Entrada eliminada') : tx('home.persistence.entryDeleteError', null, 'No se pudo eliminar la entrada');
     }
 
     async function restartBoard() {
@@ -556,21 +570,21 @@ __NAV__
         return;
       }
 
-      status.textContent = 'Enviando reinicio...';
+      status.textContent = tx('home.status.restarting', null, 'Enviando reinicio...');
       try {
         await fetch('/api/v1/system/restart', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: '{}'
         });
-        status.textContent = 'Reinicio enviado. Esperando reconexion...';
+        status.textContent = tx('home.status.restartSent', null, 'Reinicio enviado. Esperando reconexion...');
       } catch (_) {
-        status.textContent = 'La placa se esta reiniciando...';
+        status.textContent = tx('home.status.restartingBoard', null, 'La placa se esta reiniciando...');
       }
 
       setTimeout(() => {
         loadState().catch(() => {
-          status.textContent = 'Esperando a que la placa vuelva a responder...';
+          status.textContent = tx('home.status.waitingBoard', null, 'Esperando a que la placa vuelva a responder...');
         });
       }, 4000);
     }
@@ -591,7 +605,7 @@ __NAV__
 
       const preset = presets[presetName];
       if (!preset) {
-        status.textContent = 'Preset no valido';
+        status.textContent = tx('home.status.invalidPreset', null, 'Preset no valido');
         return;
       }
 
@@ -602,9 +616,9 @@ __NAV__
       document.getElementById('backgroundColor').value = preset.backgroundColor;
       updateSpeedControl();
 
-      status.textContent = 'Aplicando preset ' + presetName + '...';
+      status.textContent = tx('home.status.applyingPreset', { preset: presetName }, 'Aplicando preset ' + presetName + '...');
       await applyState();
-      status.textContent = 'Preset ' + presetName + ' aplicado';
+      status.textContent = tx('home.status.presetApplied', { preset: presetName }, 'Preset ' + presetName + ' aplicado');
     }
 
     async function loadPalettes() {
@@ -618,14 +632,14 @@ __NAV__
     }
 
     async function loadState() {
-      status.textContent = 'Leyendo estado...';
+      status.textContent = tx('home.status.loading', null, 'Leyendo estado...');
       const res = await fetch('/api/v1/state');
       const data = await res.json();
       renderState(data);
     }
 
     async function applyState() {
-      status.textContent = 'Aplicando cambios...';
+      status.textContent = tx('home.status.applying', null, 'Aplicando cambios...');
       const payload = {
         power: document.getElementById('power').checked,
         brightness: Number(document.getElementById('brightness').value),
@@ -660,7 +674,7 @@ __NAV__
       } else {
         out.textContent = typeof data === 'string' ? data : JSON.stringify(data, null, 2);
       }
-      status.textContent = 'Cambios aplicados';
+      status.textContent = tx('home.status.applied', null, 'Cambios aplicados');
     }
 
     setRuntimeVisible(window.matchMedia('(min-width: 761px)').matches);

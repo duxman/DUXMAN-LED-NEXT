@@ -2,6 +2,17 @@
 
 Todos los cambios relevantes de este proyecto se documentan en este archivo.
 
+## [0.6.1-alpha] - 2026-05-02
+
+### Changed
+- Versionado global alineado a `0.6.1-alpha` en firmware, metadatos de release, web package y documentación principal/wikis.
+- Carga de navegación endurecida en UI embebida: las plantillas HTML ahora montan `nav.html` mediante loader dedicado para evitar plantillas sin render en rutas directas `/ui/*.html`.
+- `ApiService` actualizado para resolver páginas `/ui/*.html` con render controlado y ruta adicional `/docs`.
+
+### Fixed
+- Incidencia de render donde podía mostrarse el literal `__NAV__` en ciertas rutas o condiciones de carga.
+- Mensajes de estado inicial en Home integrados en el flujo i18n explícito con claves de catálogo.
+
 ## [0.6.0-alpha] - 2026-04-30
 
 ### Added

@@ -9,41 +9,54 @@
 </head>
 <body>
 <div class='gen-page-outer'>
-__NAV__
+<script>
+  (function() {
+    try {
+      var request = new XMLHttpRequest();
+      request.open('GET', '/ui/nav.html?v=20260502', false);
+      request.send(null);
+      if (request.status >= 200 && request.status < 300 && request.responseText) {
+        document.write(request.responseText);
+        return;
+      }
+    } catch (_) {}
+    document.write("<nav class='gen-nav' style='padding:12px 16px;'>Navigation unavailable</nav>");
+  })();
+</script>
 <main>
   <div class='card'>
     <div class='section-hdr'>
-      <h1>Paletas del Sistema</h1>
-      <span class='badge badge-sys'>Sistema</span>
+      <h1 data-i18n='palettesConfig.systemTitle'>Paletas del Sistema</h1>
+      <span class='badge badge-sys' data-i18n='palettesConfig.systemBadge'>Sistema</span>
     </div>
-    <p>Paletas de fabrica. Solo lectura.</p>
-    <div class='palettes-grid' id='systemGrid'><p class='no-palettes'>Cargando...</p></div>
+    <p data-i18n='palettesConfig.systemHint'>Paletas de fabrica. Solo lectura.</p>
+    <div class='palettes-grid' id='systemGrid'><p class='no-palettes' data-i18n='common.loading'>Cargando...</p></div>
   </div>
 
   <div class='card'>
     <div class='section-hdr'>
-      <h1>Mis Paletas</h1>
-      <span class='badge badge-user'>Usuario</span>
-      <button class='btn btn-primary btn-sm' style='margin-left:auto' onclick='openNewForm()'>+ Nueva</button>
+      <h1 data-i18n='palettesConfig.userTitle'>Mis Paletas</h1>
+      <span class='badge badge-user' data-i18n='palettesConfig.userBadge'>Usuario</span>
+      <button class='btn btn-primary btn-sm' style='margin-left:auto' onclick='openNewForm()' data-i18n='palettesConfig.actions.new'>+ Nueva</button>
     </div>
-    <p>Paletas propias. Edita o elimina desde cada tarjeta.</p>
+    <p data-i18n='palettesConfig.userHint'>Paletas propias. Edita o elimina desde cada tarjeta.</p>
 
-    <div class='palettes-grid' id='userGrid'><p class='no-palettes'>Cargando...</p></div>
+    <div class='palettes-grid' id='userGrid'><p class='no-palettes' data-i18n='common.loading'>Cargando...</p></div>
 
     <!-- editor inline -->
     <div class='edit-panel' id='editPanel' style='display:none'>
-      <h3 id='editTitle'>Nueva Paleta</h3>
+      <h3 id='editTitle' data-i18n='palettesConfig.edit.newTitle'>Nueva Paleta</h3>
       <div class='form-row'>
         <div class='form-group'>
-          <span class='form-label'>ID (slug)</span>
+          <span class='form-label' data-i18n='palettesConfig.edit.id'>ID (slug)</span>
           <input type='text' id='inpId' placeholder='mi_paleta' pattern='[a-z0-9_-]+' maxlength='40'>
         </div>
         <div class='form-group'>
-          <span class='form-label'>Nombre visual</span>
+          <span class='form-label' data-i18n='palettesConfig.edit.label'>Nombre visual</span>
           <input type='text' id='inpLabel' placeholder='Mi paleta' maxlength='60'>
         </div>
         <div class='form-group' style='min-width:110px;max-width:140px'>
-          <span class='form-label'>Estilo</span>
+          <span class='form-label' data-i18n='palettesConfig.edit.style'>Estilo</span>
           <select id='inpStyle'>
             <option value='warm'>Warm</option>
             <option value='cold'>Cold</option>
@@ -56,26 +69,26 @@ __NAV__
         </div>
       </div>
       <div class='form-group' style='margin-bottom:8px'>
-        <span class='form-label'>Descripcion (opcional)</span>
+        <span class='form-label' data-i18n='palettesConfig.edit.description'>Descripcion (opcional)</span>
         <input type='text' id='inpDesc' maxlength='80' placeholder=''>
       </div>
       <div class='colors-row'>
         <div class='color-slot'>
-          <span class='form-label'>Color 1</span>
+          <span class='form-label' data-i18n='palettesConfig.edit.color1'>Color 1</span>
           <div class='color-pair'>
             <input type='color' id='c1picker' value='#ff0000' oninput='syncColor(1,"picker")'>
             <input type='text' class='color-hex' id='c1hex' value='#ff0000' maxlength='7' oninput='syncColor(1,"hex")'>
           </div>
         </div>
         <div class='color-slot'>
-          <span class='form-label'>Color 2</span>
+          <span class='form-label' data-i18n='palettesConfig.edit.color2'>Color 2</span>
           <div class='color-pair'>
             <input type='color' id='c2picker' value='#00ff00' oninput='syncColor(2,"picker")'>
             <input type='text' class='color-hex' id='c2hex' value='#00ff00' maxlength='7' oninput='syncColor(2,"hex")'>
           </div>
         </div>
         <div class='color-slot'>
-          <span class='form-label'>Color 3</span>
+          <span class='form-label' data-i18n='palettesConfig.edit.color3'>Color 3</span>
           <div class='color-pair'>
             <input type='color' id='c3picker' value='#0000ff' oninput='syncColor(3,"picker")'>
             <input type='text' class='color-hex' id='c3hex' value='#0000ff' maxlength='7' oninput='syncColor(3,"hex")'>
@@ -83,20 +96,21 @@ __NAV__
         </div>
       </div>
       <div class='form-actions'>
-        <button class='btn btn-primary' onclick='submitPalette()'>Guardar</button>
-        <button class='btn btn-ghost' onclick='closePanel()'>Cancelar</button>
+        <button class='btn btn-primary' onclick='submitPalette()' data-i18n='common.save'>Guardar</button>
+        <button class='btn btn-ghost' onclick='closePanel()' data-i18n='common.cancel'>Cancelar</button>
         <span id='formStatus' class='status-live' aria-live='polite'></span>
       </div>
     </div>
 
     <div class='json-debug'>
-      <p class='form-label' style='margin-bottom:4px'>Ultima respuesta API</p>
+      <p class='form-label' style='margin-bottom:4px' data-i18n='palettesConfig.lastApiResponse'>Ultima respuesta API</p>
       <pre class='json-pre' id='jsonOut'></pre>
     </div>
   </div>
 </main>
 <script>
   var editingKey = null;
+  function tx(key, params, fallback) { return window.duxT ? window.duxT(key, params, fallback) : (fallback || key); }
 
   // Leer preferencia de localStorage
   if (localStorage.getItem('dux_show_json') === '1') {
@@ -137,7 +151,7 @@ __NAV__
   function openNewForm() {
     editingKey = null;
     document.querySelectorAll('.pal-card').forEach(function(c){ c.classList.remove('editing'); });
-    document.getElementById('editTitle').textContent = 'Nueva Paleta';
+    document.getElementById('editTitle').textContent = tx('palettesConfig.edit.newTitle', null, 'Nueva Paleta');
     document.getElementById('inpId').value = '';
     document.getElementById('inpId').readOnly = false;
     document.getElementById('inpLabel').value = '';
@@ -157,7 +171,7 @@ __NAV__
     editingKey = p.key;
     document.querySelectorAll('.pal-card').forEach(function(c){ c.classList.remove('editing'); });
     if (cardEl) cardEl.classList.add('editing');
-    document.getElementById('editTitle').textContent = 'Editando: ' + p.label;
+    document.getElementById('editTitle').textContent = tx('palettesConfig.edit.editing', { label: p.label }, 'Editando: ' + p.label);
     document.getElementById('inpId').value = p.key;
     document.getElementById('inpId').readOnly = true;
     document.getElementById('inpLabel').value = p.label;
@@ -175,27 +189,27 @@ __NAV__
       body: JSON.stringify({palette:key})
     }).then(function(r){return r.json();}).then(function(d){
       showJson(d);
-      setStatus('Aplicada: '+key, false);
-    }).catch(function(e){setStatus('Error: '+e, true);});
+      setStatus(tx('palettesConfig.status.applied', { key: key }, 'Aplicada: ' + key), false);
+    }).catch(function(e){setStatus(tx('palettesConfig.status.error', { error: e }, 'Error: ' + e), true);});
   }
   function deletePalette(key) {
-    if (!confirm('Eliminar paleta "'+key+'"?')) return;
+    if (!confirm(tx('palettesConfig.status.confirmDelete', { key: key }, 'Eliminar paleta "' + key + '"?'))) return;
     fetch('/api/v1/palettes/delete', {
       method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({key:key})
     }).then(function(r){return r.json();}).then(function(d){
       showJson(d);
-      if (d.error) { setStatus('Error: ' + d.error, true); return; }
+      if (d.error) { setStatus(tx('palettesConfig.status.error', { error: d.error }, 'Error: ' + d.error), true); return; }
       if (editingKey === key) closePanel();
       loadPalettes();
-    }).catch(function(e){setStatus('Error: ' + e, true);});
+    }).catch(function(e){setStatus(tx('palettesConfig.status.error', { error: e }, 'Error: ' + e), true);});
   }
   function submitPalette() {
     var key = document.getElementById('inpId').value.trim();
-    if (!key) { setStatus('El ID es obligatorio', true); return; }
-    if (!/^[a-z0-9_-]+$/.test(key)) { setStatus('ID solo puede contener a-z, 0-9, _ -', true); return; }
+    if (!key) { setStatus(tx('palettesConfig.status.idRequired', null, 'El ID es obligatorio'), true); return; }
+    if (!/^[a-z0-9_-]+$/.test(key)) { setStatus(tx('palettesConfig.status.idInvalid', null, 'ID solo puede contener a-z, 0-9, _ -'), true); return; }
     var label = document.getElementById('inpLabel').value.trim();
-    if (!label) { setStatus('El nombre es obligatorio', true); return; }
+    if (!label) { setStatus(tx('palettesConfig.status.labelRequired', null, 'El nombre es obligatorio'), true); return; }
     var body = {
       key: key, label: label,
       style: document.getElementById('inpStyle').value,
@@ -211,11 +225,11 @@ __NAV__
       body: JSON.stringify(body)
     }).then(function(r){return r.json();}).then(function(d){
       showJson(d);
-      if (d.error) { setStatus('Error: '+d.error, true); return; }
-      setStatus('Guardada correctamente.', false);
+      if (d.error) { setStatus(tx('palettesConfig.status.error', { error: d.error }, 'Error: ' + d.error), true); return; }
+      setStatus(tx('palettesConfig.status.saved', null, 'Guardada correctamente.'), false);
       closePanel();
       loadPalettes();
-    }).catch(function(e){setStatus('Error: '+e, true);});
+    }).catch(function(e){setStatus(tx('palettesConfig.status.error', { error: e }, 'Error: ' + e), true);});
   }
   function makeSwatch(color) {
     var h = colorToHex(color);
@@ -238,15 +252,15 @@ __NAV__
     div.appendChild(sw);
     var act = document.createElement('div'); act.className = 'pal-actions';
     var ab = document.createElement('button');
-    ab.className = 'btn btn-primary btn-sm'; ab.textContent = 'Aplicar';
+    ab.className = 'btn btn-primary btn-sm'; ab.textContent = tx('common.apply', null, 'Aplicar');
     ab.onclick = function(){ applyPalette(p.key); }; act.appendChild(ab);
     if (isUser) {
       var eb = document.createElement('button');
-      eb.className = 'btn btn-ghost btn-sm'; eb.textContent = 'Editar';
+      eb.className = 'btn btn-ghost btn-sm'; eb.textContent = tx('common.edit', null, 'Editar');
       eb.onclick = function(){ editPalette(p, div); }; act.appendChild(eb);
       var db = document.createElement('button');
       db.className = 'btn btn-danger btn-sm'; db.textContent = 'x';
-      db.title = 'Eliminar'; db.onclick = function(){ deletePalette(p.key); }; act.appendChild(db);
+      db.title = tx('common.delete', null, 'Eliminar'); db.onclick = function(){ deletePalette(p.key); }; act.appendChild(db);
     }
     div.appendChild(act);
     container.appendChild(div);
@@ -260,12 +274,12 @@ __NAV__
       sysGrid.innerHTML = ''; userGrid.innerHTML = '';
       var sysl = palettes.filter(function(p){return p.source==='system';});
       var usrl = palettes.filter(function(p){return p.source==='user';});
-      if (!sysl.length) sysGrid.innerHTML = '<p class="no-palettes">Sin paletas del sistema.</p>';
+      if (!sysl.length) sysGrid.innerHTML = '<p class="no-palettes">' + tx('palettesConfig.status.noSystem', null, 'Sin paletas del sistema.') + '</p>';
       else sysl.forEach(function(p){ renderPaletteCard(p, sysGrid); });
-      if (!usrl.length) userGrid.innerHTML = '<p class="no-palettes">Sin paletas propias aun.</p>';
+      if (!usrl.length) userGrid.innerHTML = '<p class="no-palettes">' + tx('palettesConfig.status.noUser', null, 'Sin paletas propias aun.') + '</p>';
       else usrl.forEach(function(p){ renderPaletteCard(p, userGrid); });
     }).catch(function(){
-      document.getElementById('systemGrid').innerHTML = '<p class="no-palettes">Error al cargar.</p>';
+      document.getElementById('systemGrid').innerHTML = '<p class="no-palettes">' + tx('palettesConfig.status.loadError', null, 'Error al cargar.') + '</p>';
     });
   }
   window.addEventListener('DOMContentLoaded', loadPalettes);
