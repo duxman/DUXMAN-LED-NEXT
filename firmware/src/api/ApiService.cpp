@@ -119,18 +119,20 @@ const char *contentTypeForPath(const String &path) {
 
 ApiService::ApiService(CoreState &state, NetworkConfig &networkConfig, GpioConfig &gpioConfig,
                        MicrophoneConfig &microphoneConfig, GeneralConfig &debugConfig,
+                       SyncConfig &syncConfig,
                        StorageService &storageService, WifiService &wifiService,
                        PersistenceSchedulerService &persistenceSchedulerService,
                        EffectPersistenceService &effectPersistenceService,
                        ProfileService &profileService, UserPaletteService &userPaletteService,
-                       WatchdogService &watchdogService)
+                       WatchdogService &watchdogService, SyncService &syncService)
     : state_(state), networkConfig_(networkConfig), gpioConfig_(gpioConfig),
       microphoneConfig_(microphoneConfig), generalConfig_(debugConfig),
+      syncConfig_(syncConfig),
       storageService_(storageService), wifiService_(wifiService),
       persistenceSchedulerService_(persistenceSchedulerService),
       effectPersistenceService_(effectPersistenceService),
       profileService_(profileService), userPaletteService_(userPaletteService),
-      watchdogService_(watchdogService), httpServer_(80) {}
+      watchdogService_(watchdogService), syncService_(syncService), httpServer_(80) {}
 
 void ApiService::begin() {
   setupHttpRoutes();
@@ -142,6 +144,7 @@ void ApiService::begin() {
   Serial.println("[api] ready: GET /api/v1/config/gpio | PATCH /api/v1/config/gpio {json}");
   Serial.println("[api] ready: GET /api/v1/profiles | POST /api/v1/profiles/save|apply|default|delete|clone {json} | GET /api/v1/profiles/get?id=");
   Serial.println("[api] ready: GET /api/v1/config/debug | PATCH /api/v1/config/debug {json}");
+  Serial.println("[api] ready: GET /api/v1/sync/state | PATCH /api/v1/sync/config {json} | POST /api/v1/sync/mode {json}");
   Serial.println("[api] ready: GET /api/v1/config/all | POST /api/v1/config/all {json}");
   Serial.println("[api] ready: GET /api/v1/effects | POST /api/v1/effects/startup/save | POST /api/v1/effects/sequence/add|delete");
   Serial.println("[api] ready: GET /api/v1/palettes | POST /api/v1/palettes/apply {json} | POST /api/v1/palettes/save {json} | POST /api/v1/palettes/delete {json}");
@@ -226,6 +229,91 @@ void ApiService::processCommand(const String &command) {
     Serial.print(",\"heartbeatMs\":");
     Serial.print(generalConfig_.heartbeatMs);
     Serial.println("}}");
+    return;
+  }
+
+  if (command == "GET /api/v1/sync/state") {
+    Serial.println(syncService_.buildStateJson());
+    return;
+  }
+
+  if (command.startsWith("PATCH /api/v1/sync/config ")) {
+    const int payloadPos = command.indexOf('{');
+    if (payloadPos < 0) {
+      Serial.println("{\"error\":\"invalid_payload\"}");
+      return;
+    }
+
+    String error;
+    bool changed = false;
+    const bool ok = syncService_.applyConfigPatch(command.substring(payloadPos), &changed, &error);
+    if (!ok || !error.isEmpty()) {
+      Serial.print("{\"error\":\"");
+      Serial.print(error);
+      Serial.println("\"}");
+      return;
+    }
+
+    if (changed) {
+      persistenceSchedulerService_.requestSaveConfig();
+    }
+
+    String response = "{\"updated\":";
+    response += changed ? "true" : "false";
+    response += ",\"state\":";
+    response += syncService_.buildStateJson();
+    response += '}';
+    Serial.println(response);
+    return;
+  }
+
+  if (command.startsWith("POST /api/v1/sync/mode ") ||
+      command.startsWith("PATCH /api/v1/sync/mode ")) {
+    const int payloadPos = command.indexOf('{');
+    if (payloadPos < 0) {
+      Serial.println("{\"error\":\"invalid_payload\"}");
+      return;
+    }
+
+    JsonDocument doc;
+    const String payload = command.substring(payloadPos);
+    if (deserializeJson(doc, payload)) {
+      Serial.println("{\"error\":\"invalid_json\"}");
+      return;
+    }
+
+    JsonObjectConst root = doc.as<JsonObjectConst>();
+    String mode;
+    if (!root["mode"].isNull()) {
+      mode = root["mode"].as<String>();
+    } else if (!root["sync"].isNull() && !root["sync"]["mode"].isNull()) {
+      mode = root["sync"]["mode"].as<String>();
+    }
+
+    if (mode.isEmpty()) {
+      Serial.println("{\"error\":\"missing_mode\"}");
+      return;
+    }
+
+    String error;
+    const bool changed = syncService_.setMode(mode, &error);
+    if (!error.isEmpty()) {
+      Serial.print("{\"error\":\"");
+      Serial.print(error);
+      Serial.println("\"}");
+      return;
+    }
+
+    if (changed) {
+      persistenceSchedulerService_.requestSaveConfig();
+    }
+
+    String response = "{\"updated\":";
+    response += changed ? "true" : "false";
+    response += ",\"mode\":\"";
+    response += syncConfig_.mode;
+    response += "\"}";
+    Serial.println(response);
     return;
   }
 
@@ -583,6 +671,7 @@ void ApiService::processCommand(const String &command) {
     GpioConfig gpioCandidate = gpioConfig_;
     MicrophoneConfig micCandidate = microphoneConfig_;
     GeneralConfig debugCandidate = generalConfig_;
+    SyncConfig syncCandidate = syncConfig_;
 
     String netPayload;
     { JsonDocument d; d["network"] = root["network"]; serializeJson(d, netPayload); }
@@ -617,10 +706,19 @@ void ApiService::processCommand(const String &command) {
       return;
     }
 
+    String syncPayload;
+    { JsonDocument d; d["sync"] = root["sync"]; serializeJson(d, syncPayload); }
+    syncCandidate.applyPatchJson(syncPayload, &error);
+    if (!error.isEmpty()) {
+      Serial.print("{\"error\":\"sync_"); Serial.print(error); Serial.println("\"}");
+      return;
+    }
+
     networkConfig_ = netCandidate;
     gpioConfig_ = gpioCandidate;
     microphoneConfig_ = micCandidate;
     generalConfig_ = debugCandidate;
+    syncConfig_ = syncCandidate;
     persistenceSchedulerService_.requestSaveConfig();
     profileService_.syncDefaultProfileFromActiveConfig();
     wifiService_.applyConfig();
@@ -826,6 +924,18 @@ void ApiService::setupHttpRoutes() {
 
   httpServer_.on("/api/v1/config/general", HTTP_ANY, [this]() {
     handleHttpGeneralRoute();
+  });
+
+  httpServer_.on("/api/v1/sync/state", HTTP_ANY, [this]() {
+    handleHttpSyncStateRoute();
+  });
+
+  httpServer_.on("/api/v1/sync/config", HTTP_ANY, [this]() {
+    handleHttpSyncConfigRoute();
+  });
+
+  httpServer_.on("/api/v1/sync/mode", HTTP_ANY, [this]() {
+    handleHttpSyncModeRoute();
   });
 
   httpServer_.on("/api/v1/diag", HTTP_GET, [this]() {
@@ -1626,6 +1736,111 @@ void ApiService::handleHttpGeneralRoute() {
   httpServer_.send(405, "application/json", "{\"error\":\"method_not_allowed\"}");
 }
 
+void ApiService::handleHttpSyncStateRoute() {
+  if (httpServer_.method() != HTTP_GET) {
+    httpServer_.send(405, "application/json", "{\"error\":\"method_not_allowed\"}");
+    return;
+  }
+
+  httpServer_.send(200, "application/json", syncService_.buildStateJson());
+}
+
+void ApiService::handleHttpSyncConfigRoute() {
+  const HTTPMethod method = httpServer_.method();
+
+  if (method == HTTP_GET) {
+    httpServer_.send(200, "application/json", syncConfig_.toJson());
+    return;
+  }
+
+  if (method == HTTP_PATCH || method == HTTP_POST) {
+    const String payload = normalizeJsonPayload(httpServer_.arg("plain"));
+    if (payload.isEmpty()) {
+      httpServer_.send(400, "application/json", "{\"error\":\"invalid_payload\"}");
+      return;
+    }
+
+    String error;
+    bool changed = false;
+    const bool ok = syncService_.applyConfigPatch(payload, &changed, &error);
+    if (!ok || !error.isEmpty()) {
+      String response = "{\"error\":\"";
+      response += error;
+      response += "\"}";
+      httpServer_.send(400, "application/json", response);
+      return;
+    }
+
+    if (changed) {
+      persistenceSchedulerService_.requestSaveConfig();
+    }
+
+    String response = "{\"updated\":";
+    response += changed ? "true" : "false";
+    response += ",\"state\":";
+    response += syncService_.buildStateJson();
+    response += '}';
+    httpServer_.send(200, "application/json", response);
+    return;
+  }
+
+  httpServer_.send(405, "application/json", "{\"error\":\"method_not_allowed\"}");
+}
+
+void ApiService::handleHttpSyncModeRoute() {
+  const HTTPMethod method = httpServer_.method();
+  if (method != HTTP_PATCH && method != HTTP_POST) {
+    httpServer_.send(405, "application/json", "{\"error\":\"method_not_allowed\"}");
+    return;
+  }
+
+  const String payload = normalizeJsonPayload(httpServer_.arg("plain"));
+  if (payload.isEmpty()) {
+    httpServer_.send(400, "application/json", "{\"error\":\"invalid_payload\"}");
+    return;
+  }
+
+  JsonDocument doc;
+  if (deserializeJson(doc, payload)) {
+    httpServer_.send(400, "application/json", "{\"error\":\"invalid_json\"}");
+    return;
+  }
+
+  JsonObjectConst root = doc.as<JsonObjectConst>();
+  String mode;
+  if (!root["mode"].isNull()) {
+    mode = root["mode"].as<String>();
+  } else if (!root["sync"].isNull() && !root["sync"]["mode"].isNull()) {
+    mode = root["sync"]["mode"].as<String>();
+  }
+
+  if (mode.isEmpty()) {
+    httpServer_.send(400, "application/json", "{\"error\":\"missing_mode\"}");
+    return;
+  }
+
+  String error;
+  const bool changed = syncService_.setMode(mode, &error);
+  if (!error.isEmpty()) {
+    String response = "{\"error\":\"";
+    response += error;
+    response += "\"}";
+    httpServer_.send(400, "application/json", response);
+    return;
+  }
+
+  if (changed) {
+    persistenceSchedulerService_.requestSaveConfig();
+  }
+
+  String response = "{\"updated\":";
+  response += changed ? "true" : "false";
+  response += ",\"mode\":\"";
+  response += syncConfig_.mode;
+  response += "\"}";
+  httpServer_.send(200, "application/json", response);
+}
+
 void ApiService::handleHttpDiagRoute() {
   // GET /api/v1/diag - System diagnostics (watchdog, uptime, memory)
   if (httpServer_.method() != HTTP_GET) {
@@ -1667,8 +1882,9 @@ String ApiService::buildFullConfigJson() const {
   const String gpioJson = unwrapRootJsonValue(gpioConfig_.toJson());
   const String microphoneJson = unwrapRootJsonValue(microphoneConfig_.toJson());
   const String debugJson = unwrapRootJsonValue(generalConfig_.toJson());
+  const String syncJson = unwrapRootJsonValue(syncConfig_.toJson());
 
-  out.reserve(networkJson.length() + gpioJson.length() + microphoneJson.length() + debugJson.length() + 64);
+  out.reserve(networkJson.length() + gpioJson.length() + microphoneJson.length() + debugJson.length() + syncJson.length() + 80);
   out = "{\"network\":";
   out += networkJson;
   out += ",\"gpio\":";
@@ -1677,6 +1893,8 @@ String ApiService::buildFullConfigJson() const {
   out += microphoneJson;
   out += ",\"debug\":";
   out += debugJson;
+  out += ",\"sync\":";
+  out += syncJson;
   out += '}';
   return out;
 }
@@ -1709,6 +1927,7 @@ void ApiService::handleHttpConfigAllRoute() {
     GpioConfig gpioCandidate = gpioConfig_;
     MicrophoneConfig micCandidate = microphoneConfig_;
     GeneralConfig debugCandidate = generalConfig_;
+    SyncConfig syncCandidate = syncConfig_;
 
     String netPayload;
     { JsonDocument d; d["network"] = root["network"]; serializeJson(d, netPayload); }
@@ -1755,11 +1974,23 @@ void ApiService::handleHttpConfigAllRoute() {
       return;
     }
 
+    String syncPayload;
+    { JsonDocument d; d["sync"] = root["sync"]; serializeJson(d, syncPayload); }
+    syncCandidate.applyPatchJson(syncPayload, &error);
+    if (!error.isEmpty()) {
+      String response = "{\"error\":\"sync_";
+      response += error;
+      response += "\"}";
+      httpServer_.send(400, "application/json", response);
+      return;
+    }
+
     // Todo valido -- aplicar
     networkConfig_ = netCandidate;
     gpioConfig_ = gpioCandidate;
     microphoneConfig_ = micCandidate;
     generalConfig_ = debugCandidate;
+    syncConfig_ = syncCandidate;
 
     persistenceSchedulerService_.requestSaveConfig();
 

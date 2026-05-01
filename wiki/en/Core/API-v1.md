@@ -1,6 +1,6 @@
 # API REST v1
 
-Resumen de la API implementada por DUXMAN-LED-NEXT (v0.6.1-alpha).
+Resumen de la API implementada por DUXMAN-LED-NEXT (v0.6.2-alpha).
 
 Base: /api/v1
 

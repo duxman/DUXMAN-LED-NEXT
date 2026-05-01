@@ -2,6 +2,27 @@
 
 Todos los cambios relevantes de este proyecto se documentan en este archivo.
 
+## [0.6.2-alpha] - 2026-05-03
+
+### Added
+- Sprint 1 de sincronizacion implementado en firmware:
+  - Nuevo `SyncConfig` persistente en `config.json`.
+  - Nuevo `SyncService` con estado operativo y metrica basica de salud/paquetes.
+  - Nuevos endpoints REST:
+    - `GET /api/v1/sync/state`
+    - `GET|PATCH|POST /api/v1/sync/config`
+    - `POST|PATCH /api/v1/sync/mode`
+
+### Changed
+- `StorageService` ahora incluye la seccion `sync` en save/load de configuracion unificada.
+- `ApiService` integra las nuevas rutas `sync` y extiende `GET/POST /api/v1/config/all` para importar/exportar la seccion `sync`.
+- `main.cpp` integra inicializacion y `tick()` de `SyncService` en el ciclo de control.
+
+### Documentation
+- Plan detallado de sincronizacion consolidado y backlog por sprint/archivo en:
+  - `wiki/es/Development/Sync-Implementation-Plan.md`
+- Roadmaps de desarrollo actualizados con fases de sincronizacion y enlace al plan detallado.
+
 ## [0.6.1-alpha] - 2026-05-02
 
 ### Changed

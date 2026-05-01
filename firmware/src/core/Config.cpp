@@ -22,6 +22,8 @@ constexpr const char *kIpDhcp = "dhcp";
 constexpr const char *kIpStatic = "static";
 constexpr uint32_t kHeartbeatMinMs = 0;
 constexpr uint32_t kHeartbeatMaxMs = 600000;
+constexpr uint32_t kSyncTimeoutMinMs = 100;
+constexpr uint32_t kSyncTimeoutMaxMs = 60000;
 constexpr uint16_t kMicSampleRateMin = 8000;
 constexpr uint16_t kMicSampleRateMax = 48000;
 constexpr uint8_t kMicGainMin = 1;
@@ -1014,6 +1016,152 @@ bool NetworkConfig::applyPatchJson(const String &payload, String *error) {
     setBoolIfPresent(timeObj, "syncOnBoot", candidate.time.syncOnBoot);
     setIfPresent(timeObj, "ntpServer", candidate.time.ntpServer);
   }
+
+  String validationError;
+  if (!candidate.validate(&validationError)) {
+    if (error != nullptr) {
+      *error = validationError;
+    }
+    return false;
+  }
+
+  const bool changed = (candidate.toJson() != this->toJson());
+  *this = candidate;
+  if (error != nullptr) {
+    error->clear();
+  }
+  return changed;
+}
+
+bool isOneOf4(const String &value, const char *a, const char *b, const char *c, const char *d) {
+  return value == a || value == b || value == c || value == d;
+}
+
+// ── SyncConfig ──────────────────────────────────────────────────
+
+SyncConfig SyncConfig::defaults() {
+  SyncConfig config;
+  config.mode = "off";
+  config.role = "slave";
+  config.inputProtocol = "ddp";
+  config.ddpPort = 4048;
+  config.e131UniverseStart = 1;
+  config.e131UniverseCount = 1;
+  config.udpSyncPort = 21324;
+  config.groupMask = 1;
+  config.sourceTimeoutMs = 1500;
+  config.clockSmoothing = "soft";
+  return config;
+}
+
+String SyncConfig::toJson() const {
+  JsonDocument doc;
+  JsonObject sync = doc["sync"].to<JsonObject>();
+  sync["mode"] = mode;
+  sync["role"] = role;
+  sync["inputProtocol"] = inputProtocol;
+  sync["ddpPort"] = ddpPort;
+  sync["e131UniverseStart"] = e131UniverseStart;
+  sync["e131UniverseCount"] = e131UniverseCount;
+  sync["udpSyncPort"] = udpSyncPort;
+  sync["groupMask"] = groupMask;
+  sync["sourceTimeoutMs"] = sourceTimeoutMs;
+  sync["clockSmoothing"] = clockSmoothing;
+  String out;
+  serializeJson(doc, out);
+  return out;
+}
+
+bool SyncConfig::validate(String *error) const {
+  if (!isOneOf4(mode, "off", "local_effects", "ledfx_realtime", "cluster_sync")) {
+    if (error != nullptr) {
+      *error = "invalid_sync_mode";
+    }
+    return false;
+  }
+
+  if (!isOneOf(role, "master", "slave")) {
+    if (error != nullptr) {
+      *error = "invalid_sync_role";
+    }
+    return false;
+  }
+
+  if (!isOneOf(inputProtocol, "ddp", "e131")) {
+    if (error != nullptr) {
+      *error = "invalid_sync_input_protocol";
+    }
+    return false;
+  }
+
+  if (ddpPort == 0 || udpSyncPort == 0) {
+    if (error != nullptr) {
+      *error = "invalid_sync_port";
+    }
+    return false;
+  }
+
+  if (e131UniverseStart < 1 || e131UniverseStart > 63999) {
+    if (error != nullptr) {
+      *error = "invalid_sync_e131_universe_start";
+    }
+    return false;
+  }
+
+  if (e131UniverseCount < 1 || e131UniverseCount > 9) {
+    if (error != nullptr) {
+      *error = "invalid_sync_e131_universe_count";
+    }
+    return false;
+  }
+
+  if (groupMask == 0) {
+    if (error != nullptr) {
+      *error = "invalid_sync_group_mask";
+    }
+    return false;
+  }
+
+  if (sourceTimeoutMs < kSyncTimeoutMinMs || sourceTimeoutMs > kSyncTimeoutMaxMs) {
+    if (error != nullptr) {
+      *error = "invalid_sync_source_timeout_ms";
+    }
+    return false;
+  }
+
+  if (!isOneOf(clockSmoothing, "off", "soft")) {
+    if (error != nullptr) {
+      *error = "invalid_sync_clock_smoothing";
+    }
+    return false;
+  }
+
+  return true;
+}
+
+bool SyncConfig::applyPatchJson(const String &payload, String *error) {
+  JsonDocument doc;
+  if (deserializeJson(doc, payload)) {
+    if (error != nullptr) {
+      *error = "invalid_json";
+    }
+    return false;
+  }
+
+  JsonObjectConst root = doc.as<JsonObjectConst>();
+  JsonObjectConst syncObj = root["sync"].isNull() ? root : root["sync"].as<JsonObjectConst>();
+
+  SyncConfig candidate = *this;
+  setIfPresent(syncObj, "mode", candidate.mode);
+  setIfPresent(syncObj, "role", candidate.role);
+  setIfPresent(syncObj, "inputProtocol", candidate.inputProtocol);
+  setUInt16IfPresent(syncObj, "ddpPort", candidate.ddpPort);
+  setUInt16IfPresent(syncObj, "e131UniverseStart", candidate.e131UniverseStart);
+  setUInt8IfPresent(syncObj, "e131UniverseCount", candidate.e131UniverseCount);
+  setUInt16IfPresent(syncObj, "udpSyncPort", candidate.udpSyncPort);
+  setUInt8IfPresent(syncObj, "groupMask", candidate.groupMask);
+  setUIntIfPresent(syncObj, "sourceTimeoutMs", candidate.sourceTimeoutMs);
+  setIfPresent(syncObj, "clockSmoothing", candidate.clockSmoothing);
 
   String validationError;
   if (!candidate.validate(&validationError)) {

@@ -18,6 +18,7 @@
 #include "services/PersistenceSchedulerService.h"
 #include "services/ProfileService.h"
 #include "services/StorageService.h"
+#include "services/SyncService.h"
 #include "services/UserPaletteService.h"
 #include "services/WatchdogService.h"
 #include "services/WifiService.h"
@@ -26,11 +27,12 @@ class ApiService {
 public:
   ApiService(CoreState &state, NetworkConfig &networkConfig, GpioConfig &gpioConfig,
              MicrophoneConfig &microphoneConfig, GeneralConfig &generalConfig,
+             SyncConfig &syncConfig,
              StorageService &storageService, WifiService &wifiService,
              PersistenceSchedulerService &persistenceSchedulerService,
              EffectPersistenceService &effectPersistenceService,
              ProfileService &profileService, UserPaletteService &userPaletteService,
-             WatchdogService &watchdogService);
+             WatchdogService &watchdogService, SyncService &syncService);
 
   void begin();
   void handle();
@@ -41,6 +43,7 @@ private:
   GpioConfig &gpioConfig_;
   MicrophoneConfig &microphoneConfig_;
   GeneralConfig &generalConfig_;
+  SyncConfig &syncConfig_;
   StorageService &storageService_;
   WifiService &wifiService_;
   PersistenceSchedulerService &persistenceSchedulerService_;
@@ -48,6 +51,7 @@ private:
   ProfileService &profileService_;
   UserPaletteService &userPaletteService_;
   WatchdogService &watchdogService_;
+  SyncService &syncService_;
   String commandBuffer_;
   WebServer httpServer_;
 
@@ -59,6 +63,9 @@ private:
   void handleHttpGpioRoute();
   void handleHttpDebugRoute();
   void handleHttpGeneralRoute();
+  void handleHttpSyncStateRoute();
+  void handleHttpSyncConfigRoute();
+  void handleHttpSyncModeRoute();
   void handleHttpDiagRoute();
   void handleHttpConfigAllRoute();
   void handleHttpHardwareRoute();

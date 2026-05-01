@@ -65,6 +65,25 @@ struct GeneralConfig {
   bool validate(String *error = nullptr) const;
 };
 
+// Configuracion de sincronizacion (entrada externa y cluster maestro-esclavo).
+struct SyncConfig {
+  String mode = "off";          // off | local_effects | ledfx_realtime | cluster_sync
+  String role = "slave";        // master | slave
+  String inputProtocol = "ddp"; // ddp | e131
+  uint16_t ddpPort = 4048;
+  uint16_t e131UniverseStart = 1;
+  uint8_t e131UniverseCount = 1;
+  uint16_t udpSyncPort = 21324;
+  uint8_t groupMask = 1;
+  uint32_t sourceTimeoutMs = 1500;
+  String clockSmoothing = "soft"; // off | soft
+
+  static SyncConfig defaults();
+  String toJson() const;
+  bool applyPatchJson(const String &payload, String *error = nullptr);
+  bool validate(String *error = nullptr) const;
+};
+
 struct MicrophoneI2sPins {
   int8_t bclk = -1;
   int8_t ws = -1;

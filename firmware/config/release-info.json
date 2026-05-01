@@ -1,7 +1,7 @@
 {
-  "version": "0.6.1-alpha",
-  "versionCode": 17,
-  "buildDate": "2026-05-02",
+  "version": "0.6.2-alpha",
+  "versionCode": 18,
+  "buildDate": "2026-05-03",
   "branch": "main",
   "features": [
     "Fase 4A: FreeRTOS dual-core architecture (TaskControl + TaskRender)",
@@ -25,7 +25,8 @@
     "Embedded UI templates served from LittleFS under /ui/*.html with firmware fallback",
     "Config import/network apply hardened to acknowledge HTTP before WiFi restart",
     "Integrated help page in the embedded UI with screen, field and workflow guidance",
-    "Technical guides for UI screens/fields and full effect catalog documentation"
+    "Technical guides for UI screens/fields and full effect catalog documentation",
+    "Sprint 1 sync scaffolding: SyncConfig persistence + SyncService + API /api/v1/sync endpoints"
   ],
   "hardwareSupported": [
     "ESP32-D0WD-V3 (esp32dev)",

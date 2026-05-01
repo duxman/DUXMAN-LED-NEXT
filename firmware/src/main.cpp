@@ -21,6 +21,7 @@
 #include "services/PersistenceSchedulerService.h"
 #include "services/ProfileService.h"
 #include "services/StorageService.h"
+#include "services/SyncService.h"
 #include "services/UserPaletteService.h"
 #include "services/WatchdogService.h"
 #include "services/WifiService.h"
@@ -31,19 +32,21 @@ NetworkConfig networkConfig = NetworkConfig::defaults();
 GpioConfig gpioConfig = GpioConfig::defaults();
 MicrophoneConfig microphoneConfig = MicrophoneConfig::defaults();
 GeneralConfig debugConfig = GeneralConfig::defaults();
+SyncConfig syncConfig = SyncConfig::defaults();
 DefaultLedDriver ledDriver;
 EffectManager effectManager(state, ledDriver);
-StorageService storageService(state, networkConfig, gpioConfig, microphoneConfig, debugConfig);
+StorageService storageService(state, networkConfig, gpioConfig, microphoneConfig, debugConfig, syncConfig);
 PersistenceSchedulerService persistenceSchedulerService(storageService);
 EffectPersistenceService effectPersistenceService(state);
 ProfileService profileService(networkConfig, gpioConfig, microphoneConfig, debugConfig, storageService, persistenceSchedulerService, ledDriver, state);
 UserPaletteService userPaletteService(persistenceSchedulerService);
 WifiService wifiService(networkConfig, debugConfig);
 WatchdogService watchdogService;
+SyncService syncService(syncConfig);
 AudioService audioService(microphoneConfig, state, debugConfig);
-ApiService apiService(state, networkConfig, gpioConfig, microphoneConfig, debugConfig, storageService, wifiService,
+ApiService apiService(state, networkConfig, gpioConfig, microphoneConfig, debugConfig, syncConfig, storageService, wifiService,
                       persistenceSchedulerService,
-                      effectPersistenceService, profileService, userPaletteService, watchdogService);
+                      effectPersistenceService, profileService, userPaletteService, watchdogService, syncService);
 
 SemaphoreHandle_t coreStateMutex = nullptr;
 TaskHandle_t controlTaskHandle = nullptr;
@@ -78,6 +81,7 @@ void controlTask(void *parameter) {
     persistenceSchedulerService.processPending();
 
     const unsigned long now = millis();
+    syncService.tick(now);
     effectPersistenceService.handle(now);
     const unsigned long heartbeatIntervalMs = debugConfig.heartbeatMs;
     if (heartbeatIntervalMs > 0 && now - lastHeartbeatAtMs >= heartbeatIntervalMs) {
@@ -121,6 +125,7 @@ void setup() {
   ledDriver.configure(gpioConfig);
   wifiService.begin();
   audioService.begin();
+  syncService.begin();
   effectManager.begin();
   apiService.begin();
 

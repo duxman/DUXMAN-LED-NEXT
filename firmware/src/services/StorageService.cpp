@@ -22,9 +22,10 @@ constexpr const char *kLegacyGpioPath    = "/gpio-config.json";
 
 StorageService::StorageService(CoreState &state, NetworkConfig &networkConfig,
                                GpioConfig &gpioConfig, MicrophoneConfig &microphoneConfig,
-                               GeneralConfig &GeneralConfig)
+                               GeneralConfig &GeneralConfig, SyncConfig &syncConfig)
   : state_(state), networkConfig_(networkConfig), gpioConfig_(gpioConfig),
-    microphoneConfig_(microphoneConfig), debugConfig_(GeneralConfig) {}
+    microphoneConfig_(microphoneConfig), debugConfig_(GeneralConfig),
+    syncConfig_(syncConfig) {}
 
 void StorageService::begin() {
   if (!LittleFS.begin(true)) {
@@ -34,6 +35,7 @@ void StorageService::begin() {
     gpioConfig_     = GpioConfig::defaults();
     microphoneConfig_ = MicrophoneConfig::defaults();
     debugConfig_    = GeneralConfig::defaults();
+    syncConfig_     = SyncConfig::defaults();
     return;
   }
 
@@ -72,6 +74,11 @@ bool StorageService::saveConfig() {
   deserializeJson(debugDoc, debugConfig_.toJson());
   doc["debug"] = debugDoc["debug"];
 
+  // sync
+  JsonDocument syncDoc;
+  deserializeJson(syncDoc, syncConfig_.toJson());
+  doc["sync"] = syncDoc["sync"];
+
   String out;
   serializeJsonPretty(doc, out);
   return writeFile(kConfigPath, out);
@@ -86,6 +93,7 @@ bool StorageService::loadConfig() {
       gpioConfig_       = GpioConfig::defaults();
       microphoneConfig_ = MicrophoneConfig::defaults();
       debugConfig_      = GeneralConfig::defaults();
+      syncConfig_       = SyncConfig::defaults();
       return saveConfig();
     }
     return true;
@@ -97,6 +105,7 @@ bool StorageService::loadConfig() {
     gpioConfig_       = GpioConfig::defaults();
     microphoneConfig_ = MicrophoneConfig::defaults();
     debugConfig_      = GeneralConfig::defaults();
+    syncConfig_       = SyncConfig::defaults();
     return saveConfig();
   }
 
@@ -163,6 +172,20 @@ bool StorageService::loadConfig() {
       debugConfig_ = candidate;
     } else {
       Serial.print("[storage] config.json debug error: "); Serial.println(err);
+    }
+  }
+
+  // sync
+  if (!doc["sync"].isNull()) {
+    String syncPayload;
+    { JsonDocument d; d["sync"] = doc["sync"]; serializeJson(d, syncPayload); }
+    String err;
+    SyncConfig candidate = SyncConfig::defaults();
+    candidate.applyPatchJson(syncPayload, &err);
+    if (err.isEmpty()) {
+      syncConfig_ = candidate;
+    } else {
+      Serial.print("[storage] config.json sync error: "); Serial.println(err);
     }
   }
 
