@@ -1,55 +1,55 @@
-# Paletas de color
+# Color Palettes
 
-## Paletas predefinidas
+## Predefined Palettes
 
-Catálogo curado de 12+ paletas de 3 colores principales, clasificadas por estilo (warm, cold, neon, pastel, high-contrast, party).
+Curated catalog of 12+ three-color palettes grouped by style (`warm`, `cold`, `neon`, `pastel`, `high-contrast`, `party`).
 
-## Paletas de usuario
+## User Palettes
 
-- Creadas, editadas y eliminadas desde la UI o API
-- Persisten en `/user-palettes.json` (LittleFS)
-- Distinción entre paletas de sistema (read-only) y usuario (editables)
+- Created, edited, and deleted from either the UI or the API
+- Persisted in `/user-palettes.json` (LittleFS)
+- Clear distinction between system palettes (read-only) and user palettes (editable)
 
-## Endpoints relevantes
+## Relevant Endpoints
 
-- `GET /api/v1/palettes` — Listar todas las paletas
-- `POST /api/v1/palettes/apply` — Aplicar paleta
-- `POST /api/v1/palettes/save` — Guardar/editar paleta de usuario
-- `POST /api/v1/palettes/delete` — Eliminar paleta de usuario
+- `GET /api/v1/palettes` — List all palettes
+- `POST /api/v1/palettes/apply` — Apply palette
+- `POST /api/v1/palettes/save` — Save/edit user palette
+- `POST /api/v1/palettes/delete` — Delete user palette
 
-## Ejemplo de paleta
+## Palette Example
 
 ```json
 {
   "id": -101,
-  "label": "Mi paleta",
+  "label": "My palette",
   "primaryColors": ["#123456", "#654321", "#ABCDEF"],
   "style": "neon",
-  "description": "Paleta personalizada"
+  "description": "Custom palette"
 }
 ```
 
-Las paletas pueden aplicarse en caliente y usarse en cualquier efecto.
+Palettes can be applied live and used by any effect.
 
-## Escenarios recomendados
+## Recommended Scenarios
 
-### Salon / ambiente
+### Living Room / Ambient
 
-- `sunset_drive` (warm): calida y relajada.
-- `golden_hour` (warm): luz suave para uso continuo.
-- `mint_lavender` (pastel): bajo cansancio visual.
-- `aurora_soft` (pastel): equilibrada para brillo medio/bajo.
+- `sunset_drive` (warm): warm and relaxing.
+- `golden_hour` (warm): soft light for continuous use.
+- `mint_lavender` (pastel): low visual fatigue.
+- `aurora_soft` (pastel): balanced at medium/low brightness.
 
-### Fiesta / show
+### Party / Show
 
-- `vaporwave` (party): look nocturno con alto impacto.
-- `synthwave` (party): fuerte presencia en movimiento.
-- `club_rgb` (neon): saturacion alta para escenas ritmicas.
-- `lava_ice` (high-contrast): contraste agresivo para efectos dinamicos.
+- `vaporwave` (party): high-impact nighttime look.
+- `synthwave` (party): strong presence in motion-heavy scenes.
+- `club_rgb` (neon): high saturation for rhythmic scenes.
+- `lava_ice` (high-contrast): aggressive contrast for dynamic effects.
 
-### Audio reactivo (LedFx/local)
+### Audio Reactive (LedFx/local)
 
-- `ember_citrus_cyan` (high-contrast): buena separacion visual en picos.
-- `ocean_neon` (neon): lectura clara en efectos de barra/cinta.
-- `club_rgb` (neon): respuesta perceptible en transitorios.
-- `lava_ice` (high-contrast): maxima diferenciacion entre zonas.
+- `ember_citrus_cyan` (high-contrast): strong visual separation on peaks.
+- `ocean_neon` (neon): clear reading in bar/ribbon effects.
+- `club_rgb` (neon): noticeable response on transients.
+- `lava_ice` (high-contrast): maximum zone differentiation.

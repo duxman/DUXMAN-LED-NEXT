@@ -2,6 +2,11 @@
 
 Todos los cambios relevantes de este proyecto se documentan en este archivo.
 
+Idioma / Language:
+
+- Espanol: `CHANGELOG.md`
+- English: `CHANGELOG.en.md`
+
 ## [0.6.3-alpha] - 2026-05-02
 
 ### Added

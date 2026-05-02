@@ -1,66 +1,66 @@
-# Hoja De Ruta De Implementacion De Efectos
+# Effects Implementation Roadmap
 
-Este documento traduce el roadmap conceptual de efectos a una estrategia de implementacion progresiva sobre la arquitectura actual de `duxman-led-next`.
+This document translates the conceptual effects roadmap into a progressive implementation strategy for the current `duxman-led-next` architecture.
 
-No define el detalle matematico de cada efecto; ese detalle ya vive en doc de roadmap conceptual. Aqui se fija como introducirlos sin romper la base actual de firmware.
+It does not define the low-level math for each effect. That work belongs in the conceptual roadmap; this file focuses on how to introduce those effects without destabilizing the current firmware base.
 
-## Objetivo
+## Goal
 
-Implementar la nueva familia de efectos dinamicos en varias fases, preservando:
+Implement the new family of dynamic effects in phases while preserving:
 
-- compatibilidad con la UI Home actual
-- persistencia del estado existente
-- estabilidad de render en ESP32
-- posibilidad de evolucionar despues a secuencia de arranque y scheduler de efectos
+- compatibility with the current Home UI
+- persistence of existing state
+- render stability on ESP32
+- the option to evolve later toward startup sequences and an effect scheduler
 
-## Estado Actual Del Firmware
+## Current Firmware State
 
-La arquitectura actual tiene estas caracteristicas:
+The current architecture has these characteristics:
 
-- `CoreState` expone `power`, `brightness`, `effectId`, `sectionCount`, `effectSpeed`, `effectLevel`, `primaryColors[3]` y `backgroundColor`
-- `EffectEngine` solo ofrece `begin()`, `supports()` y `renderFrame()`
-- `EffectManager` resuelve el efecto activo mediante instancias fijas en compilacion
-- el `loop()` principal renderiza a un intervalo fijo de 16 ms
-- no existe hoy una capa comun de matematicas float, mezcla robusta o gamma correction
-- no existe ciclo de vida formal de activacion/desactivacion de efectos
+- `CoreState` exposes `power`, `brightness`, `effectId`, `sectionCount`, `effectSpeed`, `effectLevel`, `primaryColors[3]`, and `backgroundColor`
+- `EffectEngine` currently exposes only `begin()`, `supports()`, and `renderFrame()`
+- `EffectManager` resolves the active effect through fixed compile-time instances
+- the main `loop()` renders on a fixed 16 ms cadence
+- there is no common float math, robust blending, or gamma-correction layer yet
+- there is no formal effect activation/deactivation lifecycle yet
 
-Conclusiones:
+Conclusions:
 
-- los efectos estaticos actuales sirven como base, pero no bastan para una familia dinamica grande
-- antes de implementar efectos con estado, conviene reforzar el motor
+- current static effects provide a solid base, but they are not enough for a large dynamic family
+- before implementing stateful effects, the engine should be reinforced
 
-## Decisiones Acordadas
+## Agreed Decisions
 
-Estas decisiones quedan como base para las siguientes iteraciones:
+These decisions are the baseline for the next iterations:
 
-1. No implementar los 11 efectos de golpe.
-2. Hacer primero una fase de infraestructura del motor.
-3. Mantener la UI actual al inicio, reutilizando los controles existentes.
-4. Usar esta semantica inicial de parametros globales:
-   - `brightness`: brillo final global
-   - `effectSpeed`: velocidad temporal del efecto
-   - `effectLevel`: intensidad estructural del efecto
-   - `sectionCount`: numero de bloques, repeticiones o densidad segun el efecto
-5. No mover aun el render a una task separada por core; primero validar rendimiento en el loop actual.
-6. Introducir ciclo de vida de efectos antes de implementar los que requieren estado persistente.
-7. Centralizar helpers de mezcla, gradiente, smoothstep, coordenadas normalizadas y gamma en la base del motor, no dentro de cada efecto.
+1. Do not implement all 11 effects at once.
+2. Start with engine infrastructure first.
+3. Keep the current UI initially and reuse existing controls.
+4. Use the following initial semantics for global parameters:
+   - `brightness`: final global brightness
+   - `effectSpeed`: temporal speed of the effect
+   - `effectLevel`: structural intensity of the effect
+   - `sectionCount`: number of blocks, repetitions, or density depending on the effect
+5. Do not move render to a dedicated core-specific task yet; validate performance in the current loop first.
+6. Introduce effect lifecycle hooks before implementing effects that require persistent state.
+7. Centralize blend, gradient, smoothstep, normalized coordinates, and gamma helpers in the engine base, not inside each effect.
 
-## Cambios De Infraestructura Necesarios
+## Required Infrastructure Changes
 
-### Fase 1. Base Del Motor
+### Phase 1. Engine Base
 
-Objetivo: preparar una capa comun para efectos temporales y con floats.
+Goal: prepare a shared layer for time-based and float-based effects.
 
-Cambios previstos:
+Planned changes:
 
-- ampliar `EffectEngine` con helpers comunes
-- introducir tiempo normalizado y helpers de coordenada por pixel
-- introducir mezcla RGB comun y suma aditiva con saturacion
-- introducir `smoothstep`
-- introducir escalado de color en float
-- introducir tabla gamma comun
+- extend `EffectEngine` with shared helpers
+- introduce normalized time and per-pixel coordinate helpers
+- introduce common RGB blending and saturating additive blending
+- introduce `smoothstep`
+- introduce float-based color scaling
+- introduce a shared gamma table
 
-Helpers esperados:
+Expected helpers:
 
 - `normalizedX(pixelIndex, pixelCount)`
 - `normalizedTimeSec()`
@@ -71,40 +71,40 @@ Helpers esperados:
 - `scaleColorFloat(color, gain)`
 - `applyGamma(color)`
 
-### Fase 2. Ciclo De Vida De Efectos
+### Phase 2. Effect Lifecycle
 
-Objetivo: permitir efectos con estado interno estable.
+Goal: support effects with stable internal state.
 
-Cambios previstos:
+Planned changes:
 
-- anadir `onActivate()`
-- anadir `onDeactivate()`
-- anadir opcionalmente `onStateChanged()`
-- hacer que `EffectManager` detecte el cambio real de `effectId`
-- resetear o resembrar estado cuando el efecto activo cambie
+- add `onActivate()`
+- add `onDeactivate()`
+- optionally add `onStateChanged()`
+- make `EffectManager` detect real `effectId` changes
+- reset or reseed internal state when the active effect changes
 
-Esto es obligatorio antes de:
+This is required before:
 
 - `Bouncing Physics`
 - `Stellar Twinkle`
 - `Random Color Pop`
 - cualquier efecto con arrays o entidades persistentes
 
-### Fase 3. Escalado Del Catalogo
+### Phase 3. Catalog Scalability
 
-Objetivo: que el catalogo de efectos crezca sin tocar demasiados puntos del codigo.
+Goal: let the effects catalog grow without touching too many points in the codebase.
 
-Cambios previstos:
+Planned changes:
 
-- limpiar la dependencia de indices manuales en `EffectManager`
-- mantener `EffectRegistry` como catalogo funcional de ids, labels y metadatos
-- permitir alta de nuevos efectos con el menor numero posible de cambios cruzados
+- reduce manual index dependencies in `EffectManager`
+- keep `EffectRegistry` as the functional catalog of IDs, labels, and metadata
+- make it possible to add new effects with minimal cross-cutting changes
 
-## Orden Recomendado De Implementacion
+## Recommended Implementation Order
 
-### Grupo A. Efectos Sin Estado Persistente
+### Group A. Effects Without Persistent State
 
-Estos deben ir primero porque validan la base matematica sin introducir buffers persistentes:
+These should come first because they validate the mathematical foundation without introducing persistent buffers:
 
 1. `Triple Fixed Breathe`
 2. `Global Gradient Breathe`
@@ -115,22 +115,22 @@ Estos deben ir primero porque validan la base matematica sin introducir buffers 
 7. `Lava Flow`
 8. `Polar Ice`
 
-### Grupo B. Efectos Con Estado Ligero O Persistente
+### Group B. Effects With Light or Persistent State
 
-Estos deben llegar despues de la fase de ciclo de vida:
+These should come after lifecycle support is in place:
 
 9. `Stellar Twinkle`
 10. `Random Color Pop`
 11. `Bouncing Physics`
 
-## Criterio De Avance
+## Acceptance for Each Effect
 
-Cada efecto nuevo se considerara aceptable cuando cumpla:
+Each new effect should be considered acceptable only if it:
 
-- compila correctamente
-- no rompe efectos ya existentes
-- respeta `brightness`
-- usa correctamente `effectSpeed`
-- usa una semantica clara de `effectLevel`
-- se comporta de forma estable al cambiar desde y hacia otros efectos
-- mantiene una respuesta visual suficientemente fluida en hardware real
+- compiles correctly
+- does not break existing effects
+- respects `brightness`
+- uses `effectSpeed` correctly
+- applies a clear semantic meaning to `effectLevel`
+- behaves stably when switching to and from other effects
+- maintains smooth-enough visual response on real hardware

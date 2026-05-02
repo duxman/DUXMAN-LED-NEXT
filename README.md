@@ -1,5 +1,14 @@
 # DUXMAN-LED-NEXT
 
+Language / Idioma:
+
+- Espanol: `README.md`
+- English: `README.en.md`
+- Release Notes ES: `RELEASE_NOTES.md`
+- Release Notes EN: `RELEASE_NOTES.en.md`
+- Changelog EN: `CHANGELOG.en.md`
+- Wiki selector: `wiki/README.md`
+
 Firmware modular para control LED en ESP32 (v0.6.3-alpha), con API REST/Serial, UI embebida, perfiles de configuración completos, paletas de usuario, sincronización distribuida y motor de efectos visuales/audio.
 
 ## Estado actual
@@ -157,10 +166,9 @@ Script auxiliar:
 
 ## Documentación
 
-- API detallada: docs/api-v1.md
-- Arquitectura: docs/architecture.md
-- Guía de pantallas y campos: docs/ui-guide.md
-- Catálogo de efectos: docs/effects.md
-- Wiki API: wiki/API-v1.md
-- Wiki Arquitectura: wiki/Architecture.md
-- Roadmap: docs/roadmap.md
+- Selector wiki bilingue: `wiki/README.md`
+- Wiki API: `wiki/es/Core/API-v1.md`
+- Wiki Arquitectura: `wiki/es/Core/Architecture.md`
+- Guia de pantallas y campos: `wiki/es/UI/UI-Guide.md`
+- Catalogo de efectos: `wiki/es/Features/Effects.md`
+- Roadmap: `wiki/es/Development/Roadmap.md`

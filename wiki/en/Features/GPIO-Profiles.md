@@ -1,15 +1,15 @@
-# Perfiles GPIO
+# GPIO Profiles
 
-## Qué es un perfil
+## What Is a Profile?
 
-Un perfil es un snapshot completo de configuración de dispositivo (network + gpio + microphone + debug), con foco práctico en la topología LED.
+A profile is a full snapshot of device configuration (`network + gpio + microphone + debug`), with practical focus on LED topology.
 
-## Tipos
+## Types
 
-- Integrados (read-only): presets incluidos en firmware
-- Usuario: hasta 8 perfiles persistidos en LittleFS
+- Built-in (read-only): presets included in firmware
+- User profiles: up to 8 profiles persisted in LittleFS
 
-## Rutas canónicas de API
+## Canonical API Routes
 
 - GET /api/v1/profiles
 - GET /api/v1/profiles/get?id=<id>
@@ -19,16 +19,16 @@ Un perfil es un snapshot completo de configuración de dispositivo (network + gp
 - POST, PATCH /api/v1/profiles/delete
 - POST, PATCH /api/v1/profiles/clone
 
-Nota: rutas antiguas /api/v1/profiles/gpio* se consideran legacy y deben evitarse.
+Note: old `/api/v1/profiles/gpio*` routes are considered legacy and should be avoided.
 
-## Ejemplo de guardado
+## Save Example
 
 ```json
 {
   "profile": {
     "id": "custom1",
-    "name": "Mi perfil",
-    "description": "Salida principal + digital auxiliar",
+    "name": "My profile",
+    "description": "Main output + auxiliary digital output",
     "gpio": {
       "outputs": [
         { "pin": 8, "ledType": "ws2812b", "colorOrder": "GRB", "ledCount": 60 },
@@ -42,4 +42,4 @@ Nota: rutas antiguas /api/v1/profiles/gpio* se consideran legacy y deben evitars
 }
 ```
 
-Al aplicar un perfil, el driver LED se reconfigura en caliente.
+Applying a profile reconfigures the LED driver live.

@@ -1,25 +1,25 @@
-# Preguntas frecuentes (FAQ)
+# Frequently Asked Questions (FAQ)
 
-**¿Qué placas ESP32 están soportadas?**
-- ESP32-C3-DevKitM-1, ESP32 DevKit, ESP32-S3-DevKitC-1
+**Which ESP32 boards are supported?**
+- ESP32-C3-DevKitM-1, ESP32 DevKit, and ESP32-S3-DevKitC-1.
 
-**¿Cuántas salidas LED puedo configurar?**
-- Hasta 4 salidas independientes por perfil GPIO
+**How many LED outputs can I configure?**
+- Up to 4 independent outputs per GPIO profile.
 
-**¿Puedo crear mis propias paletas de color?**
-- Sí, desde la UI o la API (`UserPaletteService`)
+**Can I create my own color palettes?**
+- Yes, from either the UI or the API through `UserPaletteService`.
 
-**¿Cómo se actualiza el firmware?**
-- Actualmente por USB/Serial (OTA en roadmap)
+**How is firmware updated?**
+- Currently over USB/Serial. OTA is still on the roadmap.
 
-**¿Qué backend LED es preferente?**
-- NeoPixelBus (DMA/I2S/RMT), FastLED como alternativo
+**Which LED backend is preferred?**
+- NeoPixelBus is the primary backend. FastLED is available as an alternative.
 
-**¿Puedo controlar el dispositivo por red y por Serial?**
-- Sí, la API es idéntica en HTTP y Serial
+**Can I control the device over the network and over Serial?**
+- Yes. The API is mirrored across HTTP and Serial commands.
 
-**¿Dónde está la documentación técnica?**
-- En esta wiki, el README y los docs del repositorio
+**Where is the technical documentation?**
+- In this wiki, the repository README files, and the release/changelog documentation.
 
-**¿Cómo reporto un bug o solicito una feature?**
-- Abre un issue en GitHub con logs y pasos claros
+**How do I report a bug or request a feature?**
+- Open a GitHub issue with logs, reproduction steps, and context.

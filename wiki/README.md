@@ -64,8 +64,8 @@ Ambas versiones contienen:
 
 ## ℹ️ Información
 
-- **Última actualización**: 2024
-- **Versión del Firmware**: LED-NEXT v1.0+
+- **Ultima actualizacion**: 2026-05-02
+- **Version del Firmware**: LED-NEXT v0.6.3-alpha
 - **Idiomas actuales**: 🇪🇸 Español | 🇬🇧 English
 - **Próximos idiomas**: 🇫🇷 Français, 🇩🇪 Deutsch, 🇮🇹 Italiano
 
@@ -73,9 +73,9 @@ Ambas versiones contienen:
 
 ## 📝 Notas / Notes
 
-- Los documentos en Español están siendo traducidos gradualmente
-- English documents are the source and most complete version
-- Si encuentras errores de traducción / If you find translation errors, please report them
+- La documentacion activa se mantiene en Espanol e Ingles para GitHub
+- English and Spanish entry points are both maintained as active documentation
+- Si encuentras errores de traduccion / If you find translation errors, please report them
 
 ---
 

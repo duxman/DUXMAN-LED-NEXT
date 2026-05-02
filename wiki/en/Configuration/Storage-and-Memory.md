@@ -1,72 +1,72 @@
 # Storage & Memory
 
-Diseno de persistencia y uso de memoria para DUXMAN-LED-NEXT (estado v0.6.2-alpha).
+Persistence and memory-usage design for DUXMAN-LED-NEXT (state as of v0.6.3-alpha).
 
-## Objetivos
+## Goals
 
-- Evitar corrupcion de configuracion ante reinicios inesperados.
-- Reducir desgaste de flash con escrituras diferidas.
-- Mantener latencia baja en control y render evitando I/O bloqueante en ruta critica.
+- Avoid configuration corruption during unexpected reboots.
+- Reduce flash wear through deferred writes.
+- Keep control and render latency low by avoiding blocking I/O in critical paths.
 
-## Almacenamiento
+## Storage
 
-Backend principal:
+Primary backend:
 
-- LittleFS para configuraciones, perfiles, paletas de usuario y recursos UI.
+- LittleFS for configuration, profiles, user palettes, and UI assets.
 
-Estrategia actual de UI:
+Current UI strategy:
 
-- Plantillas HTML/CSS en data/ui desplegadas en LittleFS.
-- Fallback embebido en firmware para tolerancia a archivos faltantes.
+- HTML/CSS templates under `data/ui` deployed to LittleFS.
+- Embedded firmware fallback for missing-file tolerance.
 
-Requisito de build:
+Build requirement:
 
-- platformio.ini define board_build.filesystem = littlefs para que uploadfs genere littlefs.bin correcto.
+- `platformio.ini` sets `board_build.filesystem = littlefs` so `uploadfs` generates the correct `littlefs.bin`.
 
-## Politica de persistencia
+## Persistence Policy
 
-Persistencia diferida:
+Deferred persistence:
 
-- Los cambios se aplican en RAM y se encolan por PersistenceSchedulerService.
-- Se realiza coalescing de cambios para evitar escritura por cada ajuste de slider.
+- Changes are first applied in RAM and then queued by `PersistenceSchedulerService`.
+- Change coalescing avoids a flash write on every slider adjustment.
 
-Persistencia gestionada por servicios:
+Persistence managed by services:
 
-- StorageService: serializacion/deserializacion de configuracion base.
-- ProfileService: perfiles completos y perfil por defecto.
-- UserPaletteService: CRUD y almacenamiento de paletas de usuario.
-- EffectPersistenceService: startup effect y secuencias.
+- `StorageService`: base configuration serialization/deserialization.
+- `ProfileService`: full profiles and default profile.
+- `UserPaletteService`: CRUD and persistence for user palettes.
+- `EffectPersistenceService`: startup effect and sequences.
 
-## Atomicidad y robustez
+## Atomicity and Robustness
 
-Principios aplicados:
+Applied principles:
 
-- Validacion previa de payload/config antes de comprometer cambios globales.
-- En configuraciones de red, respuesta HTTP antes de reaplicar WiFi para minimizar reset de conexion percibido por cliente.
-- Export de config/all ensamblado por secciones para bajar pico de memoria y reducir riesgo de reset por presion RAM.
+- Validate payloads/configuration before committing global changes.
+- On network configuration changes, send the HTTP response before WiFi reconfiguration to minimize client-side resets.
+- Assemble `/config/all` exports by section to reduce peak memory usage and reset risk under RAM pressure.
 
 ## Memoria RAM
 
-Fuentes principales de consumo:
+Main sources of consumption:
 
-- Buffers de render LED por salida/tipo de backend.
-- Buffer de captura de AudioService y estado compartido de audio.
-- Documentos JSON temporales en API y configuracion.
+- LED render buffers per output/backend.
+- Audio capture buffers and shared audio runtime state.
+- Temporary JSON documents used by API/configuration paths.
 
-Medidas actuales:
+Current measures:
 
-- Evitar JsonDocument agregado grande en GET /api/v1/config/all.
-- AudioService ajustado a buffers mas cortos y proceso frecuente para respuesta en vivo con uso controlado.
-- Tareas separadas control/render para evitar bloqueos cruzados.
+- Avoid a large aggregate `JsonDocument` in `GET /api/v1/config/all`.
+- Tune `AudioService` for shorter buffers and more frequent processing with controlled resource use.
+- Keep control and render as separate tasks to avoid cross-blocking.
 
-## Recomendaciones operativas
+## Operational Recommendations
 
-- Antes de desplegar cambios de UI en data/ui, ejecutar uploadfs ademas del upload de firmware.
-- Mantener heartbeat y logs de debug desactivados en operacion normal para reducir ruido serial.
-- Validar configuracion de microfono y red en hardware real tras cambios de pipeline.
+- When deploying UI changes under `data/ui`, run `uploadfs` in addition to firmware upload.
+- Keep debug heartbeat and logs disabled during normal operation to reduce serial noise.
+- Revalidate microphone and network configuration on real hardware after pipeline changes.
 
-## Riesgos abiertos
+## Open Risks
 
-- Ajustes de sensibilidad de audio dependen del microfono y del ruido ambiente.
-- Posible contencion puntual de mutex en estados de alta actividad API + render.
-- Pendiente estrategia OTA final compatible con particiones actuales y crecimiento del firmware.
+- Audio sensitivity still depends on microphone hardware and ambient noise.
+- Occasional mutex contention is still possible under very high API + render activity.
+- A final OTA strategy compatible with current partitions and firmware growth is still pending.

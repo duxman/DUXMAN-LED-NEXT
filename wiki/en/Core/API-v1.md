@@ -1,19 +1,19 @@
 # API REST v1
 
-Resumen de la API implementada por DUXMAN-LED-NEXT (v0.6.2-alpha).
+Summary of the API currently implemented by DUXMAN-LED-NEXT (v0.6.3-alpha).
 
 Base: /api/v1
 
 ## Endpoints
 
-### Estado y sistema
+### State and system
 
 - GET /api/v1/state
 - PATCH, POST /api/v1/state
 - POST /api/v1/system/restart
 - GET /api/v1/diag
 
-### Configuracion
+### Configuration
 
 - GET /api/v1/config/network
 - PATCH, POST /api/v1/config/network
@@ -23,15 +23,20 @@ Base: /api/v1
 - PATCH, POST /api/v1/config/gpio
 - GET /api/v1/config/debug
 - PATCH, POST /api/v1/config/debug
+- GET /api/v1/sync/state
+- GET /api/v1/sync/connected
+- GET /api/v1/sync/config
+- PATCH, POST /api/v1/sync/config
+- PATCH, POST /api/v1/sync/mode
 - GET /api/v1/config/all
 - POST /api/v1/config/all
 
-Notas:
+Notes:
 
-- /config/network y /config/all responden antes de reaplicar WiFi para reducir cortes de cliente.
-- /config/all normaliza payloads JSON doble-serializados.
+- `/config/network` and `/config/all` respond before WiFi reconfiguration to reduce client disconnects.
+- `/config/all` normalizes double-serialized JSON payloads.
 
-### Perfiles
+### Profiles
 
 - GET /api/v1/profiles
 - GET /api/v1/profiles/get?id=<id>
@@ -41,32 +46,32 @@ Notas:
 - POST, PATCH /api/v1/profiles/delete
 - POST, PATCH /api/v1/profiles/clone
 
-### Efectos
+### Effects
 
 - GET /api/v1/effects
 - POST, PATCH /api/v1/effects/startup/save
 - POST, PATCH /api/v1/effects/sequence/add
 - POST, PATCH /api/v1/effects/sequence/delete
 
-### Paletas
+### Palettes
 
 - GET /api/v1/palettes
 - POST, PATCH /api/v1/palettes/apply
 - POST, PATCH /api/v1/palettes/save
 - POST, PATCH /api/v1/palettes/delete
 
-### Metadatos
+### Metadata
 
 - GET /api/v1/hardware
 - GET /api/v1/release
 - GET /api/v1/openapi.json
 
-## Compatibilidad
+## Compatibility
 
-- PATCH y POST se aceptan como equivalentes en varios endpoints de mutacion.
-- La ruta canonica de perfiles es /api/v1/profiles*.
-- Las rutas legacy /api/v1/profiles/gpio* deben evitarse.
+- PATCH and POST are accepted as equivalents on several mutating endpoints.
+- The canonical profiles route is `/api/v1/profiles*`.
+- Legacy `/api/v1/profiles/gpio*` routes should be avoided.
 
-## Detalle ampliado
+## Detailed Reference
 
-Consultar la documentación técnica en el repositorio.
+See the rest of the wiki for expanded technical details and workflow examples.

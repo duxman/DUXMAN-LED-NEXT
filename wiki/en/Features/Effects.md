@@ -1,49 +1,49 @@
 # Effects Guide
 
-Catalogo funcional de efectos implementados en DUXMAN-LED-NEXT.
+Functional catalog of effects currently implemented in DUXMAN-LED-NEXT.
 
-## Convenciones
+## Conventions
 
-- ID: identificador numerico del catalogo.
-- key: clave tecnica usada por API/UI.
-- usesSpeed: indica si el control de rapidez tiene efecto.
-- usesAudio: indica si el efecto reacciona automaticamente al microfono.
+- ID: numeric identifier in the effect catalog.
+- key: technical key used by the API/UI.
+- usesSpeed: whether the speed control affects the effect.
+- usesAudio: whether the effect automatically reacts to the microphone.
 
-## Efectos visuales
+## Visual Effects
 
-| ID | key | Nombre | usesSpeed | usesAudio | Descripcion |
+| ID | key | Name | usesSpeed | usesAudio | Description |
 |---|---|---|---:|---:|---|
-| 0 | fixed | Color fijo | no | no | Alterna los 3 colores por secciones fijas. |
-| 1 | gradient | Degradado fijo | no | no | Genera un degradado estatico con los 3 colores dentro de cada seccion. |
-| 2 | diagnostic | Diagnostico | no | no | Activa solo la primera salida en rojo para aislar la linea principal. |
-| 3 | blink_fixed | Parpadeo fijo | si | no | Parpadea el patron fijo por secciones usando la velocidad configurada. |
-| 4 | blink_gradient | Parpadeo degradado | si | no | Parpadea el degradado por secciones usando la velocidad configurada. |
-| 5 | breath_fixed | Respiracion fija | si | no | Las secciones de color fijo respiran con una envolvente senoidal. |
-| 6 | breath_gradient | Respiracion degradado | si | no | El degradado completo respira con una envolvente senoidal. |
-| 7 | triple_chase | Triple chase | si | no | Tren de color en movimiento con huecos y repeticiones por secciones. |
-| 8 | gradient_meteor | Meteorito degradado | si | no | Cabeza y cola en movimiento con color degradado a lo largo de la tira. |
-| 9 | scanning_pulse | Pulso barrido | si | no | Pulso que recorre la tira de extremo a extremo con rebote. |
-| 11 | lava_flow | Lava flow | si | no | Flujo organico con deformacion de ondas y mezcla calida. |
-| 12 | polar_ice | Polar ice | si | no | Interferencia fria con ondas lentas y contraste polar. |
-| 14 | random_color_pop | Random color pop | si | no | Apariciones de color aleatorias con envolvente de atenuacion. |
+| 0 | fixed | Fixed Color | no | no | Alternates the 3 primary colors in fixed sections. |
+| 1 | gradient | Static Gradient | no | no | Builds a static gradient using the 3 primary colors inside each section. |
+| 2 | diagnostic | Diagnostic | no | no | Enables only the first output in red to isolate the main line. |
+| 3 | blink_fixed | Fixed Blink | yes | no | Blinks the fixed section pattern using the configured speed. |
+| 4 | blink_gradient | Gradient Blink | yes | no | Blinks the gradient section pattern using the configured speed. |
+| 5 | breath_fixed | Fixed Breath | yes | no | Fixed-color sections pulse with a sinusoidal envelope. |
+| 6 | breath_gradient | Gradient Breath | yes | no | The full gradient breathes with a sinusoidal envelope. |
+| 7 | triple_chase | Triple Chase | yes | no | Moving color train with gaps and repetitions across sections. |
+| 8 | gradient_meteor | Gradient Meteor | yes | no | Moving head-and-tail effect with a gradient along the strip. |
+| 9 | scanning_pulse | Scanning Pulse | yes | no | Pulse that scans from one end of the strip to the other and bounces back. |
+| 11 | lava_flow | Lava Flow | yes | no | Organic flow with wave distortion and warm color blending. |
+| 12 | polar_ice | Polar Ice | yes | no | Cold interference effect with slow waves and high contrast. |
+| 14 | random_color_pop | Random Color Pop | yes | no | Random color appearances with a fade envelope. |
 
-## Efectos audio-reactivos
+## Audio-Reactive Effects
 
-| ID | key | Nombre | usesSpeed | usesAudio | Descripcion |
+| ID | key | Name | usesSpeed | usesAudio | Description |
 |---|---|---|---:|---:|---|
-| 10 | trig_ribbon | AUDIO · Cinta trigonometrica | si | si | Patron ondulante con mezcla de sinusoides y gradiente dinamico guiado por el micro. |
-| 13 | stellar_twinkle | AUDIO · Stellar twinkle | si | si | Destellos estelares pseudoaleatorios reforzados por beats y nivel del micro. |
-| 15 | bouncing_physics | AUDIO · Bouncing physics | si | si | Bolas luminosas que rebotan con energia variable y responden al micro. |
-| 16 | audio_pulse | AUDIO · Audio Pulse | no | si | VU simetrico reactivo con beat flash, peak hold y color dinamico. |
-| 17 | audio_spectrum | AUDIO · Spectrum VU | no | si | VU meter de 3 bandas con colores primarios por banda y segmentos configurables. |
-| 18 | audio_neon_eq | AUDIO · Neon EQ | si | si | Ecualizador neon de 3 bandas con barras alternadas, cabezal brillante y beat flash. |
-| 19 | audio_rainbow_wave | AUDIO · Rainbow Wave | si | si | Onda de arcoiris que cambia de color con el audio, de rojo a blanco. |
-| 20 | audio_spectrum_chase | AUDIO · Spectrum Chase | si | si | Chase tipo Knight Rider con color segun energia percibida. |
-| 21 | audio_section_strobe | AUDIO · Section Strobe | no | si | Secciones de LEDs que flashean por turno en cada beat. |
+| 10 | trig_ribbon | AUDIO · Trig Ribbon | yes | yes | Wavy pattern combining sinusoids and a dynamic gradient driven by microphone input. |
+| 13 | stellar_twinkle | AUDIO · Stellar Twinkle | yes | yes | Pseudo-random star flashes reinforced by beats and live audio level. |
+| 15 | bouncing_physics | AUDIO · Bouncing Physics | yes | yes | Light balls that bounce with variable energy and react to audio input. |
+| 16 | audio_pulse | AUDIO · Audio Pulse | no | yes | Symmetric reactive VU with beat flash, peak hold, and dynamic color. |
+| 17 | audio_spectrum | AUDIO · Spectrum VU | no | yes | 3-band VU meter with per-band primary colors and configurable segmentation. |
+| 18 | audio_neon_eq | AUDIO · Neon EQ | yes | yes | 3-band neon equalizer with alternating bars, bright heads, and beat flash. |
+| 19 | audio_rainbow_wave | AUDIO · Rainbow Wave | yes | yes | Rainbow wave that shifts color with audio, from red to white. |
+| 20 | audio_spectrum_chase | AUDIO · Spectrum Chase | yes | yes | Knight Rider-style chase with color based on perceived energy. |
+| 21 | audio_section_strobe | AUDIO · Section Strobe | no | yes | LED sections flashing in turn on each beat. |
 
-## Recomendaciones de uso
+## Recommended Usage
 
-- Usa efectos visuales para escenas estables o decorativas.
-- Usa efectos audio-reactivos cuando el microfono este bien calibrado y quieras respuesta en vivo.
-- Si un efecto se siente demasiado rapido o demasiado agresivo, ajusta primero rapidez y nivel antes de tocar brillo.
-- Si un efecto de audio parece retrasado o sobrerreacciona, ajusta gainPercent, noiseFloorPercent, noiseGateKnee y agcResponsePercent en configuracion de microfono.
+- Use visual effects for stable or decorative scenes.
+- Use audio-reactive effects when the microphone is well calibrated and you want live response.
+- If an effect feels too fast or too aggressive, adjust speed and level before changing brightness.
+- If an audio effect feels delayed or overreactive, tune `gainPercent`, `noiseFloorPercent`, `noiseGateKnee`, and `agcResponsePercent` in microphone configuration.

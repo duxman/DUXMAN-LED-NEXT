@@ -1,21 +1,21 @@
 # Architecture
 
-Arquitectura actual del firmware DUXMAN-LED-NEXT (v0.6.2-alpha).
+Current firmware architecture for DUXMAN-LED-NEXT (v0.6.3-alpha).
 
-## Diseno general
+## Overall Design
 
 - Firmware C++ modular (PlatformIO, Arduino framework)
-- FreeRTOS con tareas separadas de control y render
-- API HTTP + comandos serial equivalentes
-- Persistencia en LittleFS con scheduler
-- UI embebida servida desde plantillas LittleFS con fallback en firmware
+- FreeRTOS with separate control and render tasks
+- HTTP API plus equivalent Serial commands
+- LittleFS persistence with scheduled deferred writes
+- Embedded UI served from LittleFS templates with firmware fallback
 
-## Tareas y ejecucion
+## Tasks and Execution
 
-- controlTask (core0): API, WiFi, audio, persistencia
+- controlTask (core0): API, WiFi, audio, persistence, sync control
 - renderTask (core1): EffectManager.renderFrame()
 
-Frecuencia objetivo:
+Target cadence:
 
 - control: ~10 ms
 - render: ~16 ms
@@ -31,47 +31,59 @@ Frecuencia objetivo:
 - EffectManager
 - EffectPersistenceService
 - AudioService
+- SyncService
 - WifiService
 - WatchdogService
 
-## Configuracion
+## Configuration
 
-Modelos principales:
+Primary models:
 
 - NetworkConfig
-- GpioConfig (hasta 4 outputs)
-- GpioConfig.powerLimit (limite software de consumo)
+- GpioConfig (up to 4 outputs)
+- GpioConfig.powerLimit (software power limiting)
 - MicrophoneConfig
 - GeneralConfig (language, region, debug options)
+- SyncConfig (mode, role, input protocol, ports, timeout, smoothing)
 - CoreState (runtime)
 
-## Motor LED
+## LED Engine
 
-Cadena de render:
+Render chain:
 
 - EffectManager -> EffectEngine -> LedDriver -> backend
 
-Backends seleccionables en compilacion:
+Compile-time selectable backends:
 
 - NeoPixelBus
 - FastLED
 - Digital
 
-## Audio reactivo
+## Audio-Reactive Pipeline
 
-AudioService publica audioLevel, audioPeakHold y beatDetected en CoreState.
+AudioService publishes `audioLevel`, `audioPeakHold`, and `beatDetected` into `CoreState`.
 
-Estado actual:
+Current state:
 
 - AGC + noise gate + beat detection
-- ajustes de baja latencia para respuesta mas en vivo
+- low-latency tuning for more live response
 
-## API y robustez
+## Synchronization Layer
+
+The current architecture includes a full sync stack:
+
+- DDP realtime ingest with external frame buffering
+- E1.31 fallback on the same render pipeline
+- UDP cluster state replication (`server/client`)
+- Shared effect clock for distributed phase alignment
+- Runtime health telemetry and degraded-state reporting
+
+## API and Robustness
 
 - Base: /api/v1
-- /config/network y /config/all responden antes de reaplicar WiFi
-- /config/all reduce pico de memoria al ensamblar JSON por secciones
+- `/config/network` and `/config/all` reply before WiFi reconfiguration
+- `/config/all` reduces peak memory usage by assembling JSON in sections
 
-## Referencias
+## References
 
-Consultar la documentación técnica detallada en el repositorio.
+See the rest of the wiki for the detailed technical breakdown.

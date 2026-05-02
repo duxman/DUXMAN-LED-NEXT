@@ -1,32 +1,32 @@
-# Roadmap y evolucion
+# Roadmap and Evolution
 
-## Estado actual
+## Current Status
 
-- Configuracion persistente de red, debug, microfono y GPIO/LEDs en LittleFS.
-- API HTTP/Serial versionada (/api/v1/*).
-- UI embebida basada en plantillas LittleFS (data/ui) con fallback en firmware.
-- FreeRTOS dual-core estable para control y render.
-- Catalogo de efectos visuales y audio-reactivos ampliado.
-- Paletas de usuario con CRUD y perfiles completos aplicables en caliente.
-- Hardening de /config/network y /config/all para robustez en cliente web.
-- Audio reactivo afinado para menor latencia percibida.
+- Persistent network, debug, microphone, and GPIO/LED configuration in LittleFS.
+- Versioned HTTP/Serial API (`/api/v1/*`).
+- Embedded UI based on LittleFS templates (`data/ui`) with firmware fallback.
+- Stable dual-core FreeRTOS split for control and render.
+- Expanded visual and audio-reactive effects catalog.
+- User palettes with CRUD and full hot-applied profiles.
+- Hardened `/config/network` and `/config/all` behavior for web-client robustness.
+- Audio-reactive pipeline tuned for lower perceived latency.
 
-## Siguientes fases
+## Next Phases
 
 - Real hardware validation of the S1-S6 sync stack.
 - Resilience runs with jitter, moderate packet loss and longer multi-device sessions.
-- OTA seguro con estrategia de rollback.
+- OTA with rollback strategy.
 
-## Estado de ejecucion (checklist verificable)
+## Execution Status (Verifiable Checklist)
 
-Donde estan definidos los sprints de sincronizacion:
+Where the synchronization sprints are defined:
 
-- Plan detallado: `wiki/es/Development/Sync-Implementation-Plan.md`
-- Registro de entrega S1-S6: `CHANGELOG.md` (`0.6.3-alpha`)
+- Detailed plan: `wiki/es/Development/Sync-Implementation-Plan.md`
+- Delivery record for S1-S6: `CHANGELOG.md` (`0.6.3-alpha`)
 
-Checklist de avance:
+Progress checklist:
 
-- [x] S1 - Infra base de sync (configuracion persistente + servicio base + API)
+- [x] S1 - Sync base infrastructure (persistent config + core service + API)
 	- [x] `SyncConfig` persistente integrado en `config.json`.
 	- [x] `SyncService` creado con estado y metrica basica (`packetsReceived`, `packetsDropped`, `sourceAlive`).
 	- [x] Endpoints `GET /api/v1/sync/state`, `GET|PATCH|POST /api/v1/sync/config`, `POST|PATCH /api/v1/sync/mode`.
@@ -38,21 +38,21 @@ Checklist de avance:
 - 	- [x] Double frame buffer swapped on `Push`.
 - 	- [x] Local render bypass in `mode=ledfx_realtime` with automatic fallback to local effects after `sourceTimeoutMs`.
 - 	- [x] Expanded metrics: `framesApplied`, `lastFrameAtMs`, `frameBytes`.
-- [x] S3 - Fallback E1.31 (normalizacion al mismo pipeline de render).
+- [x] S3 - E1.31 fallback (normalized into the same render pipeline).
 - 	- [x] Non-blocking E1.31 (sACN) UDP listener on port 5568.
 - 	- [x] Base Data Packet parser for `Multiple RGB` with start code 0.
 - 	- [x] Initial configurable multi-universe support (`e131UniverseStart`, `e131UniverseCount`) mapped into the shared frame buffer.
 - 	- [x] Frame commit on complete universe set or short assembly timeout to avoid stutter.
-- [x] S4 - Cluster maestro-esclavo (SyncState v1 + secuencia monotona + anti-replay).
+- [x] S4 - Cluster server-client (SyncState v1 + monotonic sequence + anti-replay).
 - 	- [x] Lightweight UDP channel on `udpSyncPort` for `SyncState v1` in `cluster_sync` mode.
 - 	- [x] Periodic full snapshot broadcast from `server` nodes with monotonic `sequence` and `groupMask`.
 - 	- [x] Receive/apply on `client` nodes with anti-replay rejection based on sequence.
 - 	- [x] Expanded base telemetry: `lastSequence`, `syncStateSent`, `syncStateApplied`, `sourceIp`.
-- [x] S5 - Sync de fase/clock para efectos distribuidos.
+- [x] S5 - Phase/clock sync for distributed effects.
 - 	- [x] `syncEpochMs` and `phaseOffset` applied to the global effect clock on `client` nodes.
 - 	- [x] Smooth drift correction (`clockSmoothing=soft`) with progressive offset slew.
 - 	- [x] Expanded base telemetry: `lastSyncEpochMs` and `clockOffsetMs`.
-- [x] S6 - UI de Sync + observability + hardening.
+- [x] S6 - Sync UI + observability + hardening.
 	- [x] Expanded Sync UI at `/config/sync` with runtime health, telemetry and auto-refresh.
 	- [x] Expanded `/api/config/sync` console for quick diagnostics and state polling.
 	- [x] Hardening telemetry: `timeoutEvents`, `pollSaturationEvents`, `inputFps`, `activeProtocol`, `degraded`.
@@ -73,81 +73,98 @@ Entregables:
 
 Criterio de aceptacion:
 
-- Render estable con fuente DDP continua.
+## Synchronization Plan Summary
+
+Note: implementation S1-S6 is complete. What remains is hardware validation and resilience testing.
 - Si DDP se corta, recuperacion automatica sin reinicio del equipo.
 
-### Fase S2. Fallback E1.31 (sACN)
 
-Objetivo: compatibilidad con setups donde DDP no este disponible.
+Goal: realtime playback of LedFx external frames with low latency and controlled degradation.
 
-Entregables:
+Deliverables:
 
-- Parser E1.31 limitado a casos de uso de una tira/universo inicial.
-- Selector de protocolo externo: `ddp` o `e131`.
-- Normalizacion de entrada para compartir el mismo pipeline de render.
+- Non-blocking DDP receiver with double frame buffer.
+- Configurable input mode: `local_effects` / `ledfx_ddp`.
+- External source timeout with automatic fallback to local effects.
+- Minimum metrics: input FPS, dropped frames, and last valid timestamp.
 
-Criterio de aceptacion:
+Acceptance criteria:
 
-- Conmutacion de protocolo desde config sin recompilar.
-- Misma salida visual base usando fuente DDP o E1.31 en condiciones equivalentes.
+- Stable render with continuous DDP source.
+- Automatic recovery without reboot when DDP stops.
 
-### Fase S3. Sync maestro-esclavo entre dispositivos (SyncState v1)
+### Phase S2. E1.31 Fallback
 
-Objetivo: que un nodo maestro distribuya estado de reproduccion a nodos esclavos.
+Goal: compatibility with setups where DDP is not available.
 
-Entregables:
+Deliverables:
 
-- Payload `SyncState v1` con `sequence`, `effectId`, `params`, `brightness`, `power`.
-- Transporte UDP ligero (broadcast o multicast configurable).
-- Rechazo de paquetes fuera de orden por `sequence` monotona.
-- Politica de ownership: solo el maestro emite, esclavos no pisan estado local en modo sync.
+- Base E1.31 parser for initial single-strip/universe scenarios.
+- External protocol selector: `ddp` or `e131`.
+- Input normalization into the shared render pipeline.
 
-Criterio de aceptacion:
+Acceptance criteria:
 
-- Dos o mas nodos mantienen el mismo estado visual sin drift apreciable.
-- Reconexion de un esclavo con re-sincronizacion completa en caliente.
+- Protocol switching from configuration without recompilation.
+- Equivalent baseline visual output under comparable DDP and E1.31 conditions.
 
-### Fase S4. Sync de fase/clock para efectos distribuidos
+### Phase S3. Device-to-Device Cluster Sync
 
-Objetivo: alinear fase temporal de efectos animados entre dispositivos.
+Goal: let one `server` node distribute playback state to `client` nodes.
 
-Entregables:
+Deliverables:
 
-- `syncEpochMs` y `phaseOffset` en `SyncState`.
-- Correccion suave de drift (sin saltos visuales bruscos).
-- Modo de tolerancia para jitter de red con ventana configurable.
+- `SyncState v1` payload with `sequence`, `effectId`, `params`, `brightness`, and `power`.
+- Lightweight UDP transport.
+- Anti-replay rejection based on monotonic sequence.
+- Ownership policy: only the `server` publishes state in sync mode.
 
-Criterio de aceptacion:
+Acceptance criteria:
 
-- Efectos periodicos arrancan y evolucionan en fase entre nodos.
-- En jitter moderado, el sistema prioriza continuidad visual sobre exactitud instantanea.
+- Two or more nodes remain visually aligned at the state level.
+- A reconnecting client can fully resynchronize live.
 
-### Fase S5. API/UI y observabilidad de sync
+### Phase S4. Phase/Clock Sync for Distributed Effects
 
-Objetivo: diagnostico y control operativo desde UI/API.
+Goal: align time phase across animated effects on multiple devices.
 
-Entregables:
+Deliverables:
 
-- Endpoints de estado sync (`/api/v1/sync/*`) para modo, rol, secuencia y salud.
-- Pantalla UI de Sync con modo (`off`, `master`, `slave`, `ledfx`) y telemetria.
-- Persistencia de configuracion sync en perfil/dispositivo.
+- `syncEpochMs` and `phaseOffset` in `SyncState`.
+- Smooth drift correction.
+- Jitter tolerance window.
 
-Criterio de aceptacion:
+Acceptance criteria:
 
-- Operacion completa sin serial: configurar, activar, monitorizar y desactivar sync desde UI.
+- Periodic effects start and evolve in phase across nodes.
+- Under moderate jitter, continuity is prioritized over instant exactness.
 
-## Dependencias y riesgos
+### Phase S5. Sync API/UI and Observability
 
-- WiFi inestable impacta jitter y perdida de paquetes UDP.
-- Debe evitarse bloqueo del render por parsing de red (siempre task separada).
-- El path de fallback a efectos locales debe ser deterministico para evitar estados mixtos.
-- Priorizar footprint de RAM al dimensionar buffers de frames externos.
+Goal: operational control and diagnostics through UI/API.
 
-## Decisiones tecnicas clave
+Deliverables:
 
-- Arquitectura no bloqueante con tareas separadas.
-- NeoPixelBus como backend preferente y FastLED como alternativo.
-- Efectos configurables desacoplados de la cantidad fisica de LEDs.
-- API REST versionada y tolerante a payloads de cliente reales.
+- `/api/v1/sync/*` endpoints for mode, role, sequence, and health.
+- Sync UI with mode, role, and telemetry.
+- Persistent sync configuration.
 
-Para detalle tecnico, ver la documentacion arquitectonica en el repositorio.
+Acceptance criteria:
+
+- Full operation without Serial: configure, activate, monitor, and disable sync from the UI.
+
+## Dependencies and Risks
+
+- Unstable WiFi affects jitter and UDP packet loss.
+- Render must not be blocked by network parsing.
+- Fallback to local effects must be deterministic to avoid mixed state.
+- RAM footprint must remain controlled while sizing external frame buffers.
+
+## Key Technical Decisions
+
+- Non-blocking architecture with separate task responsibilities.
+- NeoPixelBus as the preferred backend and FastLED as an alternative.
+- Effect behavior decoupled from physical LED count where possible.
+- Versioned REST API with tolerance for real-world client payloads.
+
+For deeper details, see the architecture documentation in this wiki.

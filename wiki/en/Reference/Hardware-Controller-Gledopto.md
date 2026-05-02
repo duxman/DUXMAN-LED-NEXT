@@ -1,25 +1,25 @@
-# 📋 Guía de Configuración: Gledopto GL-C-017WL-D (ESP32)
+# Gledopto GL-C-017WL-D (ESP32) Configuration Guide
 
-Este documento contiene la asignación definitiva de pines (Pinout) para el controlador Gledopto diseñado para **WLED**.
+This document describes the confirmed pinout for the Gledopto controller designed for **WLED**.
 
 ---
 
-## 1. Salidas de Datos (LED Outputs)
+## 1. Data Outputs (LED Outputs)
 
-Configura estos pines en **Settings > LED Preferences**. La placa soporta hasta 4 salidas independientes.
+Configure these pins under **Settings > LED Preferences**. The board supports up to 4 independent outputs.
 
 | Salida | Pin GPIO | Notas |
 | :--- | :--- | :--- |
-| **LED Output 1** | **16** | Salida principal (recomendada) |
-| **LED Output 2** | **4** | Salida secundaria |
-| **LED Output 3** | **2** | Salida terciaria |
-| **LED Output 4** | **1** | Usar solo si es necesario (Pin TX) |
+| **LED Output 1** | **16** | Main output (recommended) |
+| **LED Output 2** | **4** | Secondary output |
+| **LED Output 3** | **2** | Tertiary output |
+| **LED Output 4** | **1** | Use only if needed (TX pin) |
 
 ---
 
-## 2. Micrófono Integrado (Audio Reactive)
+## 2. Integrated Microphone (Audio Reactive)
 
-Para activar la reactividad al sonido, ve a **Settings > Sync Interfaces > Audio Input**.
+To enable audio reactivity, go to **Settings > Sync Interfaces > Audio Input**.
 
 * **Microphone Type:** `Generic I2S (Philips)`
 * **I2S SD Pin:** `26`
@@ -28,33 +28,33 @@ Para activar la reactividad al sonido, ve a **Settings > Sync Interfaces > Audio
 
 ---
 
-## 3. Botones y Entradas Físicas
+## 3. Buttons and Physical Inputs
 
-Configura estos pines en **Settings > LED Preferences > Buttons**.
+Configure these pins under **Settings > LED Preferences > Buttons**.
 
 | Control | Pin GPIO | Tipo (Type) | Función |
 | :--- | :--- | :--- | :--- |
-| **Botón en Placa** | **0** | `Pushbutton` | On/Off y Reset Wi-Fi (10s) |
-| **Bornera IO33** | **33** | `Pushbutton` | Para pulsador externo de pared |
+| **On-board Button** | **0** | `Pushbutton` | On/Off and Wi-Fi Reset (10s) |
+| **IO33 Terminal** | **33** | `Pushbutton` | For an external wall switch |
 
 ---
 
-## 4. Notas Técnicas y Seguridad
+## 4. Technical Notes and Safety
 
-### ⚡ Alimentación
+### Power
 
-* **Voltaje:** Soporta de **5V a 24V DC**.
-* **¡Atención!**: El voltaje de la fuente debe ser el mismo que el de la tira LED. El controlador no convierte el voltaje, solo lo gestiona.
-* **Fusible:** Incluye un fusible tipo coche de **20A**.
+- **Voltage:** Supports **5V to 24V DC**.
+- **Warning:** The power-supply voltage must match the LED strip voltage. The controller does not convert voltage; it only distributes and controls it.
+- **Fuse:** Includes a **20A automotive-style fuse**.
 
-### 🛠️ Configuración de Botón Externo (IO33)
+### External Button Setup (IO33)
 
-* Para instalar un botón físico de pared, conecta los dos cables del pulsador a los terminales **IO33** y **GND** de la bornera pequeña.
-* **Comportamiento:**
-    * *Click corto:* Encender / Apagar.
-    * *Mantener 1s:* Cambiar color.
-    * *Mantener 10s:* Resetear configuración Wi-Fi.
+* To install a physical wall button, connect the two switch wires to **IO33** and **GND** on the small terminal block.
+* **Behavior:**
+    * *Short press:* Power on / off.
+    * *Hold 1s:* Change color.
+    * *Hold 10s:* Reset Wi-Fi configuration.
 
 ---
 
-*Documento generado para controlador Gledopto ESP32 WLED.*
+Generated for the Gledopto ESP32 WLED controller.

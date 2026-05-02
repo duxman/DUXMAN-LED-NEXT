@@ -1,151 +1,151 @@
 # UI Guide
 
-Guia funcional de pantallas y campos de DUXMAN-LED-NEXT.
+Functional guide to the main screens and fields in DUXMAN-LED-NEXT.
 
-## Pantallas principales
+## Main Screens
 
 ### Home
 
-Objetivo:
+Goal:
 
-- Cambiar rapidamente colores, paleta, efecto, parametros visuales y estado de salida.
-- Gestionar persistencia del efecto de arranque y la lista de secuencia.
-- Ver el estado runtime en JSON cuando se necesita diagnostico.
+- Quickly change colors, palette, effect, visual parameters, and output state.
+- Manage startup effect persistence and the sequence list.
+- Inspect runtime JSON when diagnostics are needed.
 
-Bloques:
+Blocks:
 
-- Seleccion de colores: fondo/off, color 1, color 2, color 3, paleta predefinida, aplicar paleta.
-- Seleccion de efecto: selector de efecto, aplicar, guardar arranque, recargar.
-- Parametros y presets: numero de secciones, rapidez, nivel, brillo global, presets visuales.
-- Configuracion playlist: estado de salida, duracion de nueva entrada, anadir a lista, recargar lista.
-- Persistencia de efectos: resumen de startup, entradas guardadas de secuencia y salida JSON de depuracion.
-- Estado runtime: bloque plegable con el estado actual.
+- Color selection: background/off, color 1, color 2, color 3, predefined palette, apply palette.
+- Effect selection: effect selector, apply, save startup, reload.
+- Parameters and presets: section count, speed, level, global brightness, visual presets.
+- Playlist configuration: output state, new entry duration, add to list, reload list.
+- Effect persistence: startup summary, stored sequence entries, and diagnostic JSON output.
+- Runtime state: collapsible block with current status.
 
-Campos:
+Fields:
 
-- Fondo / off: color de base o apagado perceptivo del efecto.
-- Color 1 / 2 / 3: colores primarios del render cuando la paleta es manual.
-- Paleta predefinida: seleccion de paletas del sistema o usuario.
-- Efecto: render principal del motor.
-- Numero de secciones: particion logica para patrones por bloques o segmentos.
-- Rapidez del efecto: solo se usa en efectos con velocidad.
-- Nivel del efecto: intensidad o escala del efecto.
-- Brillo global: brillo general del dispositivo.
-- Audio del microfono: indicador automatico segun el tipo de efecto.
+- Background / off: base color or perceived blackout state.
+- Color 1 / 2 / 3: primary render colors when palette mode is manual.
+- Predefined palette: system or user palette selection.
+- Effect: main rendering engine output.
+- Section count: logical partitioning for block/segment patterns.
+- Effect speed: only used on effects that support speed.
+- Effect level: intensity or structural scale of the effect.
+- Global brightness: overall device brightness.
+- Microphone audio: automatic indicator depending on the active effect type.
 
-### Configuracion
+### Configuration
 
-Objetivo:
+Goal:
 
-- Entrar a los editores especializados de red, microfono, GPIO, perfiles, paletas, debug y JSON manual.
+- Access specialized editors for network, microphone, GPIO, profiles, palettes, debug, and manual JSON.
 
 ### Network
 
-Objetivo:
+Goal:
 
-- Configurar WiFi, hostname, NTP, IP AP e IP STA.
+- Configure WiFi, hostname, NTP, AP IP, and STA IP.
 
-Campos:
+Fields:
 
-- Modo WiFi: ap, sta o ap_sta.
-- Disponibilidad AP: always o untilStaConnected.
-- SSID / Password STA: credenciales de la red cliente.
-- Hostname DNS: nombre visible en red local.
-- Sincronizar en arranque / servidor NTP: configuracion de tiempo.
-- Modo IP AP / STA: dhcp o static.
-- Address / Gateway / Subnet / DNS: parametros de direccionamiento.
+- WiFi mode: `ap`, `sta`, or `ap_sta`.
+- AP availability: `always` or `untilStaConnected`.
+- STA SSID / password: client-network credentials.
+- DNS hostname: name exposed on the local network.
+- Sync at boot / NTP server: time configuration.
+- AP / STA IP mode: `dhcp` or `static`.
+- Address / Gateway / Subnet / DNS: addressing parameters.
 
-### Microfono
+### Microphone
 
-Objetivo:
+Goal:
 
-- Ajustar sensibilidad y pines del microfono I2S.
+- Adjust sensitivity and I2S microphone pins.
 
-Campos:
+Fields:
 
-- enabled: activa captura.
-- source: fuente soportada actualmente.
-- profileId: perfil de pines/configuracion.
-- sampleRate: frecuencia de muestreo.
-- fftSize: tamano de ventana de configuracion.
-- gainPercent: ganancia de entrada.
-- noiseFloorPercent: ruido ambiente base.
-- noiseGateKnee: umbral de activacion suave.
-- agcResponsePercent: rapidez del ajuste automatico de ganancia.
-- din / ws / bclk: pines I2S.
+- `enabled`: enables capture.
+- `source`: currently supported source.
+- `profileId`: pin/configuration profile.
+- `sampleRate`: sampling rate.
+- `fftSize`: analysis window size.
+- `gainPercent`: input gain.
+- `noiseFloorPercent`: base ambient noise level.
+- `noiseGateKnee`: soft activation threshold.
+- `agcResponsePercent`: auto-gain response speed.
+- `din / ws / bclk`: I2S pins.
 
 ### GPIO
 
-Objetivo:
+Goal:
 
-- Definir salidas LED y limitacion de consumo por software.
+- Define LED outputs and software power limiting.
 
-Campos:
+Fields:
 
-- GPIO Pin: pin de salida de la tira o LED digital.
-- Cantidad LEDs: longitud de la salida direccionable.
-- Tipo LED: chipset o tipo de salida.
-- Orden Color: orden RGB o color fijo digital.
-- Activar limite: habilita control de consumo estimado.
-- Corriente maxima total: techo estimado del conjunto.
-- Corriente por LED: consumo estimado por LED a blanco pleno.
+- GPIO Pin: strip or digital LED output pin.
+- LED Count: length of the addressable output.
+- LED Type: chipset or output type.
+- Color Order: RGB order or fixed digital color.
+- Enable limit: enables estimated power limiting.
+- Max total current: estimated budget cap for the whole setup.
+- Current per LED: estimated consumption per LED at full white.
 
 ### Profiles
 
-Objetivo:
+Goal:
 
-- Guardar snapshots completos y reusar configuraciones del dispositivo.
+- Save full snapshots and reuse device configurations.
 
-Operaciones:
+Operations:
 
-- Guardar como perfil.
-- Activar perfil.
-- Editar JSON del perfil.
-- Clonar perfil.
-- Borrar perfil de usuario.
+- Save as profile.
+- Apply profile.
+- Edit profile JSON.
+- Clone profile.
+- Delete user profile.
 
-### Paletas
+### Palettes
 
-Objetivo:
+Goal:
 
-- Gestionar paletas del sistema y de usuario.
+- Manage system and user palettes.
 
-Campos:
+Fields:
 
-- ID: clave tecnica estable.
-- Nombre visual: texto mostrado al usuario.
-- Estilo: clasificacion visual.
-- Descripcion: contexto opcional.
-- Color 1 / 2 / 3: colores principales de la paleta.
+- ID: stable technical key.
+- Display name: text shown to the user.
+- Style: visual classification.
+- Description: optional context.
+- Color 1 / 2 / 3: main palette colors.
 
 ### Debug
 
-Objetivo:
+Goal:
 
-- Controlar trazas y utilidades visuales de UI.
+- Control debug traces and UI helper utilities.
 
-Campos:
+Fields:
 
-- Debug habilitado: activa mensajes de depuracion.
-- Heartbeat ms: intervalo de traza periodica serial.
-- Mostrar respuestas JSON: preferencia guardada en navegador.
+- Debug enabled: enables diagnostic messages.
+- Heartbeat ms: serial trace interval.
+- Show JSON responses: browser-stored UI preference.
 
 ### Manual JSON
 
-Objetivo:
+Goal:
 
-- Exportar, validar, editar e importar toda la configuracion del dispositivo.
+- Export, validate, edit, and import the entire device configuration.
 
-Operaciones:
+Operations:
 
-- Cargar del dispositivo.
-- Aplicar al dispositivo.
-- Descargar JSON.
-- Solo validar sintaxis local.
-- Cargar archivo al editor.
+- Load from device.
+- Apply to device.
+- Download JSON.
+- Validate local syntax only.
+- Load file into the editor.
 
-## Notas operativas
+## Operational Notes
 
-- La importacion completa solo se aplica si todas las secciones del JSON son validas.
-- Los cambios de red pueden provocar reconexion del dispositivo si alteran el modo WiFi o direccionamiento.
-- Los efectos de audio activan automaticamente el uso del microfono a nivel runtime.
+- Full import is applied only if every JSON section is valid.
+- Network changes may trigger a device reconnect if they modify WiFi mode or addressing.
+- Audio effects automatically enable microphone usage at runtime.
