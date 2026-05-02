@@ -144,14 +144,14 @@ void ApiService::begin() {
   Serial.println("[api] ready: GET /api/v1/config/gpio | PATCH /api/v1/config/gpio {json}");
   Serial.println("[api] ready: GET /api/v1/profiles | POST /api/v1/profiles/save|apply|default|delete|clone {json} | GET /api/v1/profiles/get?id=");
   Serial.println("[api] ready: GET /api/v1/config/debug | PATCH /api/v1/config/debug {json}");
-  Serial.println("[api] ready: GET /api/v1/sync/state | PATCH /api/v1/sync/config {json} | POST /api/v1/sync/mode {json}");
+  Serial.println("[api] ready: GET /api/v1/sync/state | GET /api/v1/sync/connected | PATCH /api/v1/sync/config {json} | POST /api/v1/sync/mode {json}");
   Serial.println("[api] ready: GET /api/v1/config/all | POST /api/v1/config/all {json}");
   Serial.println("[api] ready: GET /api/v1/effects | POST /api/v1/effects/startup/save | POST /api/v1/effects/sequence/add|delete");
   Serial.println("[api] ready: GET /api/v1/palettes | POST /api/v1/palettes/apply {json} | POST /api/v1/palettes/save {json} | POST /api/v1/palettes/delete {json}");
   Serial.println("[api] ready: POST /api/v1/system/restart");
   Serial.println("[api] ready: GET /api/v1/hardware");
   Serial.println("[api] ready: GET /api/v1/release");
-  Serial.println("[api] ui: GET / | GET /config | GET /config/network | GET /config/microphone | GET /config/gpio | GET /config/palettes | GET /config/debug | GET /config/manual | GET /api | GET /version");
+  Serial.println("[api] ui: GET / | GET /config | GET /config/network | GET /config/microphone | GET /config/gpio | GET /config/sync | GET /config/palettes | GET /config/debug | GET /config/manual | GET /api | GET /version");
 
   // -- IP summary ------------------------------------------------------------
   {
@@ -234,6 +234,11 @@ void ApiService::processCommand(const String &command) {
 
   if (command == "GET /api/v1/sync/state") {
     Serial.println(syncService_.buildStateJson());
+    return;
+  }
+
+  if (command == "GET /api/v1/sync/connected") {
+    Serial.println(syncService_.buildConnectionJson());
     return;
   }
 
@@ -763,6 +768,10 @@ void ApiService::setupHttpRoutes() {
     httpServer_.send(200, "text/html", buildGpioConfigHtml());
   });
 
+  httpServer_.on("/config/sync", HTTP_GET, [this]() {
+    httpServer_.send(200, "text/html", buildSyncConfigHtml());
+  });
+
   httpServer_.on("/config/profiles", HTTP_GET, [this]() {
     httpServer_.send(200, "text/html", buildProfilesConfigHtml());
   });
@@ -793,6 +802,10 @@ void ApiService::setupHttpRoutes() {
 
   httpServer_.on("/api/config/gpio", HTTP_GET, [this]() {
     httpServer_.send(200, "text/html", buildApiConfigGpioHtml());
+  });
+
+  httpServer_.on("/api/config/sync", HTTP_GET, [this]() {
+    httpServer_.send(200, "text/html", buildApiConfigSyncHtml());
   });
 
   httpServer_.on("/api/release", HTTP_GET, [this]() {
@@ -930,6 +943,10 @@ void ApiService::setupHttpRoutes() {
     handleHttpSyncStateRoute();
   });
 
+  httpServer_.on("/api/v1/sync/connected", HTTP_ANY, [this]() {
+    handleHttpSyncConnectionRoute();
+  });
+
   httpServer_.on("/api/v1/sync/config", HTTP_ANY, [this]() {
     handleHttpSyncConfigRoute();
   });
@@ -1003,6 +1020,10 @@ void ApiService::setupHttpRoutes() {
       httpServer_.send(200, "text/html", buildApiConfigGpioHtml());
       return;
     }
+    if (uri == "/ui/api-config-sync.html") {
+      httpServer_.send(200, "text/html", buildApiConfigSyncHtml());
+      return;
+    }
     if (uri == "/ui/api-config-debug.html") {
       httpServer_.send(200, "text/html", buildApiConfigDebugHtml());
       return;
@@ -1037,6 +1058,10 @@ void ApiService::setupHttpRoutes() {
     }
     if (uri == "/ui/gpio-config.html") {
       httpServer_.send(200, "text/html", buildGpioConfigHtml());
+      return;
+    }
+    if (uri == "/ui/sync-config.html") {
+      httpServer_.send(200, "text/html", buildSyncConfigHtml());
       return;
     }
     if (uri == "/ui/profiles-config.html") {
@@ -1745,6 +1770,15 @@ void ApiService::handleHttpSyncStateRoute() {
   httpServer_.send(200, "application/json", syncService_.buildStateJson());
 }
 
+void ApiService::handleHttpSyncConnectionRoute() {
+  if (httpServer_.method() != HTTP_GET) {
+    httpServer_.send(405, "application/json", "{\"error\":\"method_not_allowed\"}");
+    return;
+  }
+
+  httpServer_.send(200, "application/json", syncService_.buildConnectionJson());
+}
+
 void ApiService::handleHttpSyncConfigRoute() {
   const HTTPMethod method = httpServer_.method();
 
@@ -2127,6 +2161,9 @@ String ApiService::buildOpenApiJson() const {
   JsonObject configGpioUiPath = paths["/config/gpio"].to<JsonObject>();
   configGpioUiPath["get"]["summary"] = "UI de configuracion GPIO";
 
+  JsonObject configSyncUiPath = paths["/config/sync"].to<JsonObject>();
+  configSyncUiPath["get"]["summary"] = "UI de configuracion de sincronizacion";
+
   JsonObject configProfilesUiPath = paths["/config/profiles"].to<JsonObject>();
   configProfilesUiPath["get"]["summary"] = "UI de gestion de perfiles GPIO";
 
@@ -2148,6 +2185,9 @@ String ApiService::buildOpenApiJson() const {
   JsonObject apiConfigGpioUiPath = paths["/api/config/gpio"].to<JsonObject>();
   apiConfigGpioUiPath["get"]["summary"] = "UI API para configuracion GPIO";
 
+  JsonObject apiConfigSyncUiPath = paths["/api/config/sync"].to<JsonObject>();
+  apiConfigSyncUiPath["get"]["summary"] = "UI API para sincronizacion";
+
   JsonObject apiProfilesUiPath = paths["/api/profiles"].to<JsonObject>();
   apiProfilesUiPath["get"]["summary"] = "UI API para perfiles";
 
@@ -2157,6 +2197,21 @@ String ApiService::buildOpenApiJson() const {
   JsonObject configAllPath = paths["/api/v1/config/all"].to<JsonObject>();
   configAllPath["get"]["summary"] = "Exportar toda la configuracion como JSON";
   configAllPath["post"]["summary"] = "Importar configuracion completa (valida antes de aplicar)";
+
+  JsonObject syncStatePath = paths["/api/v1/sync/state"].to<JsonObject>();
+  syncStatePath["get"]["summary"] = "Obtener estado runtime de sincronizacion y metricas";
+
+  JsonObject syncConnectedPath = paths["/api/v1/sync/connected"].to<JsonObject>();
+  syncConnectedPath["get"]["summary"] = "Obtener estado de conexion de sincronizacion (enabled/connected/role)";
+
+  JsonObject syncConfigPath = paths["/api/v1/sync/config"].to<JsonObject>();
+  syncConfigPath["get"]["summary"] = "Obtener configuracion de sincronizacion";
+  syncConfigPath["patch"]["summary"] = "Actualizar configuracion de sincronizacion con JSON parcial";
+  syncConfigPath["post"]["summary"] = "Alias de PATCH para clientes limitados";
+
+  JsonObject syncModePath = paths["/api/v1/sync/mode"].to<JsonObject>();
+  syncModePath["patch"]["summary"] = "Cambiar modo de sincronizacion";
+  syncModePath["post"]["summary"] = "Alias de PATCH para cambio de modo";
 
   JsonObject configManualUiPath = paths["/config/manual"].to<JsonObject>();
   configManualUiPath["get"]["summary"] = "UI de edicion manual de configuracion";
@@ -2184,6 +2239,8 @@ String ApiService::buildOpenApiJson() const {
   serialCommands.add("PATCH /api/v1/config/debug {\"debug\":{\"enabled\":true,\"heartbeatMs\":5000}}");
   serialCommands.add("GET /api/v1/config/gpio");
   serialCommands.add("PATCH /api/v1/config/gpio {\"gpio\":{\"powerLimit\":{\"enabled\":true,\"maxCurrentmA\":2500,\"milliAmpsPerLed\":60},\"outputs\":[{\"pin\":8,\"ledCount\":60,\"ledType\":\"ws2812b\",\"colorOrder\":\"GRB\"}]}}");
+  serialCommands.add("GET /api/v1/sync/state");
+  serialCommands.add("GET /api/v1/sync/connected");
   serialCommands.add("GET /api/v1/profiles/gpio");
   serialCommands.add("POST /api/v1/profiles/gpio/save {\"profile\":{\"id\":\"mi_perfil\",\"name\":\"Mi perfil\",\"gpio\":{\"outputs\":[{\"pin\":8,\"ledCount\":60,\"ledType\":\"ws2812b\",\"colorOrder\":\"GRB\"}]},\"applyNow\":true}} ");
   serialCommands.add("POST /api/v1/profiles/gpio/apply {\"profile\":{\"id\":\"gledopto_gl_c_017wl_d\"}} ");
@@ -2459,6 +2516,7 @@ String ApiService::buildNavHtml() const {
         <li><a href='/config/network'>Network</a></li>
         <li><a href='/config/microphone'>Microphone</a></li>
         <li><a href='/config/gpio'>GPIO</a></li>
+        <li><a href='/config/sync'>Sync</a></li>
         <li><a href='/config/profiles'>Profiles</a></li>
         <li><a href='/config/palettes'>Paletas</a></li>
         <li><a href='/config/general'>General</a></li>
@@ -2472,6 +2530,7 @@ String ApiService::buildNavHtml() const {
         <li><a href='/api/config/network'>Network</a></li>
         <li><a href='/api/config/microphone'>Microphone</a></li>
         <li><a href='/api/config/gpio'>GPIO</a></li>
+        <li><a href='/api/config/sync'>Sync</a></li>
         <li><a href='/api/v1/config/general'>General</a></li>
         <li><a href='/api/profiles'>Profiles</a></li>
         <li><a href='/api/hardware'>Hardware</a></li>
@@ -2587,6 +2646,10 @@ __NAV__
         <span class='boot-at'>__BOOTED_AT__</span>
       </div>
       <p>Control rapido de efectos fijos y navegacion principal.</p>
+      <div id='syncConnectionBanner' class='card' style='display:none; margin-top:12px; border-left:4px solid #0fd0e0;'>
+        <strong>Sync cliente conectado</strong>
+        <p id='syncConnectionBannerText'>Recibiendo trama por socket y reproduciendo en espejo.</p>
+      </div>
       </div>
 
 
@@ -2807,8 +2870,11 @@ __NAV__
     const sequenceList = document.getElementById('sequenceList');
     const effectsOut = document.getElementById('effectsOut');
     const effectModeBanner = document.getElementById('effectModeBanner');
+    const syncConnectionBanner = document.getElementById('syncConnectionBanner');
+    const syncConnectionBannerText = document.getElementById('syncConnectionBannerText');
     let effectsState = null;
     let allPalettes = [];
+    let syncConnectionPollHandle = null;
 
     function selectedPaletteId() {
       const raw = Number(paletteIdSelect.value);
@@ -2895,6 +2961,32 @@ __NAV__
       const fg = isAudio ? '#ffd9de' : '#d8ffe7';
       const label = isAudio ? 'AUDIO' : 'VISUAL';
       return "<span style='display:inline-block; padding:2px 8px; border-radius:999px; background:" + bg + "; color:" + fg + "; font-size:12px; font-weight:700; letter-spacing:0.04em;'>" + label + "</span>";
+    }
+
+    function renderSyncConnectionBanner(payload) {
+      const sync = payload && payload.sync ? payload.sync : {};
+      const connected = !!sync.connected;
+      const role = String(sync.role || 'client');
+      if (!connected || role !== 'client') {
+        syncConnectionBanner.style.display = 'none';
+        return;
+      }
+      syncConnectionBanner.style.display = 'block';
+      syncConnectionBannerText.textContent = 'Recibiendo trama por socket desde ' + (sync.sourceIp || '-') + ' y reproduciendo en espejo. Paquetes: ' + (sync.packetsReceived == null ? 0 : sync.packetsReceived);
+    }
+
+    async function loadSyncConnection() {
+      try {
+        const res = await fetch('/api/v1/sync/connected');
+        if (!res.ok) {
+          syncConnectionBanner.style.display = 'none';
+          return;
+        }
+        const payload = await res.json();
+        renderSyncConnectionBanner(payload);
+      } catch (_) {
+        syncConnectionBanner.style.display = 'none';
+      }
     }
 
     function setRuntimeVisible(visible) {
@@ -3233,7 +3325,8 @@ __NAV__
     }
 
     setRuntimeVisible(window.matchMedia('(min-width: 761px)').matches);
-    loadPalettes().then(() => Promise.all([loadState(), loadEffectsPersistence()]));
+    loadPalettes().then(() => Promise.all([loadState(), loadEffectsPersistence(), loadSyncConnection()]));
+    syncConnectionPollHandle = window.setInterval(loadSyncConnection, 3000);
   </script>
 </div>
 </body>
@@ -3568,6 +3661,10 @@ __NAV__
           <h2>GPIO</h2>
           <p>Pin LED, cantidad, tipo de LED y orden de color.</p>
         </a>
+        <a class='box' href='/config/sync'>
+          <h2>Sync</h2>
+          <p>Modo de sincronizacion, protocolo de entrada y puertos DDP/UDP Sync.</p>
+        </a>
         <a class='box' href='/config/profiles'>
           <h2>Profiles</h2>
           <p>Guardar, aplicar y fijar perfiles GPIO por defecto.</p>
@@ -3632,6 +3729,10 @@ __NAV__
         <a class='box' href='/api/config/gpio'>
           <h2>Config GPIO</h2>
           <p>GET/PATCH de /api/v1/config/gpio.</p>
+        </a>
+        <a class='box' href='/api/config/sync'>
+          <h2>Config Sync</h2>
+          <p>GET state/config, PATCH config y PATCH mode de /api/v1/sync/*.</p>
         </a>
         <a class='box' href='/api/config/debug'>
           <h2>Config Debug</h2>
@@ -4485,6 +4586,172 @@ __NAV__
   return html;
 }
 
+String ApiService::buildSyncConfigHtml() const {
+  String html = loadTemplateFromLittleFs("/ui/sync-config.html");
+  if (html.isEmpty()) {
+    html = R"HTML(
+<!doctype html>
+<html>
+<head>
+  <meta charset='utf-8'>
+  <meta name='viewport' content='width=device-width,initial-scale=1'>
+  <title>DUXMAN Sync Config</title>
+  __CSS__
+</head>
+<body>
+<div class='gen-page-outer'>
+__NAV__
+  <main>
+    <div class='card'>
+      <h1>Configuracion Sync</h1>
+      <p class='hint'>Activa o desactiva la sincronizacion, define si el nodo actua como cliente o servidor y ajusta los puertos.</p>
+      <div class='actions'>
+        <button class='btn alt' onclick='loadSync()'>Recargar</button>
+        <button class='btn' onclick='saveSync()'>Guardar</button>
+      </div>
+      <p id='status' class='status-live' aria-live='polite'></p>
+    </div>
+
+    <div class='card'>
+      <div class='row'>
+        <div class='col field'>
+          <label for='enabled'>Sync activada</label>
+          <select id='enabled'>
+            <option value='false'>false</option>
+            <option value='true'>true</option>
+          </select>
+        </div>
+        <div class='col field'>
+          <label for='role'>Rol</label>
+          <select id='role'>
+            <option value='client'>client</option>
+            <option value='server'>server</option>
+          </select>
+        </div>
+        <div class='col field'>
+          <label for='inputProtocol'>Protocolo</label>
+          <select id='inputProtocol'>
+            <option value='ddp'>ddp</option>
+            <option value='e131'>e131</option>
+          </select>
+        </div>
+      </div>
+      <div class='row'>
+        <div class='col field'>
+          <label for='ddpPort'>Puerto DDP</label>
+          <input id='ddpPort' type='number' min='1' max='65535' step='1'>
+        </div>
+        <div class='col field'>
+          <label for='udpSyncPort'>Puerto UDP Sync</label>
+          <input id='udpSyncPort' type='number' min='1' max='65535' step='1'>
+        </div>
+        <div class='col field'>
+          <label for='sourceTimeoutMs'>Timeout (ms)</label>
+          <input id='sourceTimeoutMs' type='number' min='100' max='30000' step='50'>
+        </div>
+      </div>
+    </div>
+
+    <div class='card json-card'>
+      <h3>Payload</h3>
+      <pre id='payloadOut'>{}</pre>
+      <h3>Respuesta</h3>
+      <pre id='resultOut'>Sin llamadas aun.</pre>
+    </div>
+  </main>
+
+  <script>
+    if(localStorage.getItem('dux_show_json')==='1') document.body.classList.add('show-json');
+
+    function byId(id) { return document.getElementById(id); }
+
+    function setStatus(message, isError) {
+      var el = byId('status');
+      if (window.duxUpdateStatus) {
+        window.duxUpdateStatus(el, message, !!isError);
+        return;
+      }
+      el.textContent = message || '';
+    }
+
+    function setValue(id, value) {
+      byId(id).value = value == null ? '' : String(value);
+    }
+
+    function applyConfig(payload) {
+      var sync = payload && payload.sync ? payload.sync : {};
+      setValue('enabled', String(!!sync.enabled));
+      setValue('role', sync.role || 'client');
+      setValue('inputProtocol', sync.inputProtocol || 'ddp');
+      setValue('ddpPort', sync.ddpPort == null ? 4048 : sync.ddpPort);
+      setValue('udpSyncPort', sync.udpSyncPort == null ? 21324 : sync.udpSyncPort);
+      setValue('sourceTimeoutMs', sync.sourceTimeoutMs == null ? 1500 : sync.sourceTimeoutMs);
+    }
+
+    function buildPayload() {
+      var enabled = byId('enabled').value === 'true';
+      var role = byId('role').value;
+      return {
+        sync: {
+          enabled: enabled,
+          mode: enabled ? (role === 'server' ? 'cluster_sync' : 'ledfx_realtime') : 'off',
+          role: role,
+          inputProtocol: byId('inputProtocol').value,
+          ddpPort: Number(byId('ddpPort').value || 0),
+          udpSyncPort: Number(byId('udpSyncPort').value || 0),
+          sourceTimeoutMs: Number(byId('sourceTimeoutMs').value || 0)
+        }
+      };
+    }
+
+    async function loadSync() {
+      setStatus('Leyendo configuracion sync...', false);
+      try {
+        const res = await fetch('/api/v1/sync/config');
+        const text = await res.text();
+        const parsed = JSON.parse(text);
+        applyConfig(parsed);
+        byId('resultOut').textContent = JSON.stringify(parsed, null, 2);
+        setStatus('Sync cargado (HTTP ' + res.status + ').', false);
+      } catch (error) {
+        byId('resultOut').textContent = String(error);
+        setStatus('Error leyendo sync.', true);
+      }
+    }
+
+    async function saveSync() {
+      const payload = buildPayload();
+      byId('payloadOut').textContent = JSON.stringify(payload, null, 2);
+      setStatus('Guardando sync...', false);
+      try {
+        const res = await fetch('/api/v1/sync/config', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const text = await res.text();
+        let pretty = text;
+        try { pretty = JSON.stringify(JSON.parse(text), null, 2); } catch (_) {}
+        byId('resultOut').textContent = pretty;
+        setStatus(res.ok ? 'Sync guardado (HTTP ' + res.status + ').' : 'Error guardando sync (HTTP ' + res.status + ').', !res.ok);
+      } catch (error) {
+        byId('resultOut').textContent = String(error);
+        setStatus('Error de red guardando sync.', true);
+      }
+    }
+
+    loadSync();
+  </script>
+</div>
+</body>
+</html>
+)HTML";
+  }
+  html.replace("__CSS__", buildCommonCss());
+  html.replace("__NAV__", buildNavMountHtml());
+  return html;
+}
+
 String ApiService::buildApiConfigMicrophoneHtml() const {
   String html = loadTemplateFromLittleFs("/ui/api-config-microphone.html");
   if (html.isEmpty()) {
@@ -4522,6 +4789,71 @@ __NAV__
     function getCfg() { callApi('GET'); }
     function patchCfg() { callApi('PATCH', document.getElementById('payload').value); }
     getCfg();
+  </script>
+</div>
+</body>
+</html>
+)HTML";
+  }
+  html.replace("__CSS__", buildCommonCss());
+  html.replace("__NAV__", buildNavMountHtml());
+  return html;
+}
+
+String ApiService::buildApiConfigSyncHtml() const {
+  String html = loadTemplateFromLittleFs("/ui/api-config-sync.html");
+  if (html.isEmpty()) {
+    html = R"HTML(
+<!doctype html>
+<html>
+<head>
+  <meta charset='utf-8'>
+  <meta name='viewport' content='width=device-width,initial-scale=1'>
+  <title>DUXMAN API - Sync</title>
+  __CSS__
+</head>
+<body>
+<div class='gen-page-outer'>
+__NAV__
+  <main>
+    <div class='card'>
+      <h1>API Sync</h1>
+      <button onclick='getState()'>GET /api/v1/sync/state</button>
+      <button onclick='getConnected()'>GET /api/v1/sync/connected</button>
+      <button onclick='getConfig()'>GET /api/v1/sync/config</button>
+      <button onclick='patchConfig()'>PATCH /api/v1/sync/config</button>
+      <button onclick='patchMode()'>PATCH /api/v1/sync/mode</button>
+    </div>
+    <div class='card'>
+      <textarea id='payload'>{"sync":{"enabled":true,"mode":"ledfx_realtime","role":"client","inputProtocol":"ddp","ddpPort":4048,"udpSyncPort":21324,"sourceTimeoutMs":1500}}</textarea>
+      <div style='margin-top:10px'>
+        <label for='modeValue'>Modo rapido</label>
+        <select id='modeValue'>
+          <option value='off'>off</option>
+          <option value='local_effects'>local_effects</option>
+          <option value='ledfx_realtime'>ledfx_realtime</option>
+          <option value='cluster_sync'>cluster_sync</option>
+        </select>
+      </div>
+    </div>
+    <div class='card'><pre id='out'>Sin llamadas aun.</pre></div>
+  </main>
+  <script>
+    async function callApi(method, url, body) {
+      const options = { method, headers: { 'Content-Type': 'application/json' } };
+      if (body) options.body = body;
+      const res = await fetch(url, options);
+      const text = await res.text();
+      let parsed = text;
+      try { parsed = JSON.stringify(JSON.parse(text), null, 2); } catch (_) {}
+      document.getElementById('out').textContent = method + ' ' + url + ' -> HTTP ' + res.status + '\n\n' + parsed;
+    }
+    function getState() { callApi('GET', '/api/v1/sync/state'); }
+    function getConnected() { callApi('GET', '/api/v1/sync/connected'); }
+    function getConfig() { callApi('GET', '/api/v1/sync/config'); }
+    function patchConfig() { callApi('PATCH', '/api/v1/sync/config', document.getElementById('payload').value); }
+    function patchMode() { callApi('PATCH', '/api/v1/sync/mode', JSON.stringify({ mode: document.getElementById('modeValue').value })); }
+    getState();
   </script>
 </div>
 </body>

@@ -12,7 +12,7 @@ bool EffectBlinkGradient::supports(uint8_t effectId) const {
 }
 
 void EffectBlinkGradient::renderFrame() {
-  const unsigned long now = millis();
+  const unsigned long now = normalizedTimeMs();
   if (lastToggleAtMs_ == 0) {
     lastToggleAtMs_ = now;
   } else if (now - lastToggleAtMs_ >= effectIntervalMs(state().effectSpeed)) {

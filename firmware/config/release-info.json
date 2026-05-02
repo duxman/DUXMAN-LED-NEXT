@@ -1,7 +1,7 @@
 {
-  "version": "0.6.2-alpha",
-  "versionCode": 18,
-  "buildDate": "2026-05-03",
+  "version": "0.6.3-alpha",
+  "versionCode": 19,
+  "buildDate": "2026-05-02",
   "branch": "main",
   "features": [
     "Fase 4A: FreeRTOS dual-core architecture (TaskControl + TaskRender)",
@@ -26,7 +26,11 @@
     "Config import/network apply hardened to acknowledge HTTP before WiFi restart",
     "Integrated help page in the embedded UI with screen, field and workflow guidance",
     "Technical guides for UI screens/fields and full effect catalog documentation",
-    "Sprint 1 sync scaffolding: SyncConfig persistence + SyncService + API /api/v1/sync endpoints"
+    "Full sync stack S1-S6: persistent SyncConfig + runtime SyncService + API/UI routes + observability",
+    "LedFx realtime input via DDP with double buffering and automatic timeout fallback",
+    "E1.31 fallback input mapped to the same external frame pipeline",
+    "Cluster sync over UDP with monotonic sequence, anti-replay and groupMask filtering",
+    "Global synchronized effect clock with soft drift correction for distributed phase alignment"
   ],
   "hardwareSupported": [
     "ESP32-D0WD-V3 (esp32dev)",
@@ -42,7 +46,10 @@
       "Triple Chase, Gradient Meteor, Scanning Pulse, Trig Ribbon",
       "Lava Flow, Polar Ice, Stellar Twinkle, Random Color Pop, Bouncing Physics",
       "PaletteRegistry with curated 3-color presets and style tags",
-      "Palette recommendations and validation guide in docs/palettes.md"
+      "Palette recommendations and validation guide in docs/palettes.md",
+      "Sync configuration UI at /config/sync with runtime telemetry and auto-refresh",
+      "Sync API console at /api/config/sync and lightweight endpoint /api/v1/sync/connected",
+      "Manual validation document wiki/Development/Sync-Test-Plan.md for S1-S6"
     ],
     "improved": [
       "API response time (non-blocking persistence)",
@@ -53,19 +60,25 @@
       "Audio diagnostics with periodic serial telemetry (level, peak, read bytes and read error)",
       "Embedded UI workflow for palette selection, preview and save",
       "GET /api/v1/config/all memory footprint by assembling JSON without a large aggregate JsonDocument",
-      "Discoverability of embedded UI with direct help access from the navigation"
+      "Discoverability of embedded UI with direct help access from the navigation",
+      "Home screen runtime visibility with connected-client sync banner and live polling",
+      "Effect timing consistency by routing supported animations through a synchronized global clock",
+      "Sync health diagnostics with timeout, polling saturation, FPS and clock offset telemetry"
     ],
     "fixed": [
       "Potential CoreState corruption during concurrent API + render access",
       "Render frame drops due to storage I/O blocking",
       "Blink speed inversion (high speed now means faster animation)",
-      "State/persistence consistency when switching between palette mode and manual colors"
+      "State/persistence consistency when switching between palette mode and manual colors",
+      "Legacy sync role aliases now normalize to client/server without breaking persisted configs",
+      "External frame rendering now falls back cleanly when the realtime source stops sending data"
     ]
   },
   "knownLimitations": [
     "LittleFS writes still synchronous (moved to control task, not blocking API)",
     "No OTA support (huge_app partition layout)",
-    "Single WiFi network configuration (no fallback networks)"
+    "Single WiFi network configuration (no fallback networks)",
+    "Sync stack pending validation on real multi-device hardware and long-run network jitter scenarios"
   ],
-  "nextPhase": "Fase 5B: LedFx realtime mode (DDP/E1.31) + Fase 6A master-slave SyncState v1"
+  "nextPhase": "Hardware validation of sync S1-S6 + OTA/rollback strategy"
 }

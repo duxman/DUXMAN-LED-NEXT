@@ -12,7 +12,7 @@ bool EffectBlinkFixed::supports(uint8_t effectId) const {
 }
 
 void EffectBlinkFixed::renderFrame() {
-  const unsigned long now = millis();
+  const unsigned long now = normalizedTimeMs();
   if (lastToggleAtMs_ == 0) {
     lastToggleAtMs_ = now;
   } else if (now - lastToggleAtMs_ >= effectIntervalMs(state().effectSpeed)) {

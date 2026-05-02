@@ -8,6 +8,13 @@
 #include "effects/EffectEngine.h"
 
 namespace {
+struct SynchronizedClockState {
+  bool enabled = false;
+  float currentOffsetSec = 0.0f;
+  float targetOffsetSec = 0.0f;
+  uint32_t lastUpdateMs = 0;
+};
+
 uint8_t blendChannel(uint8_t start, uint8_t end, uint16_t step, uint16_t maxStep) {
   if (maxStep == 0) {
     return start;
@@ -27,6 +34,35 @@ const uint8_t *gammaLut() {
     initialized = true;
   }
   return lut;
+}
+
+SynchronizedClockState gSynchronizedClock;
+
+void updateClockOffsetSlew(uint32_t nowMs) {
+  if (!gSynchronizedClock.enabled) {
+    gSynchronizedClock.lastUpdateMs = nowMs;
+    return;
+  }
+
+  if (gSynchronizedClock.lastUpdateMs == 0) {
+    gSynchronizedClock.lastUpdateMs = nowMs;
+    return;
+  }
+
+  const uint32_t elapsedMs = nowMs - gSynchronizedClock.lastUpdateMs;
+  gSynchronizedClock.lastUpdateMs = nowMs;
+  if (elapsedMs == 0) {
+    return;
+  }
+
+  const float maxStep = (static_cast<float>(elapsedMs) / 1000.0f) * 0.35f;
+  const float delta = gSynchronizedClock.targetOffsetSec - gSynchronizedClock.currentOffsetSec;
+  if (fabsf(delta) <= maxStep) {
+    gSynchronizedClock.currentOffsetSec = gSynchronizedClock.targetOffsetSec;
+    return;
+  }
+
+  gSynchronizedClock.currentOffsetSec += (delta > 0.0f ? maxStep : -maxStep);
 }
 } // namespace
 
@@ -122,6 +158,31 @@ float EffectEngine::level01(uint8_t levelScale) {
   return (constrain(levelScale, static_cast<uint8_t>(1), static_cast<uint8_t>(10)) - 1) / 9.0f;
 }
 
+void EffectEngine::resetSynchronizedClock() {
+  gSynchronizedClock = SynchronizedClockState{};
+}
+
+void EffectEngine::updateSynchronizedClock(uint32_t localNowMs, uint32_t syncEpochMs, float phaseOffsetSec, bool smooth) {
+  const float localSec = static_cast<float>(localNowMs) / 1000.0f;
+  const float targetOffsetSec = static_cast<float>(syncEpochMs) / 1000.0f + phaseOffsetSec - localSec;
+
+  if (!smooth) {
+    gSynchronizedClock.enabled = true;
+    gSynchronizedClock.currentOffsetSec = targetOffsetSec;
+    gSynchronizedClock.targetOffsetSec = targetOffsetSec;
+    gSynchronizedClock.lastUpdateMs = localNowMs;
+    return;
+  }
+
+  if (!gSynchronizedClock.enabled) {
+    gSynchronizedClock.enabled = true;
+    gSynchronizedClock.currentOffsetSec = targetOffsetSec;
+  }
+
+  gSynchronizedClock.targetOffsetSec = targetOffsetSec;
+  gSynchronizedClock.lastUpdateMs = localNowMs;
+}
+
 // ── Helpers matemáticos para efectos dinámicos ────────────────────────────
 
 float EffectEngine::normalizedX(uint16_t pixelIndex, uint16_t pixelCount) {
@@ -129,8 +190,19 @@ float EffectEngine::normalizedX(uint16_t pixelIndex, uint16_t pixelCount) {
   return static_cast<float>(pixelIndex) / static_cast<float>(pixelCount - 1);
 }
 
+unsigned long EffectEngine::normalizedTimeMs() {
+  const float timeMs = normalizedTimeSec() * 1000.0f;
+  return timeMs <= 0.0f ? 0UL : static_cast<unsigned long>(timeMs);
+}
+
 float EffectEngine::normalizedTimeSec() {
-  return static_cast<float>(millis()) / 1000.0f;
+  const uint32_t nowMs = millis();
+  if (!gSynchronizedClock.enabled) {
+    return static_cast<float>(nowMs) / 1000.0f;
+  }
+
+  updateClockOffsetSlew(nowMs);
+  return static_cast<float>(nowMs) / 1000.0f + gSynchronizedClock.currentOffsetSec;
 }
 
 float EffectEngine::clamp01(float v) {

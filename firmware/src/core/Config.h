@@ -68,7 +68,7 @@ struct GeneralConfig {
 // Configuracion de sincronizacion (entrada externa y cluster maestro-esclavo).
 struct SyncConfig {
   String mode = "off";          // off | local_effects | ledfx_realtime | cluster_sync
-  String role = "slave";        // master | slave
+  String role = "client";       // client | server (legacy aliases: slave | master)
   String inputProtocol = "ddp"; // ddp | e131
   uint16_t ddpPort = 4048;
   uint16_t e131UniverseStart = 1;

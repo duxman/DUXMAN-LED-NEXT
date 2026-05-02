@@ -31,6 +31,10 @@
         <span class='boot-at'>__BOOTED_AT__</span>
       </div>
       <p data-i18n='home.subtitle'>Control rapido de efectos fijos y navegacion principal.</p>
+      <div id='syncConnectionBanner' class='card' style='display:none; margin-top:12px; border-left:4px solid #0fd0e0;'>
+        <strong data-i18n='home.sync.bannerTitle'>Sync cliente conectado</strong>
+        <p id='syncConnectionBannerText' data-i18n='home.sync.bannerText'>Recibiendo trama por socket y reproduciendo en espejo.</p>
+      </div>
       </div>
 
 
@@ -252,8 +256,11 @@
     const sequenceList = document.getElementById('sequenceList');
     const effectsOut = document.getElementById('effectsOut');
     const effectModeBanner = document.getElementById('effectModeBanner');
+    const syncConnectionBanner = document.getElementById('syncConnectionBanner');
+    const syncConnectionBannerText = document.getElementById('syncConnectionBannerText');
     let effectsState = null;
     let allPalettes = [];
+    let syncConnectionPollHandle = null;
 
     function selectedPaletteId() {
       const raw = Number(paletteIdSelect.value);
@@ -340,6 +347,37 @@
       const fg = isAudio ? '#ffd9de' : '#d8ffe7';
       const label = isAudio ? 'AUDIO' : 'VISUAL';
       return "<span style='display:inline-block; padding:2px 8px; border-radius:999px; background:" + bg + "; color:" + fg + "; font-size:12px; font-weight:700; letter-spacing:0.04em;'>" + label + "</span>";
+    }
+
+    function renderSyncConnectionBanner(payload) {
+      const sync = payload && payload.sync ? payload.sync : {};
+      const connected = !!sync.connected;
+      const role = String(sync.role || 'client');
+      if (!connected || role !== 'client') {
+        syncConnectionBanner.style.display = 'none';
+        return;
+      }
+
+      syncConnectionBanner.style.display = 'block';
+      syncConnectionBannerText.textContent = tx(
+        'home.sync.bannerTextConnected',
+        { ip: sync.sourceIp || '-', packets: sync.packetsReceived == null ? 0 : sync.packetsReceived },
+        'Recibiendo trama por socket desde ' + (sync.sourceIp || '-') + ' y reproduciendo en espejo. Paquetes: ' + (sync.packetsReceived == null ? 0 : sync.packetsReceived)
+      );
+    }
+
+    async function loadSyncConnection() {
+      try {
+        const res = await fetch('/api/v1/sync/connected');
+        if (!res.ok) {
+          syncConnectionBanner.style.display = 'none';
+          return;
+        }
+        const payload = await res.json();
+        renderSyncConnectionBanner(payload);
+      } catch (_) {
+        syncConnectionBanner.style.display = 'none';
+      }
     }
 
     function setRuntimeVisible(visible) {
@@ -678,7 +716,8 @@
     }
 
     setRuntimeVisible(window.matchMedia('(min-width: 761px)').matches);
-    loadPalettes().then(() => Promise.all([loadState(), loadEffectsPersistence()]));
+    loadPalettes().then(() => Promise.all([loadState(), loadEffectsPersistence(), loadSyncConnection()]));
+    syncConnectionPollHandle = window.setInterval(loadSyncConnection, 3000);
   </script>
 </div>
 </body>

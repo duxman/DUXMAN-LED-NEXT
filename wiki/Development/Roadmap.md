@@ -18,7 +18,50 @@
 - Sincronizacion de fase/clock para efectos distribuidos.
 - OTA seguro con estrategia de rollback.
 
-## Plan detallado de sincronizacion (pendiente)
+## Estado de ejecucion (checklist verificable)
+
+Donde estan definidos los sprints de sincronizacion:
+
+- Plan detallado: `wiki/es/Development/Sync-Implementation-Plan.md`
+- Registro de entrega S1-S6: `CHANGELOG.md` (`0.6.3-alpha`)
+
+Checklist de avance:
+
+- [x] S1 - Infra base de sync (configuracion persistente + servicio base + API)
+	- [x] `SyncConfig` persistente integrado en `config.json`.
+	- [x] `SyncService` creado con estado y metrica basica (`packetsReceived`, `packetsDropped`, `sourceAlive`).
+	- [x] Endpoints `GET /api/v1/sync/state`, `GET|PATCH|POST /api/v1/sync/config`, `POST|PATCH /api/v1/sync/mode`.
+	- [x] Integracion en `main.cpp` (`begin()` + `tick()` en control task).
+	- [x] `GET/POST /api/v1/config/all` extendido con seccion `sync`.
+- [x] S2 - DDP ingest MVP (TaskNetIn + parser + doble buffer + fallback por timeout).
+- 	- [x] Listener UDP DDP no bloqueante sobre puerto configurable (`ddpPort`).
+- 	- [x] Parser DDP v1 RGB8 con `offset` + `Push` y soporte de `timecode` ignorado en MVP.
+- 	- [x] Doble buffer de frame con swap al recibir `Push`.
+- 	- [x] Bypass de render local en `mode=ledfx_realtime` con retorno automatico a efectos locales por `sourceTimeoutMs`.
+- 	- [x] Metricas ampliadas: `framesApplied`, `lastFrameAtMs`, `frameBytes`.
+- [x] S3 - Fallback E1.31 (normalizacion al mismo pipeline de render).
+- 	- [x] Listener UDP E1.31 (sACN) no bloqueante en puerto 5568.
+- 	- [x] Parser base de Data Packet para `Multiple RGB` con start code 0.
+- 	- [x] Soporte inicial multi-universo configurable (`e131UniverseStart`, `e131UniverseCount`) con mapeo al buffer comun.
+- 	- [x] Commit de frame por universo completo o timeout corto de ensamblado para evitar stutter.
+- [x] S4 - Cluster maestro-esclavo (SyncState v1 + secuencia monotona + anti-replay).
+- 	- [x] Canal UDP ligero sobre `udpSyncPort` para `SyncState v1` en modo `cluster_sync`.
+- 	- [x] Emision periodica de snapshot completo desde nodo `server` con `sequence` monotona y `groupMask`.
+- 	- [x] Recepcion y aplicacion en nodos `client` con rechazo anti-replay por secuencia.
+- 	- [x] Telemetria base ampliada: `lastSequence`, `syncStateSent`, `syncStateApplied`, `sourceIp`.
+- [x] S5 - Sync de fase/clock para efectos distribuidos.
+- 	- [x] `syncEpochMs` y `phaseOffset` aplicados al reloj global de efectos en nodos `client`.
+- 	- [x] Correccion suave de drift (`clockSmoothing=soft`) con slew progresivo del offset.
+- 	- [x] Telemetria base ampliada: `lastSyncEpochMs` y `clockOffsetMs`.
+- [x] S6 - UI de Sync + observabilidad + hardening.
+	- [x] UI Sync ampliada en `/config/sync` con salud runtime, telemetria y auto-refresh.
+	- [x] Consola `/api/config/sync` ampliada para diagnostico rapido y polling de estado.
+	- [x] Telemetria de hardening: `timeoutEvents`, `pollSaturationEvents`, `inputFps`, `activeProtocol`, `degraded`.
+	- [x] Politica base de degradacion por timeout, saturacion de polling y offset de clock excesivo.
+
+## Plan detallado de sincronizacion
+
+Nota: la implementacion actual de S1-S6 queda pendiente de validacion en hardware real. Ver `wiki/Development/Sync-Test-Plan.md`.
 
 ### Fase S1. Ingesta LedFx por DDP (MVP)
 

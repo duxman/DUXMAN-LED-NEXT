@@ -26,6 +26,9 @@ public:
   virtual void onActivate() {}
   virtual void onDeactivate() {}
 
+  static void resetSynchronizedClock();
+  static void updateSynchronizedClock(uint32_t localNowMs, uint32_t syncEpochMs, float phaseOffsetSec, bool smooth);
+
 protected:
   CoreState &state() const {
     return state_;
@@ -48,6 +51,7 @@ protected:
 
   // Helpers matemáticos para efectos dinámicos.
   static float normalizedX(uint16_t pixelIndex, uint16_t pixelCount);
+  static unsigned long normalizedTimeMs();
   static float normalizedTimeSec();
   static float clamp01(float v);
   static float smoothstep(float edge0, float edge1, float x);

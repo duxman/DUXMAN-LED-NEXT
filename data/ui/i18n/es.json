@@ -12,6 +12,7 @@
     "network": "Network",
     "microphone": "Microphone",
     "gpio": "GPIO",
+    "sync": "Sync",
     "general": "General",
     "manual": "Manual JSON",
     "debug": "Debug",
@@ -55,6 +56,7 @@
       "network": "WiFi, AP/STA, hostname, IP y DNS.",
       "microphone": "Configurar microfono generic_i2c (SD/WS/SCK) y perfil.",
       "gpio": "Pin LED, cantidad, tipo de LED y orden de color.",
+      "sync": "Modo de sincronizacion, protocolo de entrada y puertos DDP/UDP Sync.",
       "profiles": "Guardar, aplicar y fijar perfiles GPIO por defecto.",
       "palettes": "Crear, editar y guardar paletas de colores personalizadas.",
       "debug": "Habilitar debug y ajustar intervalo de heartbeat.",
@@ -346,6 +348,11 @@
       "applyPalette": "Aplicar paleta",
       "applyPaletteSave": "Aplicar y guardar",
       "saveStartup": "Guardar arranque"
+    },
+    "sync": {
+      "bannerTitle": "Sync cliente conectado",
+      "bannerText": "Recibiendo trama por socket y reproduciendo en espejo.",
+      "bannerTextConnected": "Recibiendo trama por socket desde {ip} y reproduciendo en espejo. Paquetes: {packets}"
     },
     "colors": {
       "title": "Seleccion de colores",

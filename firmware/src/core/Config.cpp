@@ -46,6 +46,16 @@ bool isOneOf(const String &value, const char *a, const char *b, const char *c = 
   return c != nullptr && value == c;
 }
 
+String normalizeSyncRoleValue(const String &value) {
+  if (value == "master" || value == "server") {
+    return "server";
+  }
+  if (value == "slave" || value == "client") {
+    return "client";
+  }
+  return value;
+}
+
 bool isValidIpv4(const String &ip) {
   if (ip.isEmpty()) {
     return false;
@@ -1042,7 +1052,7 @@ bool isOneOf4(const String &value, const char *a, const char *b, const char *c, 
 SyncConfig SyncConfig::defaults() {
   SyncConfig config;
   config.mode = "off";
-  config.role = "slave";
+  config.role = "client";
   config.inputProtocol = "ddp";
   config.ddpPort = 4048;
   config.e131UniverseStart = 1;
@@ -1058,7 +1068,8 @@ String SyncConfig::toJson() const {
   JsonDocument doc;
   JsonObject sync = doc["sync"].to<JsonObject>();
   sync["mode"] = mode;
-  sync["role"] = role;
+  sync["enabled"] = mode != "off";
+  sync["role"] = normalizeSyncRoleValue(role);
   sync["inputProtocol"] = inputProtocol;
   sync["ddpPort"] = ddpPort;
   sync["e131UniverseStart"] = e131UniverseStart;
@@ -1080,7 +1091,8 @@ bool SyncConfig::validate(String *error) const {
     return false;
   }
 
-  if (!isOneOf(role, "master", "slave")) {
+  const String normalizedRole = normalizeSyncRoleValue(role);
+  if (!isOneOf(normalizedRole, "server", "client")) {
     if (error != nullptr) {
       *error = "invalid_sync_role";
     }
@@ -1152,8 +1164,11 @@ bool SyncConfig::applyPatchJson(const String &payload, String *error) {
   JsonObjectConst syncObj = root["sync"].isNull() ? root : root["sync"].as<JsonObjectConst>();
 
   SyncConfig candidate = *this;
+  bool enabled = candidate.mode != "off";
+  setBoolIfPresent(syncObj, "enabled", enabled);
   setIfPresent(syncObj, "mode", candidate.mode);
   setIfPresent(syncObj, "role", candidate.role);
+  candidate.role = normalizeSyncRoleValue(candidate.role);
   setIfPresent(syncObj, "inputProtocol", candidate.inputProtocol);
   setUInt16IfPresent(syncObj, "ddpPort", candidate.ddpPort);
   setUInt16IfPresent(syncObj, "e131UniverseStart", candidate.e131UniverseStart);
@@ -1162,6 +1177,12 @@ bool SyncConfig::applyPatchJson(const String &payload, String *error) {
   setUInt8IfPresent(syncObj, "groupMask", candidate.groupMask);
   setUIntIfPresent(syncObj, "sourceTimeoutMs", candidate.sourceTimeoutMs);
   setIfPresent(syncObj, "clockSmoothing", candidate.clockSmoothing);
+
+  if (!enabled) {
+    candidate.mode = "off";
+  } else if (candidate.mode == "off") {
+    candidate.mode = candidate.role == "server" ? "cluster_sync" : "ledfx_realtime";
+  }
 
   String validationError;
   if (!candidate.validate(&validationError)) {

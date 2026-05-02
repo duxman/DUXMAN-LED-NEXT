@@ -1,6 +1,6 @@
 # DUXMAN-LED-NEXT
 
-Firmware modular para control LED en ESP32 (v0.6.2-alpha), con API REST/Serial, UI embebida, perfiles de configuración completos, paletas de usuario y motor de efectos visuales/audio.
+Firmware modular para control LED en ESP32 (v0.6.3-alpha), con API REST/Serial, UI embebida, perfiles de configuración completos, paletas de usuario, sincronización distribuida y motor de efectos visuales/audio.
 
 ## Estado actual
 
@@ -23,6 +23,7 @@ Servicios activos en el arranque:
 - AudioService
 - EffectPersistenceService
 - EffectManager
+- SyncService
 - ApiService
 - WatchdogService
 
@@ -78,6 +79,11 @@ Base HTTP: /api/v1
 - PATCH, POST /config/gpio
 - GET /config/debug
 - PATCH, POST /config/debug
+- GET /sync/state
+- GET /sync/connected
+- GET /sync/config
+- PATCH, POST /sync/config
+- PATCH, POST /sync/mode
 - GET /config/all
 - POST /config/all
 
@@ -124,11 +130,12 @@ Mejoras recientes:
 - `GET /api/v1/config/all` genera el JSON completo con menor pico de memoria.
 - Pipeline de audio afinado para respuesta más en vivo: menor buffering I2S, mayor frecuencia de proceso y menor inercia en peak-hold.
 - Ayuda integrada en la UI embebida con explicacion de pantallas, campos, efectos y flujos rapidos desde `/docs`.
+- Stack de sincronizacion S1-S6 completado: DDP, E1.31, cluster sync, reloj de fase compartido, banner de conexion y telemetria runtime.
 
 Rutas principales:
 
 - /
-- /config, /config/network, /config/microphone, /config/gpio, /config/profiles, /config/palettes, /config/debug, /config/manual
+- /config, /config/network, /config/microphone, /config/gpio, /config/sync, /config/profiles, /config/palettes, /config/debug, /config/manual
 - /api y testers de endpoints
 - /version
 

@@ -2,6 +2,34 @@
 
 Todos los cambios relevantes de este proyecto se documentan en este archivo.
 
+## [0.6.3-alpha] - 2026-05-02
+
+### Added
+- Stack de sincronizacion S1-S6 completado en firmware:
+  - Ingesta realtime LedFx por `DDP` con doble buffer, commit por `Push` y fallback por timeout.
+  - Fallback `E1.31/sACN` multi-universo sobre el mismo pipeline de frame externo.
+  - `cluster_sync` por UDP con `SyncState v1`, secuencia monotona, anti-replay y `groupMask`.
+  - Reloj global sincronizado para efectos distribuidos con `clockSmoothing=soft`.
+- Nueva UI `/config/sync` con configuracion persistente, puertos configurables, estado runtime y auto-refresh.
+- Nueva consola `/api/config/sync` y nuevo endpoint ligero `GET /api/v1/sync/connected`.
+- Banner de conexion sync en Home para nodos `client` con fuente activa.
+- Documento de pruebas manuales para validacion en hardware real: `wiki/Development/Sync-Test-Plan.md`.
+
+### Changed
+- `SyncConfig` normaliza roles legacy `master/slave` a `server/client` y expone `enabled` como semantica de activacion.
+- `main.cpp` integra `SyncService` en el lazo de control y permite bypass del render local cuando existe frame externo valido.
+- `EffectEngine` pasa a soportar reloj sincronizado reutilizable por los efectos que dependen del tiempo.
+- Navegacion, indice de configuracion, home y textos i18n actualizados para descubrir y operar la nueva capa Sync.
+- Metadata de release y documentacion principal alineadas con la entrega real S1-S6.
+
+### Documentation
+- Roadmaps de desarrollo actualizados con checklist verificable S1-S6 completado.
+- README y release metadata ampliados para reflejar la arquitectura de sincronizacion, rutas API/UI y limitaciones actuales.
+
+### Validation
+- Compilacion verificada en `esp32dev` tras integrar S6.
+- Validacion funcional en hardware real aun pendiente; ver `wiki/Development/Sync-Test-Plan.md`.
+
 ## [0.6.2-alpha] - 2026-05-03
 
 ### Added

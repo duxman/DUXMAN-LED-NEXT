@@ -185,7 +185,7 @@ void EffectAudioSpectrum::renderFrame() {
 
       if (!led.supportsPerPixelColor(o)) {
         // Sin per-píxel: alterna color por beat/sección.
-        const uint8_t bi = static_cast<uint8_t>((millis() / 300UL) % 3);
+        const uint8_t bi = static_cast<uint8_t>((normalizedTimeMs() / 300UL) % 3);
         led.setOutputColor(o, scaleColorFloat(cols[bi], bands[bi] * brightness));
         continue;
       }

@@ -42,7 +42,7 @@ ProfileService profileService(networkConfig, gpioConfig, microphoneConfig, debug
 UserPaletteService userPaletteService(persistenceSchedulerService);
 WifiService wifiService(networkConfig, debugConfig);
 WatchdogService watchdogService;
-SyncService syncService(syncConfig);
+SyncService syncService(syncConfig, gpioConfig);
 AudioService audioService(microphoneConfig, state, debugConfig);
 ApiService apiService(state, networkConfig, gpioConfig, microphoneConfig, debugConfig, syncConfig, storageService, wifiService,
                       persistenceSchedulerService,
@@ -81,7 +81,7 @@ void controlTask(void *parameter) {
     persistenceSchedulerService.processPending();
 
     const unsigned long now = millis();
-    syncService.tick(now);
+    syncService.tick(now, state);
     effectPersistenceService.handle(now);
     const unsigned long heartbeatIntervalMs = debugConfig.heartbeatMs;
     if (heartbeatIntervalMs > 0 && now - lastHeartbeatAtMs >= heartbeatIntervalMs) {
@@ -100,7 +100,10 @@ void renderTask(void *parameter) {
 
   while (true) {
     watchdogService.feed();  // Reset watchdog timer
-    effectManager.renderFrame();
+    const CoreState stateSnapshot = state.snapshot();
+    if (!syncService.renderExternalFrame(ledDriver, stateSnapshot)) {
+      effectManager.renderFrame();
+    }
     vTaskDelayUntil(&lastWake, kRenderIntervalTicks);
   }
 }
@@ -201,7 +204,11 @@ void loop() {
 
   apiService.handle();
   wifiService.handle();
+  syncService.tick(millis(), state);
   effectPersistenceService.handle(millis());
-  effectManager.renderFrame();
+  const CoreState stateSnapshot = state.snapshot();
+  if (!syncService.renderExternalFrame(ledDriver, stateSnapshot)) {
+    effectManager.renderFrame();
+  }
   delay(16);
 }

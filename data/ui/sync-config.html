@@ -1,0 +1,357 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset='utf-8'>
+  <meta name='viewport' content='width=device-width,initial-scale=1'>
+  <title>DUXMAN Sync Config</title>
+  __CSS__
+</head>
+<body>
+<div class='gen-page-outer'>
+<script>
+  (function() {
+    try {
+      var request = new XMLHttpRequest();
+      request.open('GET', '/ui/nav.html?v=20260502', false);
+      request.send(null);
+      if (request.status >= 200 && request.status < 300 && request.responseText) {
+        document.write(request.responseText);
+        return;
+      }
+    } catch (_) {}
+    document.write("<nav class='gen-nav' style='padding:12px 16px;'>Navigation unavailable</nav>");
+  })();
+</script>
+  <main>
+    <div class='card'>
+      <h1>Configuracion Sync</h1>
+      <p class='hint'>Control de sincronizacion externa y cluster. Incluye puertos configurables para DDP y UDP Sync.</p>
+      <div class='actions'>
+        <button class='btn alt' onclick='loadConfigAndState()'>Recargar</button>
+        <button class='btn' onclick='saveConfig()'>Guardar Configuracion</button>
+      </div>
+      <p id='status' class='status-live' aria-live='polite'></p>
+    </div>
+
+    <div class='card'>
+      <h2>Activacion y rol</h2>
+      <div class='row'>
+        <div class='col field'>
+          <label for='enabled'>Sync activada</label>
+          <select id='enabled'>
+            <option value='false'>false</option>
+            <option value='true'>true</option>
+          </select>
+        </div>
+        <div class='col field'>
+          <label for='role'>Rol</label>
+          <select id='role'>
+            <option value='client'>client</option>
+            <option value='server'>server</option>
+          </select>
+        </div>
+        <div class='col field'>
+          <label for='inputProtocol'>Protocolo de entrada</label>
+          <select id='inputProtocol'>
+            <option value='ddp'>ddp</option>
+            <option value='e131'>e131</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class='card'>
+      <h2>Puertos y Timeouts</h2>
+      <div class='row'>
+        <div class='col field'>
+          <label for='ddpPort'>Puerto DDP</label>
+          <input id='ddpPort' type='number' min='1' max='65535' step='1'>
+        </div>
+        <div class='col field'>
+          <label for='udpSyncPort'>Puerto UDP Sync</label>
+          <input id='udpSyncPort' type='number' min='1' max='65535' step='1'>
+        </div>
+        <div class='col field'>
+          <label for='sourceTimeoutMs'>Timeout fuente (ms)</label>
+          <input id='sourceTimeoutMs' type='number' min='100' max='30000' step='50'>
+        </div>
+      </div>
+      <div class='row'>
+        <div class='col field'>
+          <label for='groupMask'>Group mask</label>
+          <input id='groupMask' type='number' min='1' max='255' step='1'>
+        </div>
+        <div class='col field'>
+          <label for='clockSmoothing'>Clock smoothing</label>
+          <select id='clockSmoothing'>
+            <option value='off'>off</option>
+            <option value='soft'>soft</option>
+          </select>
+        </div>
+        <div class='col field'>
+          <label for='e131UniverseStart'>E1.31 universe start</label>
+          <input id='e131UniverseStart' type='number' min='1' max='63999' step='1'>
+        </div>
+      </div>
+      <div class='row'>
+        <div class='col field'>
+          <label for='e131UniverseCount'>E1.31 universe count</label>
+          <input id='e131UniverseCount' type='number' min='1' max='9' step='1'>
+        </div>
+      </div>
+    </div>
+
+    <div class='card'>
+      <h2>Estado runtime</h2>
+      <div class='row'>
+        <div class='col field'>
+          <label>Health</label>
+          <input id='stateHealth' type='text' readonly>
+        </div>
+        <div class='col field'>
+          <label>Protocol activo</label>
+          <input id='stateActiveProtocol' type='text' readonly>
+        </div>
+        <div class='col field'>
+          <label>Source alive</label>
+          <input id='stateSourceAlive' type='text' readonly>
+        </div>
+        <div class='col field'>
+          <label>Source IP</label>
+          <input id='stateSourceIp' type='text' readonly>
+        </div>
+      </div>
+      <div class='row'>
+        <div class='col field'>
+          <label>Packets received</label>
+          <input id='statePacketsReceived' type='text' readonly>
+        </div>
+        <div class='col field'>
+          <label>Packets dropped</label>
+          <input id='statePacketsDropped' type='text' readonly>
+        </div>
+        <div class='col field'>
+          <label>Input FPS</label>
+          <input id='stateInputFps' type='text' readonly>
+        </div>
+      </div>
+      <div class='row'>
+        <div class='col field'>
+          <label>Frames applied</label>
+          <input id='stateFramesApplied' type='text' readonly>
+        </div>
+        <div class='col field'>
+          <label>Last sequence</label>
+          <input id='stateLastSequence' type='text' readonly>
+        </div>
+        <div class='col field'>
+          <label>Clock offset (ms)</label>
+          <input id='stateClockOffsetMs' type='text' readonly>
+        </div>
+      </div>
+      <div class='row'>
+        <div class='col field'>
+          <label>Last sync epoch</label>
+          <input id='stateLastSyncEpochMs' type='text' readonly>
+        </div>
+        <div class='col field'>
+          <label>Timeout events</label>
+          <input id='stateTimeoutEvents' type='text' readonly>
+        </div>
+        <div class='col field'>
+          <label>Poll saturation</label>
+          <input id='statePollSaturationEvents' type='text' readonly>
+        </div>
+      </div>
+      <div class='row'>
+        <div class='col field'>
+          <label>Sync sent</label>
+          <input id='stateSyncStateSent' type='text' readonly>
+        </div>
+        <div class='col field'>
+          <label>Sync applied</label>
+          <input id='stateSyncStateApplied' type='text' readonly>
+        </div>
+        <div class='col field'>
+          <label>Auto refresh</label>
+          <select id='autoRefreshInterval'>
+            <option value='0'>off</option>
+            <option value='2000'>2s</option>
+            <option value='5000' selected>5s</option>
+            <option value='10000'>10s</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class='card json-card'>
+      <h2>Payload / Respuesta</h2>
+      <h3>Payload enviado</h3>
+      <pre id='payloadOut'>{}</pre>
+      <h3>Respuesta API</h3>
+      <pre id='resultOut'>Sin llamadas aun.</pre>
+      <h3>Estado Sync</h3>
+      <pre id='stateOut'>Sin llamadas aun.</pre>
+    </div>
+  </main>
+
+  <script>
+    if(localStorage.getItem('dux_show_json')==='1') document.body.classList.add('show-json');
+
+    function byId(id) { return document.getElementById(id); }
+
+    function setStatus(message, isError) {
+      var el = byId('status');
+      if (window.duxUpdateStatus) {
+        window.duxUpdateStatus(el, message, !!isError);
+        return;
+      }
+      el.textContent = message || '';
+    }
+
+    function setValue(id, value) {
+      byId(id).value = value == null ? '' : String(value);
+    }
+
+    function fillFromConfig(payload) {
+      var sync = payload && payload.sync ? payload.sync : {};
+      setValue('enabled', String(!!sync.enabled));
+      setValue('role', sync.role || 'client');
+      setValue('inputProtocol', sync.inputProtocol || 'ddp');
+      setValue('ddpPort', sync.ddpPort == null ? 4048 : sync.ddpPort);
+      setValue('udpSyncPort', sync.udpSyncPort == null ? 21324 : sync.udpSyncPort);
+      setValue('sourceTimeoutMs', sync.sourceTimeoutMs == null ? 1500 : sync.sourceTimeoutMs);
+      setValue('groupMask', sync.groupMask == null ? 1 : sync.groupMask);
+      setValue('clockSmoothing', sync.clockSmoothing || 'soft');
+      setValue('e131UniverseStart', sync.e131UniverseStart == null ? 1 : sync.e131UniverseStart);
+      setValue('e131UniverseCount', sync.e131UniverseCount == null ? 1 : sync.e131UniverseCount);
+    }
+
+    function fillState(payload) {
+      var sync = payload && payload.sync ? payload.sync : {};
+      var stats = sync.stats || {};
+      setValue('stateHealth', sync.degraded ? 'degraded' : 'ok');
+      setValue('stateActiveProtocol', sync.activeProtocol || '-');
+      setValue('stateSourceAlive', sync.connected ? 'connected' : (stats.sourceAlive ? 'true' : 'false'));
+      setValue('stateSourceIp', stats.sourceIp || '-');
+      setValue('statePacketsReceived', stats.packetsReceived == null ? 0 : stats.packetsReceived);
+      setValue('statePacketsDropped', stats.packetsDropped == null ? 0 : stats.packetsDropped);
+      setValue('stateInputFps', stats.inputFps == null ? 0 : stats.inputFps);
+      setValue('stateFramesApplied', stats.framesApplied == null ? 0 : stats.framesApplied);
+      setValue('stateLastSequence', stats.lastSequence == null ? 0 : stats.lastSequence);
+      setValue('stateClockOffsetMs', stats.clockOffsetMs == null ? 0 : stats.clockOffsetMs);
+      setValue('stateLastSyncEpochMs', stats.lastSyncEpochMs == null ? 0 : stats.lastSyncEpochMs);
+      setValue('stateTimeoutEvents', stats.timeoutEvents == null ? 0 : stats.timeoutEvents);
+      setValue('statePollSaturationEvents', stats.pollSaturationEvents == null ? 0 : stats.pollSaturationEvents);
+      setValue('stateSyncStateSent', stats.syncStateSent == null ? 0 : stats.syncStateSent);
+      setValue('stateSyncStateApplied', stats.syncStateApplied == null ? 0 : stats.syncStateApplied);
+    }
+
+    var autoRefreshTimer = 0;
+
+    function updateAutoRefresh() {
+      if (autoRefreshTimer) {
+        clearInterval(autoRefreshTimer);
+        autoRefreshTimer = 0;
+      }
+      var interval = Number(byId('autoRefreshInterval').value || 0);
+      if (interval > 0) {
+        autoRefreshTimer = setInterval(loadState, interval);
+      }
+    }
+
+    function readPayload() {
+      var enabled = byId('enabled').value === 'true';
+      var role = byId('role').value;
+      return {
+        sync: {
+          enabled: enabled,
+          mode: enabled ? (role === 'server' ? 'cluster_sync' : 'ledfx_realtime') : 'off',
+          role: role,
+          inputProtocol: byId('inputProtocol').value,
+          ddpPort: Number(byId('ddpPort').value || 0),
+          udpSyncPort: Number(byId('udpSyncPort').value || 0),
+          sourceTimeoutMs: Number(byId('sourceTimeoutMs').value || 0),
+          groupMask: Number(byId('groupMask').value || 0),
+          clockSmoothing: byId('clockSmoothing').value,
+          e131UniverseStart: Number(byId('e131UniverseStart').value || 0),
+          e131UniverseCount: Number(byId('e131UniverseCount').value || 0)
+        }
+      };
+    }
+
+    async function loadConfig() {
+      const res = await fetch('/api/v1/sync/config');
+      const text = await res.text();
+      var parsed;
+      try {
+        parsed = JSON.parse(text);
+      } catch (_) {
+        throw new Error('Respuesta invalida en /api/v1/sync/config');
+      }
+      fillFromConfig(parsed);
+      byId('resultOut').textContent = JSON.stringify(parsed, null, 2);
+      return res.status;
+    }
+
+    async function loadState() {
+      const res = await fetch('/api/v1/sync/state');
+      const text = await res.text();
+      var parsed;
+      try {
+        parsed = JSON.parse(text);
+      } catch (_) {
+        throw new Error('Respuesta invalida en /api/v1/sync/state');
+      }
+      fillState(parsed);
+      byId('stateOut').textContent = JSON.stringify(parsed, null, 2);
+      return res.status;
+    }
+
+    async function loadConfigAndState() {
+      setStatus('Leyendo configuracion sync...', false);
+      try {
+        const statusConfig = await loadConfig();
+        const statusState = await loadState();
+        setStatus('Sync cargado (cfg HTTP ' + statusConfig + ', state HTTP ' + statusState + ').', false);
+      } catch (error) {
+        byId('resultOut').textContent = String(error);
+        setStatus('Error leyendo configuracion sync.', true);
+      }
+    }
+
+    async function saveConfig() {
+      var payload = readPayload();
+      byId('payloadOut').textContent = JSON.stringify(payload, null, 2);
+      setStatus('Guardando configuracion sync...', false);
+      try {
+        const res = await fetch('/api/v1/sync/config', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const text = await res.text();
+        var pretty = text;
+        try { pretty = JSON.stringify(JSON.parse(text), null, 2); } catch (_) {}
+        byId('resultOut').textContent = pretty;
+
+        if (!res.ok) {
+          setStatus('Error guardando sync (HTTP ' + res.status + ').', true);
+          return;
+        }
+
+        await loadState();
+        setStatus('Sync guardado (HTTP ' + res.status + ').', false);
+      } catch (error) {
+        byId('resultOut').textContent = String(error);
+        setStatus('Error de red guardando sync.', true);
+      }
+    }
+
+    byId('autoRefreshInterval').addEventListener('change', updateAutoRefresh);
+    loadConfigAndState();
+    updateAutoRefresh();
+  </script>
+</div>
+</body>
+</html>
