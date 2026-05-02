@@ -10,7 +10,7 @@ No implica trabajo adicional de desarrollo; sirve para verificar en un momento p
 - S1: base de configuracion, API y metricas de sync.
 - S2: ingesta DDP con doble buffer y fallback por timeout.
 - S3: fallback E1.31 con normalizacion al mismo pipeline de render.
-- S4: cluster maestro-esclavo con `SyncState v1`, `sequence` monotona y anti-replay.
+- S4: cluster `server/client` con `SyncState v1`, `sequence` monotona y anti-replay.
 - S5: sincronizacion de fase y clock para efectos periodicos soportados por el reloj global.
 - S6: observabilidad de sync y hardening basico ante timeout, saturacion y drift excesivo.
 
@@ -27,7 +27,7 @@ No implica trabajo adicional de desarrollo; sirve para verificar en un momento p
 - Misma red WiFi.
 - Tira LED o carga equivalente.
 
-### Topologia B - Maestro y esclavo
+### Topologia B - Server y client
 
 - 2 controladores ESP32.
 - 1 configurado como `server`.
@@ -35,7 +35,7 @@ No implica trabajo adicional de desarrollo; sirve para verificar en un momento p
 - Misma red WiFi.
 - 1 tira LED por nodo.
 
-### Topologia C - Maestro y dos esclavos
+### Topologia C - Server y dos clients
 
 - 3 controladores ESP32.
 - 1 `server` y 2 `client`.
@@ -71,10 +71,121 @@ No implica trabajo adicional de desarrollo; sirve para verificar en un momento p
 - [ ] `GET /api/v1/sync/connected` cambia de estado cuando hay trafico real.
 - [ ] DDP renderiza sin bloquear el efecto local al perder fuente.
 - [ ] E1.31 renderiza con salida equivalente a DDP para el mismo patron base.
-- [ ] Cluster sync replica estado del maestro en esclavos.
+- [ ] Cluster sync replica estado del `server` en nodos `client`.
 - [ ] Paquetes fuera de orden no pisan el estado actual del esclavo.
 - [ ] Los efectos periodicos soportados no muestran desfase visible sostenido entre nodos.
 - [ ] La UI y la consola API reflejan salud y degradacion reales del sistema.
+
+## Orden recomendado de ejecucion
+
+Objetivo: validar primero lo que desbloquea mas superficie funcional con el menor numero de dispositivos y con la menor ambiguedad de diagnostico.
+
+### Bloque 1 - Smoke test de un solo nodo
+
+Ejecutar en este orden:
+
+1. `P1 - Persistencia de configuracion sync`
+2. `P2 - DDP continuo`
+3. `P3 - Fallback DDP por timeout`
+4. `P13 - Observabilidad UI/API`
+
+Salida esperada del bloque:
+
+- El dispositivo guarda y recupera configuracion sync.
+- El pipeline DDP funciona de forma estable.
+- El fallback a render local es determinista.
+- La telemetria base expone estado coherente.
+
+Si este bloque falla:
+
+- No continuar con cluster ni con E1.31 hasta corregirlo.
+- Guardar siempre captura de `/api/v1/sync/state` antes y despues del fallo.
+
+### Bloque 2 - Compatibilidad de protocolo externo
+
+Ejecutar en este orden:
+
+1. `P4 - E1.31 un universo`
+2. `P5 - E1.31 multi-universo`
+3. `P6 - Equivalencia DDP vs E1.31`
+
+Salida esperada del bloque:
+
+- El pipeline externo funciona con DDP y E1.31.
+- La union entre universos no introduce artefactos visibles.
+- La salida base es suficientemente equivalente entre ambos protocolos.
+
+Si este bloque falla:
+
+- Etiquetar claramente si el fallo es de parser, ensamblado o mapeo de color.
+- No atribuir fallos de cluster o clock a E1.31 hasta tener este bloque estable.
+
+### Bloque 3 - Cluster logico
+
+Ejecutar en este orden:
+
+1. `P7 - Cluster server -> client`
+2. `P9 - Group mask`
+3. `P10 - Reconexion del esclavo`
+4. `P8 - Anti-replay en cluster`
+
+Salida esperada del bloque:
+
+- El `server` replica estado en `client` sin inconsistencias.
+- El filtrado por grupo funciona.
+- La resincronizacion tras reconexion es limpia.
+- Tramas viejas no pisan el estado nuevo.
+
+Si este bloque falla:
+
+- Registrar `lastSequence`, `syncStateSent`, `syncStateApplied`, `sourceIp` y `packetsDropped`.
+- No pasar a validacion de fase hasta tener sincronizacion logica estable.
+
+### Bloque 4 - Fase y clock distribuido
+
+Ejecutar en este orden:
+
+1. `P11 - Sync de fase en efectos periodicos`
+2. `P12 - Recuperacion de clock tras perdida temporal`
+
+Salida esperada del bloque:
+
+- No hay drift visible sostenido.
+- La correccion de fase no introduce saltos bruscos.
+- `clockOffsetMs` converge o se mantiene acotado.
+
+Si este bloque falla:
+
+- Registrar efecto usado, duracion, `clockOffsetMs`, `lastSyncEpochMs` y comportamiento visual.
+- Repetir con al menos dos efectos distintos antes de concluir que el problema es global.
+
+### Bloque 5 - Hardening y resiliencia
+
+Ejecutar en este orden:
+
+1. `P14 - Degradacion por timeout`
+2. `P15 - Saturacion de polling`
+3. Repetir `P2`, `P7` y `P11` en una sesion continua de 20-30 minutos si el tiempo lo permite.
+
+Salida esperada del bloque:
+
+- La degradacion es observable y coherente.
+- El firmware no se bloquea ante trafico alto o perdida de fuente.
+- No aparecen regresiones tras varios minutos de funcionamiento.
+
+## Duracion minima recomendada
+
+- Validacion minima util: Bloques 1 a 3.
+- Validacion recomendada para cerrar sync: Bloques 1 a 5 completos.
+- Validacion rapida si solo tienes una sesion corta:
+  1. `P1`
+  2. `P2`
+  3. `P3`
+  4. `P4`
+  5. `P7`
+  6. `P11`
+  7. `P13`
+  8. `P14`
 
 ## Casos de prueba
 
@@ -227,7 +338,7 @@ Pasos:
 
 Esperado:
 
-- B sigue al maestro.
+- B sigue al `server`.
 - C ignora los cambios.
 
 ### P10 - Reconexion del esclavo
@@ -237,12 +348,12 @@ Objetivo: validar resincronizacion en caliente.
 Pasos:
 
 1. Con cluster operativo, apagar o aislar el cliente de la red.
-2. Cambiar varios parametros en el maestro.
+2. Cambiar varios parametros en el `server`.
 3. Reincorporar el cliente.
 
 Esperado:
 
-- El cliente vuelve a alinearse con el snapshot emitido por el maestro.
+- El cliente vuelve a alinearse con el snapshot emitido por el `server`.
 - No requiere reinicio manual adicional del firmware.
 
 ### P11 - Sync de fase en efectos periodicos
@@ -252,7 +363,7 @@ Objetivo: validar S5 sobre efectos que usan el reloj global sincronizado.
 Pasos:
 
 1. Preparar un nodo `server` y un nodo `client` en `mode=cluster_sync`.
-2. Seleccionar en el maestro un efecto periodico soportado por reloj global, por ejemplo `breath_fixed`, `breath_gradient`, `triple_chase`, `gradient_meteor`, `scanning_pulse`, `lava_flow` o `polar_ice`.
+2. Seleccionar en el `server` un efecto periodico soportado por reloj global, por ejemplo `breath_fixed`, `breath_gradient`, `triple_chase`, `gradient_meteor`, `scanning_pulse`, `lava_flow` o `polar_ice`.
 3. Ajustar `clockSmoothing=soft` en el cliente.
 4. Observar ambos nodos durante al menos 2 minutos.
 5. Consultar `/api/v1/sync/state` en el cliente y anotar `lastSyncEpochMs` y `clockOffsetMs`.
@@ -335,6 +446,42 @@ Esperado:
 - El cluster replica el estado logico sin drift visible entre nodos para cambios discretos.
 - Los efectos periodicos soportados mantienen fase visual alineada de forma sostenida.
 - La observabilidad expone degradacion y salud de forma coherente para diagnostico.
+
+## Checklist de cierre de sync
+
+Usar esta lista solo cuando quieras decidir si la funcionalidad puede darse por cerrada a nivel de hardware.
+
+### Cierre funcional minimo
+
+- [ ] `P1` completada en al menos una board objetivo.
+- [ ] `P2` y `P3` completadas con DDP real y fallback correcto.
+- [ ] `P4` completada con E1.31 en un universo.
+- [ ] `P7` completada con dos nodos.
+- [ ] `P11` completada con al menos un efecto periodico soportado.
+- [ ] `P13` completada y consistente con la salida visual.
+- [ ] `P14` completada con `timeoutEvents` y `degraded` observables.
+
+### Cierre recomendado
+
+- [ ] `P5` completada para multi-universo E1.31 si el hardware lo requiere.
+- [ ] `P8`, `P9` y `P10` completadas en cluster.
+- [ ] `P12` completada sin saltos visuales bruscos.
+- [ ] `P15` completada o sustituida por una rafaga de trafico razonablemente agresiva.
+- [ ] Sesion continua de al menos 20 minutos sin reinicio espontaneo ni cuelgue.
+
+### Evidencias que deberian quedar guardadas
+
+- [ ] Captura de `/api/v1/sync/state` para DDP estable.
+- [ ] Captura de `/api/v1/sync/state` para cluster estable.
+- [ ] Captura de `/api/v1/sync/state` durante degradacion por timeout.
+- [ ] Nota de board, backend LED, numero de LEDs y topologia usada.
+- [ ] Lista breve de incidencias observadas, aunque no bloqueen el cierre.
+
+### Regla de decision final
+
+- Declarar sync como validado si el cierre funcional minimo esta completo y no hay bloqueos, reinicios espontaneos ni desalineacion grave persistente.
+- Declarar sync como validado con observaciones si el cierre recomendado no esta completo pero los riesgos restantes estan acotados y documentados.
+- No declarar sync como cerrado si fallan `P2`, `P3`, `P7`, `P11` o `P14`, porque cubren el nucleo del comportamiento esperado.
 
 ## Incidencias a vigilar
 

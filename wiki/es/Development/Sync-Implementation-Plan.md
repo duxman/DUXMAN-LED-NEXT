@@ -2,6 +2,8 @@
 
 Este documento consolida la documentacion historica del proyecto sobre sincronizacion y la convierte en un plan de implementacion ejecutable para firmware, API y UI.
 
+Nota de estado: la implementacion S1-S6 ya fue entregada en `0.6.3-alpha`. Este documento se conserva como referencia de diseo y plan original; lo pendiente a partir de aqui es validacion en hardware real y endurecimiento posterior.
+
 ## Fuentes localizadas en el repositorio
 
 - `wiki/Archive/docs-referencia-legacy/protocols/ddp/ddp.txt`
@@ -19,7 +21,7 @@ Este documento consolida la documentacion historica del proyecto sobre sincroniz
 2. Fallback de compatibilidad: E1.31 (sACN).
 3. Sincronizacion entre nodos debe evitar bloqueo del render y tolerar perdida UDP.
 4. Debe existir retorno automatico a efectos locales al perder fuente externa.
-5. Para sincronizacion entre equipos, separar claramente envio y recepcion (rol maestro/esclavo).
+5. Para sincronizacion entre equipos, separar claramente envio y recepcion (rol `server/client`).
 6. Para despliegues reales, exponer diagnostico de salud y telemetria en UI/API.
 
 ## Objetivo tecnico
@@ -28,7 +30,7 @@ Permitir tres modos robustos y conmutables en caliente:
 
 - `local_effects`: el controlador renderiza efectos internos.
 - `ledfx_realtime`: el controlador renderiza tramas externas (DDP o E1.31).
-- `cluster_sync`: sincronizacion maestro-esclavo del estado logico de efecto (no solo pixeles).
+- `cluster_sync`: sincronizacion `server/client` del estado logico de efecto (no solo pixeles).
 
 ## Arquitectura objetivo
 
@@ -54,7 +56,7 @@ Agregar bloque `sync` en configuracion:
 {
   "sync": {
     "mode": "off",
-    "role": "slave",
+    "role": "client",
     "inputProtocol": "ddp",
     "ddpPort": 4048,
     "e131UniverseStart": 1,
@@ -70,7 +72,7 @@ Agregar bloque `sync` en configuracion:
 Valores permitidos:
 
 - `mode`: `off | local_effects | ledfx_realtime | cluster_sync`
-- `role`: `master | slave`
+- `role`: `server | client` (aceptando aliases legacy `master | slave`)
 - `inputProtocol`: `ddp | e131`
 
 ## Contrato SyncState v1 (cluster)
@@ -102,7 +104,7 @@ Reglas:
 - `sequence` monotona ascendente por emisor.
 - Paquetes con secuencia atrasada se descartan.
 - `syncEpochMs` y `phaseOffset` solo aplican en efectos temporales.
-- Si expira timeout, esclavo vuelve a `local_effects` o estado configurado.
+- Si expira timeout, el cliente vuelve a `local_effects` o al estado configurado.
 
 ## Plan por fases (ejecucion)
 
@@ -165,15 +167,15 @@ Criterio de salida:
 
 - Misma salida visual base en DDP y E1.31 para un mismo patron.
 
-## Fase P4. Cluster maestro-esclavo (SyncState v1)
+## Fase P4. Cluster server-client (SyncState v1)
 
 Objetivo: sincronizar estado logico entre nodos.
 
 Firmware:
 
-- Emision periodica de SyncState desde maestro.
-- Recepcion/aplicacion en esclavos con anti-replay por secuencia.
-- Re-snapshot completo al reconectar esclavo.
+- Emision periodica de SyncState desde `server`.
+- Recepcion/aplicacion en nodos `client` con anti-replay por secuencia.
+- Re-snapshot completo al reconectar un `client`.
 
 API/UI:
 
@@ -295,15 +297,15 @@ DoD sprint:
 - Conmutacion `ddp <-> e131` sin recompilar.
 - Salida visual equivalente para patrones de prueba.
 
-### Sprint S4 (cluster maestro-esclavo SyncState v1)
+### Sprint S4 (cluster server-client SyncState v1)
 
 Objetivo: sincronizar estado logico entre controladores.
 
 Tareas firmware:
 
 - `firmware/src/services/ClusterSyncService.h` (nuevo) y `firmware/src/services/ClusterSyncService.cpp` (nuevo):
-  - Emision UDP de `SyncState v1` (master).
-  - Recepcion/aplicacion con anti-replay por `sequence` (slave).
+  - Emision UDP de `SyncState v1` (`server`).
+  - Recepcion/aplicacion con anti-replay por `sequence` (`client`).
   - Re-snapshot al reconectar.
 - `firmware/src/core/CoreState.*`:
   - Mapeo completo de estado sincronizable (effectId, params, power, brillo, paleta).
@@ -381,7 +383,7 @@ Pruebas funcionales:
 
 - Conmutar `local_effects -> ledfx_realtime -> local_effects`.
 - Conmutar protocolo `ddp <-> e131`.
-- Maestro/esclavo con arranque en frio y reconexion en caliente.
+- Topologia `server/client` con arranque en frio y reconexion en caliente.
 
 Pruebas de resiliencia:
 

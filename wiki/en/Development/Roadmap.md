@@ -13,9 +13,8 @@
 
 ## Siguientes fases
 
-- Integracion LedFx realtime (DDP preferente, E1.31 fallback).
-- Sincronizacion entre dispositivos (SyncState v1, secuencia monotona).
-- Sincronizacion de fase/clock para efectos distribuidos.
+- Real hardware validation of the S1-S6 sync stack.
+- Resilience runs with jitter, moderate packet loss and longer multi-device sessions.
 - OTA seguro con estrategia de rollback.
 
 ## Estado de ejecucion (checklist verificable)
