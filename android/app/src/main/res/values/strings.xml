@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">DUXMAN LED Next</string>
+
+    <!-- Status labels -->
+    <string name="status_online">En línea</string>
+    <string name="status_offline">Fuera de línea</string>
+    <string name="status_unknown">Comprobando…</string>
+
+    <!-- Empty state -->
+    <string name="empty_controllers">No hay controladores.\nPulsa ＋ para añadir uno.</string>
+
+    <!-- FAB -->
+    <string name="fab_add_description">Añadir controlador</string>
+
+    <!-- Dialogs -->
+    <string name="dialog_add_title">Añadir controlador</string>
+    <string name="dialog_delete_title">Eliminar controlador</string>
+    <string name="dialog_delete_message">¿Eliminar «%1$s»?</string>
+
+    <!-- Hints -->
+    <string name="hint_controller_name">Nombre (p.ej. Salón)</string>
+    <string name="hint_controller_ip">IP o hostname (p.ej. 192.168.1.100)</string>
+
+    <!-- Actions -->
+    <string name="action_add">Añadir</string>
+    <string name="action_cancel">Cancelar</string>
+    <string name="action_delete">Eliminar</string>
+    <string name="action_refresh">Actualizar</string>
+</resources>
