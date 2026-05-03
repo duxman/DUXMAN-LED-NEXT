@@ -1,0 +1,52 @@
+﻿
+<!doctype html>
+<html>
+<head>
+  <meta charset='utf-8'>
+  <meta name='viewport' content='width=device-width,initial-scale=1'>
+  <title>DUXMAN API - Config GPIO</title>
+  __CSS__
+</head>
+<body>
+<div class='gen-page-outer'>
+<script>
+  (function() {
+    try {
+      var request = new XMLHttpRequest();
+      request.open('GET', '/ui/nav.html?v=20260502', false);
+      request.send(null);
+      if (request.status >= 200 && request.status < 300 && request.responseText) {
+        document.write(request.responseText);
+        return;
+      }
+    } catch (_) {}
+    document.write("<nav class='gen-nav' style='padding:12px 16px;'>Navigation unavailable</nav>");
+  })();
+</script>
+  <main>
+    <div class='card'>
+      <h1>API Config GPIO</h1>
+      <button onclick='getCfg()'>GET /api/v1/config/gpio</button>
+      <button onclick='patchCfg()'>PATCH /api/v1/config/gpio</button>
+      <textarea id='payload'>{"gpio":{"powerLimit":{"enabled":true,"maxCurrentmA":2500,"milliAmpsPerLed":60},"outputs":[{"pin":8,"ledCount":60,"ledType":"ws2812b","colorOrder":"GRB"}]}}</textarea>
+    </div>
+    <div class='card'><pre id='out'>Sin llamadas aun.</pre></div>
+  </main>
+  <script>
+    async function callApi(method, body) {
+      const options = { method, headers: { 'Content-Type': 'application/json' } };
+      if (body) options.body = body;
+      const res = await fetch('/api/v1/config/gpio', options);
+      const text = await res.text();
+      let parsed = text;
+      try { parsed = JSON.stringify(JSON.parse(text), null, 2); } catch (_) {}
+      document.getElementById('out').textContent = method + ' /api/v1/config/gpio -> HTTP ' + res.status + '\n\n' + parsed;
+    }
+    function getCfg() { callApi('GET'); }
+    function patchCfg() { callApi('PATCH', document.getElementById('payload').value); }
+    getCfg();
+  </script>
+</div>
+</body>
+</html>
+

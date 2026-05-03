@@ -1,0 +1,279 @@
+﻿
+<!doctype html>
+<html>
+<head>
+  <meta charset='utf-8'>
+  <meta name='viewport' content='width=device-width,initial-scale=1'>
+  <title>DUXMAN Perfiles</title>
+  __CSS__
+</head>
+<body>
+<div class='gen-page-outer'>
+<script>
+  (function() {
+    try {
+      var request = new XMLHttpRequest();
+      request.open('GET', '/ui/nav.html?v=20260502', false);
+      request.send(null);
+      if (request.status >= 200 && request.status < 300 && request.responseText) {
+        document.write(request.responseText);
+        return;
+      }
+    } catch (_) {}
+    document.write("<nav class='gen-nav' style='padding:12px 16px;'>Navigation unavailable</nav>");
+  })();
+</script>
+<main>
+  <div class='card'>
+    <h1 style='margin:0 0 6px' data-i18n='profilesConfig.title'>Perfiles de Configuracion</h1>
+    <p class='hint' data-i18n='profilesConfig.hint'>Un perfil guarda toda la configuracion del dispositivo: red Wi-Fi, GPIO, microfono y debug. El perfil <strong>default</strong> siempre refleja la configuracion activa en el dispositivo.</p>
+    <div class='actions'>
+      <button class='btn alt' onclick='loadProfiles()' data-i18n='profilesConfig.actions.refresh'>&#8635; Actualizar lista</button>
+    </div>
+    <p id='status' class='status-live' aria-live='polite'></p>
+  </div>
+
+  <div class='card'>
+    <h2 data-i18n='profilesConfig.sections.save'>Guardar configuracion actual como perfil</h2>
+    <p class='hint' data-i18n='profilesConfig.saveHint'>Captura un snapshot completo de toda la configuracion activa (red, GPIO, microfono, debug) y lo guarda con el nombre indicado. No tienes que escribir ningun JSON.</p>
+    <div class='row'>
+      <div class='field'>
+        <label for='newId'>ID del perfil <span style='color:#a12626'>*</span></label>
+        <input id='newId' type='text' placeholder='salon_luces' maxlength='48'>
+        <span class='hint'>Solo minusculas, numeros, guiones y guion bajo.</span>
+      </div>
+      <div class='field'>
+        <label for='newName' data-i18n='profilesConfig.fields.name'>Nombre</label>
+        <input id='newName' type='text' placeholder='Salon luces RGB'>
+      </div>
+    </div>
+    <div class='field'>
+      <label for='newDesc' data-i18n='profilesConfig.fields.descriptionOptional'>Descripcion (opcional)</label>
+      <input id='newDesc' type='text' placeholder='4 tiras WS2812B, microfono I2S, red Casa...'>
+    </div>
+    <div class='actions'>
+      <button class='btn' onclick='saveCurrentAsProfile()' data-i18n='profilesConfig.actions.saveCurrent'>Guardar como perfil</button>
+    </div>
+  </div>
+
+  <div class='card'>
+    <h2 data-i18n='profilesConfig.sections.available'>Perfiles disponibles</h2>
+    <p class='hint' data-i18n='profilesConfig.availableHint'>Haz clic en <em>Activar</em> para cargar un perfil y aplicarlo al dispositivo. <em>Ver config</em> muestra el JSON completo guardado.</p>
+    <div id='profileList'><p class='hint'>Cargando...</p></div>
+  </div>
+
+  <div id='editPanel' class='card' style='display:none'>
+    <h2 style='margin:0 0 6px'><span data-i18n='profilesConfig.edit.title'>Editar perfil:</span> <span id='editPanelId' style='color:var(--accent);font-family:Consolas,monospace'></span></h2>
+    <p class='hint' data-i18n='profilesConfig.edit.hint'>Modifica el JSON y pulsa <strong>Guardar cambios</strong>. Solo se sobrescriben los campos que edites.</p>
+    <div class='row' style='margin-bottom:8px'>
+      <div class='field'>
+        <label for='editName' data-i18n='profilesConfig.fields.name'>Nombre</label>
+        <input id='editName' type='text'>
+      </div>
+      <div class='field'>
+        <label for='editDesc' data-i18n='profilesConfig.fields.description'>Descripcion</label>
+        <input id='editDesc' type='text'>
+      </div>
+    </div>
+    <div class='field'>
+      <label data-i18n='profilesConfig.edit.json'>JSON completo del perfil (editable)</label>
+      <textarea id='editJson' rows='14' style='font-family:Consolas,monospace;font-size:12px;resize:vertical'></textarea>
+    </div>
+    <div class='actions'>
+      <button class='btn' onclick='saveEditedProfile()' data-i18n='common.save'>Guardar cambios</button>
+      <button class='btn alt' onclick='closeEditPanel()' data-i18n='common.cancel'>Cancelar</button>
+    </div>
+  </div>
+
+  <div class='resp-card card'>
+    <h3 style='margin:0 0 8px' data-i18n='common.response'>Respuesta</h3>
+    <pre id='resultOut'>Sin llamadas aun.</pre>
+  </div>
+</main>
+<script>
+  function byId(id) { return document.getElementById(id); }
+  function tx(key, params, fallback) { return window.duxT ? window.duxT(key, params, fallback) : (fallback || key); }
+  function setStatus(msg, isErr) {
+    const el = byId('status');
+    if (window.duxUpdateStatus) {
+      window.duxUpdateStatus(el, msg, !!isErr);
+      return;
+    }
+    el.textContent = msg || '';
+  }
+
+  async function loadProfiles() {
+    setStatus(tx('profilesConfig.status.loading', null, 'Cargando perfiles...'), false);
+    try {
+      const res = await fetch('/api/v1/profiles');
+      const text = await res.text();
+      const data = JSON.parse(text);
+      renderProfiles(data);
+      setStatus(tx('profilesConfig.status.loaded', { status: res.status }, 'Perfiles cargados (HTTP ' + res.status + ').'), false);
+    } catch (err) {
+      setStatus(tx('profilesConfig.status.loadError', { error: err }, 'Error cargando perfiles: ' + err), true);
+    }
+  }
+
+  function renderProfiles(data) {
+    const container = byId('profileList');
+    const items = (((data || {}).profiles || {}).items) || [];
+    const defaultId = ((data || {}).profiles || {}).defaultId || '';
+    if (items.length === 0) {
+      container.innerHTML = "<p class='hint'>" + tx('profilesConfig.status.empty', null, 'No hay perfiles.') + "</p>";
+      return;
+    }
+    const grid = document.createElement('div');
+    grid.className = 'profile-grid';
+    for (const item of items) {
+      const isDefault = item.id === defaultId;
+      const isBuiltIn = !!item.builtIn;
+      const card = document.createElement('div');
+      card.className = 'profile-card' + (isDefault ? ' is-default' : '');
+      const badges = [];
+      if (isBuiltIn) badges.push("<span class='badge builtin'>integrado</span>");
+      else badges.push("<span class='badge user'>usuario</span>");
+      if (isDefault) badges.push("<span class='badge default'>activo por defecto</span>");
+      if (item.readOnly) badges.push("<span class='badge'>solo lectura</span>");
+      let acts = '<button class="btn sm alt" onclick="editProfile(\'' + item.id + '\')" title="Cargar y editar este perfil">Editar</button>';
+      if (!isDefault) {
+        acts += '<button class="btn sm" onclick="activateProfile(\'' + item.id + '\')" title="Aplicar este perfil al dispositivo y ponerlo como predeterminado">Activar</button>';
+      }
+      acts += '<button class="btn sm alt" onclick="cloneProfile(\'' + item.id + '\')" title="Clonar este perfil con un nuevo ID">Clonar</button>';
+      if (!isBuiltIn) {
+        acts += '<button class="btn sm danger" onclick="deleteProfile(\'' + item.id + '\')">Borrar</button>';
+      }
+      card.innerHTML =
+        '<p class="pname">' + (item.name || item.id) + '</p>' +
+        '<p class="pid">' + item.id + '</p>' +
+        '<p class="pdesc">' + (item.description || '') + '</p>' +
+        '<div class="badges">' + badges.join('') + '</div>' +
+        '<div class="pactions">' + acts + '</div>';
+      grid.appendChild(card);
+    }
+    container.innerHTML = '';
+    container.appendChild(grid);
+  }
+
+  async function saveCurrentAsProfile() {
+    const id = byId('newId').value.trim();
+    if (!id) { setStatus(tx('profilesConfig.status.idRequired', null, 'El ID del perfil es obligatorio.'), true); return; }
+    const payload = { profile: {
+      id: id,
+      name: byId('newName').value.trim() || id,
+      description: byId('newDesc').value.trim()
+    }};
+    const ok = await callJson('/api/v1/profiles/save', payload, tx('profilesConfig.status.savingSnapshot', null, 'Guardando snapshot de configuracion...'));
+    if (ok) {
+      byId('newId').value = '';
+      byId('newName').value = '';
+      byId('newDesc').value = '';
+      await loadProfiles();
+    }
+  }
+
+  async function activateProfile(id) {
+    if (!confirm(tx('profilesConfig.status.confirmActivate', { id: id }, 'Activar el perfil "' + id + '"?\n\nEsto reemplazara toda la configuracion activa del dispositivo (red, GPIO, microfono, debug).'))) return;
+    const ok = await callJson('/api/v1/profiles/apply', { profile: { id: id } }, tx('profilesConfig.status.activating', { id: id }, 'Activando perfil "' + id + '"...'));
+    if (ok) await loadProfiles();
+  }
+
+  async function viewProfile(id) {
+    setStatus(tx('profilesConfig.status.loadingProfileConfig', { id: id }, 'Cargando configuracion del perfil "' + id + '"...'), false);
+    try {
+      const res = await fetch('/api/v1/profiles/get?id=' + encodeURIComponent(id));
+      const text = await res.text();
+      let pretty = text;
+      try { pretty = JSON.stringify(JSON.parse(text), null, 2); } catch (_) {}
+      byId('resultOut').textContent = pretty;
+      document.body.classList.add('show-resp');
+      setStatus(tx('profilesConfig.status.profileConfigLoaded', { id: id }, 'Configuracion del perfil "' + id + '" cargada. Ver abajo.'), false);
+      const respCard = document.querySelector('.resp-card');
+      if (respCard) respCard.scrollIntoView({ behavior: 'smooth' });
+    } catch (err) {
+      setStatus(tx('profilesConfig.status.profileLoadError', { error: err }, 'Error cargando perfil: ' + err), true);
+    }
+  }
+
+  async function deleteProfile(id) {
+    if (!confirm(tx('profilesConfig.status.confirmDelete', { id: id }, 'Borrar el perfil "' + id + '"?\n\nEsta accion no se puede deshacer.'))) return;
+    const ok = await callJson('/api/v1/profiles/delete', { profile: { id: id } }, tx('profilesConfig.status.deleting', { id: id }, 'Borrando perfil "' + id + '"...'));
+    if (ok) await loadProfiles();
+  }
+
+  async function cloneProfile(id) {
+    const newId = prompt(tx('profilesConfig.status.clonePromptId', null, 'ID para el perfil clonado (sin espacios):'), id + '_copia');
+    if (!newId) return;
+    const newName = prompt(tx('profilesConfig.status.clonePromptName', null, 'Nombre del perfil clonado:'), newId);
+    const ok = await callJson('/api/v1/profiles/clone', { profile: { id: id, newId: newId.trim(), name: newName || newId.trim() } }, tx('profilesConfig.status.cloning', { id: id }, 'Clonando perfil "' + id + '"...'));
+    if (ok) await loadProfiles();
+  }
+
+  async function editProfile(id) {
+    setStatus(tx('profilesConfig.status.loadingProfile', { id: id }, 'Cargando perfil "' + id + '"...'), false);
+    try {
+      const res = await fetch('/api/v1/profiles/get?id=' + encodeURIComponent(id));
+      const data = await res.json();
+      const profile = (data.profile || data);
+      byId('editPanelId').textContent = id;
+      byId('editName').value = profile.name || '';
+      byId('editDesc').value = profile.description || '';
+      byId('editJson').value = JSON.stringify(profile, null, 2);
+      byId('editJson').dataset.id = id;
+      byId('editPanel').style.display = 'block';
+      byId('editPanel').scrollIntoView({ behavior: 'smooth' });
+      setStatus(tx('profilesConfig.status.profileLoadedForEdit', { id: id }, 'Perfil "' + id + '" cargado para editar.'), false);
+    } catch (err) {
+      setStatus(tx('profilesConfig.status.profileLoadError', { error: err }, 'Error cargando perfil: ' + err), true);
+    }
+  }
+
+  async function saveEditedProfile() {
+    let parsed;
+    try { parsed = JSON.parse(byId('editJson').value); } catch (e) {
+      setStatus(tx('profilesConfig.status.invalidJson', { message: e.message }, 'JSON invalido: ' + e.message), true); return;
+    }
+    parsed.name = byId('editName').value.trim() || parsed.name;
+    parsed.description = byId('editDesc').value.trim() || parsed.description;
+    const ok = await callJson('/api/v1/profiles/save', { profile: parsed }, tx('profilesConfig.status.savingChanges', { id: parsed.id }, 'Guardando cambios en "' + parsed.id + '"...'));
+    if (ok) { closeEditPanel(); await loadProfiles(); }
+  }
+
+  function closeEditPanel() {
+    byId('editPanel').style.display = 'none';
+  }
+
+  async function callJson(url, payload, statusLabel) {
+    setStatus(statusLabel, false);
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const text = await res.text();
+      let pretty = text;
+      try { pretty = JSON.stringify(JSON.parse(text), null, 2); } catch (_) {}
+      byId('resultOut').textContent = pretty;
+      document.body.classList.add('show-resp');
+      const ok = res.ok;
+      setStatus(
+        ok
+          ? tx('profilesConfig.status.operationOk', { status: res.status }, 'Operacion completada (HTTP ' + res.status + ').')
+          : tx('profilesConfig.status.operationError', { status: res.status }, 'Error (HTTP ' + res.status + ').'),
+        !ok
+      );
+      return ok;
+    } catch (err) {
+      byId('resultOut').textContent = String(err);
+      setStatus(tx('profilesConfig.status.networkError', { error: err }, 'Error de red: ' + err), true);
+      return false;
+    }
+  }
+
+  loadProfiles();
+</script>
+</div>
+</body>
+</html>
+

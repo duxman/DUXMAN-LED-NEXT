@@ -1,0 +1,21 @@
+/*
+ * duxman-led next - v0.3.7-beta
+ * Licensed under the Apache License 2.0
+ * File: firmware/src/effects/EffectGradientMeteor.h
+ * Last commit: 2c35a63 - 2026-04-28
+ */
+
+#pragma once
+
+#include "effects/EffectEngine.h"
+
+// Gradient Meteor:
+// - effectSpeed: velocidad de avance del meteoro
+// - effectLevel: longitud de cola
+class EffectGradientMeteor final : public EffectEngine {
+public:
+  using EffectEngine::EffectEngine;
+
+  bool supports(uint8_t effectId) const override;
+  void renderFrame() override;
+};

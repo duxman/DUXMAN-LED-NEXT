@@ -18,3 +18,5 @@ wiki/Archive/
 **/dist/
 /firmware/src/api/*.bak
 /firmware/src/services/*.bak
+/projects/firmware-platformio/firmware/src/api/*.bak
+/projects/firmware-platformio/firmware/src/services/*.bak

@@ -10,6 +10,12 @@ Language / Idioma:
 
 Modular ESP32 LED controller firmware (v0.6.3-alpha) with REST/Serial API, embedded UI, full configuration profiles, user palettes, distributed synchronization, and a visual/audio effects engine.
 
+## Workspace Structure
+
+- `projects/firmware-platformio`: ESP32 firmware (PlatformIO + LittleFS UI)
+- `projects/mockup-python`: API/UI simulator for hardware-free testing
+- `projects/android-app`: Android app (Java/Kotlin)
+
 ## Current Status
 
 - Framework: Arduino on ESP32 + FreeRTOS
@@ -129,7 +135,7 @@ Note: some old test pages still reference `/api/v1/profiles/gpio*`; the canonica
 
 ## Embedded UI
 
-The UI is no longer limited to HTML strings embedded in firmware. Main pages are served from LittleFS templates under `data/ui`, with embedded firmware fallback if a file is missing.
+The UI is no longer limited to HTML strings embedded in firmware. Main pages are served from LittleFS templates under `projects/firmware-platformio/data/ui`, with embedded firmware fallback if a file is missing.
 
 Recent improvements:
 
@@ -151,17 +157,19 @@ Main routes:
 
 Build:
 
+- `cd projects/firmware-platformio`
 - `pio run -e esp32c3supermini`
 - `pio run -e esp32dev`
 - `pio run -e esp32s3`
 
 Upload:
 
+- `cd projects/firmware-platformio`
 - `pio run -e esp32c3supermini -t upload`
 
 Helper script:
 
-- `tools/flash.ps1`
+- `projects/firmware-platformio/tools/flash.ps1`
 
 ## Documentation
 

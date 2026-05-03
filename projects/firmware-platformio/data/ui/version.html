@@ -1,0 +1,165 @@
+﻿
+<!doctype html>
+<html>
+<head>
+  <meta charset='utf-8'>
+  <meta name='viewport' content='width=device-width,initial-scale=1'>
+  <title>DUXMAN - Version</title>
+  __CSS__
+</head>
+<body>
+<div class='gen-page-outer'>
+<script>
+  (function() {
+    try {
+      var request = new XMLHttpRequest();
+      request.open('GET', '/ui/nav.html?v=20260502', false);
+      request.send(null);
+      if (request.status >= 200 && request.status < 300 && request.responseText) {
+        document.write(request.responseText);
+        return;
+      }
+    } catch (_) {}
+    document.write("<nav class='gen-nav' style='padding:12px 16px;'>Navigation unavailable</nav>");
+  })();
+</script>
+<main>
+  <div class='hero'>
+    <svg viewBox="0 0 130 82" xmlns="http://www.w3.org/2000/svg" style="width:300px;max-width:80%;display:block;margin:0 auto 12px;"><defs><linearGradient id="dlg" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#00CFFF"/><stop offset="33%" stop-color="#94FF00"/><stop offset="66%" stop-color="#FFD600"/><stop offset="100%" stop-color="#FF2E2E"/></linearGradient></defs><text x="50%" y="28" text-anchor="middle" font-family="Arial,sans-serif" font-weight="900" font-style="italic" font-size="18" fill="url(#dlg)">duxman-led</text><text x="50%" y="53" text-anchor="middle" font-family="Arial,sans-serif" font-weight="900" font-style="italic" font-size="22" fill="url(#dlg)">next &#xBB;</text><text id="svgVersion" x="50%" y="70" text-anchor="middle" font-family="Consolas,monospace" font-size="8" fill="#0fd0e0" letter-spacing="0.5">...</text></svg>
+    <p class='tagline' id='fwBranch'>Cargando...</p>
+  </div>
+
+  <p class='section-title'>Firmware</p>
+  <div class='grid' id='gridRelease'><div class='loader'>Cargando datos de firmware...</div></div>
+
+  <p class='section-title'>Hardware</p>
+  <div class='grid' id='gridHardware'><div class='loader'>Cargando datos de hardware...</div></div>
+
+  <p class='section-title'>Sistema</p>
+  <div class='grid' id='gridSystem'><div class='loader'>Cargando sistema...</div></div>
+
+  <p class='section-title'>Dispositivo</p>
+  <div class='grid'>
+    <div class='card'>
+      <h2>Acerca de</h2>
+      <p style='color:var(--muted);font-size:13px;margin-bottom:12px'>Acciones de mantenimiento del dispositivo.</p>
+      <div class='actions'>
+        <button class='alt' onclick='restartBoard()'>&#9211; Reiniciar placa</button>
+      </div>
+      <p id='restartMsg' style='font-size:12px;color:var(--muted);margin-top:8px;display:none'></p>
+    </div>
+  </div>
+</main>
+<script>
+  function row(lbl, val, cls) {
+    return '<div class="row"><span class="lbl">' + lbl + '</span><span class="val' + (cls ? ' ' + cls : '') + '">' + val + '</span></div>';
+  }
+  function barRow(lbl, used, total, unit) {
+    const pct = total > 0 ? Math.round(used * 100 / total) : 0;
+    const cls = pct > 75 ? 'warn' : 'ok';
+    return '<div class="row" style="flex-direction:column;align-items:stretch"><div style="display:flex;justify-content:space-between"><span class="lbl">' + lbl + '</span><span class="val ' + cls + '">' + pct + '%</span></div>' +
+      '<div class="bar-wrap"><div class="bar-fill" style="width:' + pct + '%"></div></div>' +
+      '<div style="font-size:11px;color:var(--muted);text-align:right;margin-top:2px">' + used.toLocaleString() + ' / ' + total.toLocaleString() + ' ' + unit + '</div></div>';
+  }
+  function boolRow(lbl, val) {
+    const on = !!val;
+    return '<div class="row"><span class="lbl">' + lbl + '</span><span class="val"><span class="chip-bool"><span class="dot ' + (on ? 'on' : 'off') + '"></span>' + (on ? 'Si' : 'No') + '</span></span></div>';
+  }
+  function card(title, body) {
+    return '<div class="card"><h2>' + title + '</h2>' + body + '</div>';
+  }
+  function fmtUptime(s) {
+    const d = Math.floor(s/86400), h = Math.floor((s%86400)/3600), m = Math.floor((s%3600)/60), ss = s%60;
+    return (d>0?d+'d ':'')+String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')+':'+String(ss).padStart(2,'0');
+  }
+
+  async function load() {
+    try {
+      const [relRes, hwRes, diagRes] = await Promise.all([
+        fetch('/api/v1/release'),
+        fetch('/api/v1/hardware'),
+        fetch('/api/v1/diag')
+      ]);
+      const rel  = await relRes.json();
+      const hw   = await hwRes.json();
+      const diag = await diagRes.json();
+
+      // Hero
+      document.getElementById('svgVersion').textContent = rel.version || '';
+      document.getElementById('fwBranch').textContent = (rel.branch || '') + ' — ' + (rel.board || '');
+
+      // Release card
+      document.getElementById('gridRelease').innerHTML =
+        card('Version del firmware',
+          row('Version', '<span class="badge">' + (rel.version || '?') + '</span>') +
+          row('Fecha de release', rel.releaseDate || '?') +
+          row('Rama / branch', rel.branch || '?', 'accent') +
+          row('Placa / board', rel.board || '?') +
+          (rel.repositoryUrl ? '<div class="row"><span class="lbl">Repositorio</span><a class="link" href="' + rel.repositoryUrl + '" target="_blank">' + rel.repositoryUrl + '</a></div>' : '')
+        );
+
+      // Hardware cards
+      const flashMb = (hw.flashSizeBytes / (1024*1024)).toFixed(1);
+      const freqGHz = (hw.flashSpeedHz / 1e6).toFixed(0);
+      document.getElementById('gridHardware').innerHTML =
+        card('Procesador',
+          row('Modelo chip', hw.chipModel || '?', 'accent') +
+          row('Revision', hw.chipRevision !== undefined ? 'rev ' + hw.chipRevision : '?') +
+          row('Nucleos', hw.cores || '?') +
+          row('Frecuencia CPU', (hw.cpuFreqMHz || '?') + ' MHz')
+        ) +
+        card('Conectividad',
+          boolRow('Wi-Fi', hw.hasWifi) +
+          boolRow('Bluetooth Classic', hw.hasBluetoothClassic) +
+          boolRow('Bluetooth LE', hw.hasBluetoothLe)
+        ) +
+        card('Memoria Flash',
+          row('Tamano', flashMb + ' MB') +
+          row('Velocidad', freqGHz + ' MHz') +
+          row('Direccion MAC', hw.mac || '?', 'accent')
+        );
+
+      // System/diag cards
+      const heapFree = diag.heap_free_bytes || 0;
+      const heapTotal = diag.heap_total_bytes || 1;
+      const uptimeSec = diag.uptime_s || 0;
+      document.getElementById('gridSystem').innerHTML =
+        card('Memoria RAM',
+          barRow('Heap usado', heapTotal - heapFree, heapTotal, 'bytes') +
+          row('Libre', heapFree.toLocaleString() + ' B') +
+          row('Total', heapTotal.toLocaleString() + ' B')
+        ) +
+        card('Uptime y tareas',
+          row('Tiempo en linea', fmtUptime(uptimeSec), 'accent') +
+          row('Tareas activas', diag.task_count || '?')
+        ) +
+        card('Watchdog',
+          row('Resets totales', diag.watchdog ? diag.watchdog.reset_count : '?', diag.watchdog && diag.watchdog.reset_count > 0 ? 'warn' : 'ok') +
+          row('Control task resets', diag.watchdog ? diag.watchdog.control_task_resets : '?') +
+          row('Render task resets', diag.watchdog ? diag.watchdog.render_task_resets : '?')
+        );
+
+    } catch (err) {
+      document.getElementById('gridRelease').innerHTML = '<div class="loader" style="color:#f87171">Error: ' + err + '</div>';
+    }
+  }
+  load();
+
+  async function restartBoard() {
+    if (!window.confirm('Se reiniciara la placa inmediatamente. Continuar?')) return;
+    const msg = document.getElementById('restartMsg');
+    msg.style.display = 'block';
+    msg.textContent = 'Enviando reinicio...';
+    try {
+      await fetch('/api/v1/system/restart', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+      msg.textContent = 'Reinicio enviado. La placa volvera en unos segundos...';
+    } catch (_) {
+      msg.textContent = 'La placa se esta reiniciando...';
+    }
+    setTimeout(() => { msg.textContent = 'Puedes recargar la pagina para comprobar el estado.'; }, 5000);
+  }
+</script>
+</div>
+</body>
+</html>
+

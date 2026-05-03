@@ -1,0 +1,562 @@
+{
+  "lang": "es",
+  "name": "Español",
+  "nav": {
+    "home": "Inicio",
+    "config": "Config",
+    "api": "API",
+    "about": "Sobre",
+    "effects": "Efectos",
+    "profiles": "Perfiles",
+    "palettes": "Paletas",
+    "network": "Network",
+    "microphone": "Microphone",
+    "gpio": "GPIO",
+    "sync": "Sync",
+    "general": "General",
+    "manual": "Manual JSON",
+    "debug": "Debug",
+    "state": "State",
+    "hardware": "Hardware",
+    "release": "Release",
+    "configAll": "Config All",
+    "version": "Version",
+    "menu": "Menu",
+    "settings": "Configuración",
+    "advanced": "Avanzado",
+    "help": "Ayuda"
+  },
+  "common": {
+    "save": "Guardar",
+    "reload": "Recargar",
+    "cancel": "Cancelar",
+    "apply": "Aplicar",
+    "delete": "Eliminar",
+    "back": "Atrás",
+    "next": "Siguiente",
+    "edit": "Editar",
+    "add": "Agregar",
+    "remove": "Quitar",
+    "close": "Cerrar",
+    "ok": "Aceptar",
+    "yes": "Sí",
+    "no": "No",
+    "loading": "Cargando...",
+    "error": "Error",
+    "success": "Éxito",
+    "warning": "Advertencia",
+    "payload": "Payload",
+    "response": "Respuesta"
+  },
+  "configIndex": {
+    "title": "Configuracion",
+    "hint": "Selecciona la seccion de configuracion que quieres editar.",
+    "manualTitle": "Manual",
+    "cards": {
+      "network": "WiFi, AP/STA, hostname, IP y DNS.",
+      "microphone": "Configurar microfono generic_i2c (SD/WS/SCK) y perfil.",
+      "gpio": "Pin LED, cantidad, tipo de LED y orden de color.",
+      "sync": "Modo de sincronizacion, protocolo de entrada y puertos DDP/UDP Sync.",
+      "profiles": "Guardar, aplicar y fijar perfiles GPIO por defecto.",
+      "palettes": "Crear, editar y guardar paletas de colores personalizadas.",
+      "debug": "Habilitar debug y ajustar intervalo de heartbeat.",
+      "manual": "Editar, exportar e importar toda la configuracion JSON."
+    }
+  },
+  "generalConfig": {
+    "title": "Opciones Generales",
+    "regionHint": "Afecta el formato de numeros, fechas y unidades.",
+    "debugEnabled": "Debug habilitado",
+    "debugHint": "Activa trazas detalladas por puerto serial.",
+    "heartbeat": "Heartbeat (ms)",
+    "heartbeatHint": "Intervalo de latido serial. 0 = desactivado.",
+    "showJson": "Mostrar respuestas JSON en las paginas de configuracion",
+    "showJsonHint": "Se guarda en el navegador (localStorage). Por defecto desactivado.",
+    "sections": {
+      "language": "Idioma / Language",
+      "debug": "Debug",
+      "ui": "Preferencias UI"
+    },
+    "status": {
+      "loading": "Leyendo configuracion general...",
+      "loaded": "Configuracion cargada (HTTP {status}).",
+      "loadError": "Error leyendo configuracion general.",
+      "saving": "Guardando configuracion general...",
+      "saved": "Configuracion guardada (HTTP {status}). Idioma actualizado a: {language}",
+      "saveError": "Error guardando (HTTP {status}).",
+      "networkError": "Error de red guardando configuracion."
+    }
+  },
+  "networkConfig": {
+    "title": "Configuracion de Red",
+    "hint": "Edita WiFi/AP/STA y guarda en el dispositivo. Los cambios se aplican al momento.",
+    "actions": {
+      "save": "Guardar Configuracion"
+    },
+    "sections": {
+      "wifi": "WiFi",
+      "time": "Tiempo / NTP",
+      "apIp": "IP AP",
+      "staIp": "IP STA",
+      "payloadResponse": "Payload / Respuesta"
+    },
+    "fields": {
+      "mode": "Modo",
+      "apAvailability": "Disponibilidad AP",
+      "staSsid": "SSID STA",
+      "staPassword": "Password STA",
+      "hostname": "Hostname DNS",
+      "syncOnBoot": "Sincronizar en arranque",
+      "ntpServer": "Servidor NTP",
+      "apMode": "Modo IP AP",
+      "apAddress": "IP AP",
+      "apGateway": "Gateway AP",
+      "apSubnet": "Subnet AP",
+      "staMode": "Modo IP STA",
+      "staAddress": "IP STA",
+      "staGateway": "Gateway STA",
+      "staSubnet": "Subnet STA",
+      "staDns1": "DNS 1 STA",
+      "staDns2": "DNS 2 STA"
+    },
+    "timeHint": "Al arrancar y al conectar STA, el equipo intentara sincronizar la hora con el servidor NTP configurado.",
+    "payloadSent": "Payload Enviado",
+    "apiResponse": "Respuesta API",
+    "status": {
+      "loading": "Leyendo configuracion...",
+      "loaded": "Configuracion cargada (HTTP {status}).",
+      "loadError": "Error leyendo configuracion.",
+      "saving": "Guardando configuracion...",
+      "saved": "Configuracion guardada y aplicada (HTTP {status}).",
+      "saveError": "Error al guardar (HTTP {status}).",
+      "networkError": "Error de red al guardar."
+    }
+  },
+  "manualConfig": {
+    "title": "Configuracion Manual",
+    "hint": "Edita, exporta o importa toda la configuracion del dispositivo como JSON. La importacion solo se aplica si el JSON es completamente valido.",
+    "sections": {
+      "editor": "Editor JSON",
+      "import": "Importar archivo",
+      "result": "Resultado"
+    },
+    "actions": {
+      "load": "Cargar del dispositivo",
+      "apply": "Aplicar al dispositivo",
+      "download": "Descargar .json",
+      "validate": "Solo validar",
+      "loadIntoEditor": "Cargar en editor"
+    },
+    "importHint": "Carga un archivo .json en el editor. Luego pulsa \"Aplicar al dispositivo\" para importarlo.",
+    "status": {
+      "loading": "Cargando configuracion...",
+      "loaded": "Configuracion cargada.",
+      "loadedInline": "Configuracion cargada (HTTP {status}).",
+      "loadError": "Error al cargar.",
+      "emptyEditor": "El editor esta vacio.",
+      "validJson": "JSON valido (sintaxis correcta).",
+      "validationOk": "Validacion local OK. Pulsa \"Aplicar al dispositivo\" para validar contra el firmware y guardar.",
+      "invalidJson": "JSON invalido: {message}",
+      "invalidJsonDetail": "Error de sintaxis JSON:\n{message}",
+      "applying": "Aplicando configuracion...",
+      "applied": "Configuracion aplicada correctamente.",
+      "applyError": "Error al aplicar (HTTP {status}). La configuracion NO fue modificada.",
+      "networkError": "Error de red al aplicar.",
+      "nothingToDownload": "Nada que descargar.",
+      "downloaded": "Archivo descargado.",
+      "selectFile": "Selecciona un archivo primero.",
+      "fileLoaded": "Archivo cargado en editor. Revisa y pulsa \"Aplicar al dispositivo\".",
+      "fileLoadedDetail": "Archivo {file} cargado ({size} bytes).",
+      "invalidFile": "Archivo JSON invalido: {message}",
+      "invalidFileDetail": "Error parseando {file}:\n{message}"
+    }
+  },
+  "debugConfig": {
+    "title": "Configuracion Debug",
+    "hint": "Controla trazas debug y el intervalo del heartbeat serial.",
+    "debugEnabled": "Debug habilitado",
+    "heartbeat": "Heartbeat ms (0 desactiva)",
+    "status": {
+      "loading": "Leyendo configuracion debug...",
+      "loaded": "Configuracion debug cargada (HTTP {status}).",
+      "loadError": "Error leyendo debug.",
+      "saving": "Guardando configuracion debug...",
+      "saved": "Debug guardado (HTTP {status}).",
+      "saveError": "Error guardando debug (HTTP {status}).",
+      "networkError": "Error de red guardando debug."
+    }
+  },
+  "microphoneConfig": {
+    "title": "Configuracion de Microfono",
+    "hint": "Perfil actual soportado: <strong>generic_i2c</strong> con pines GLEDOPTO (SD=26, WS=5, SCK=21). Los cambios se aplican en caliente y se guardan en la configuracion persistente.",
+    "autoApply": "Aplicar sensibilidad en tiempo real al mover controles",
+    "enabled": "Microfono habilitado",
+    "sections": {
+      "pins": "Pines"
+    },
+    "pinsHint": "SD = DIN (datos), WS = LRCLK, SCK = BCLK.",
+    "fields": {
+      "source": "Source",
+      "profile": "Profile",
+      "sampleRate": "Sample Rate",
+      "fftSize": "FFT Size",
+      "gain": "Gain %",
+      "noiseFloor": "Noise floor %",
+      "noiseGate": "Noise gate knee (0-200)",
+      "agc": "AGC response % (10-200)",
+      "din": "SD / DIN",
+      "ws": "WS",
+      "bclk": "SCK / BCLK"
+    },
+    "actions": {
+      "applyPins": "Aplicar pines GLEDOPTO (26/5/21)"
+    },
+    "status": {
+      "loading": "Leyendo configuracion de microfono...",
+      "loaded": "Configuracion cargada (HTTP {status}).",
+      "loadError": "Error leyendo configuracion.",
+      "realtimeApplying": "Aplicando sensibilidad en tiempo real...",
+      "saving": "Guardando configuracion de microfono...",
+      "realtimeApplied": "Aplicado en tiempo real (HTTP {status}).",
+      "saved": "Microfono guardado (HTTP {status}).",
+      "saveError": "Error guardando (HTTP {status}).",
+      "networkError": "Error de red guardando configuracion."
+    }
+  },
+  "gpioConfig": {
+    "title": "Configuracion LED (GPIO)",
+    "hint": "Configura las salidas LED del controlador. Max __MAX_OUTPUTS__ salidas.",
+    "sections": {
+      "outputs": "Salidas LED",
+      "powerLimit": "Limite de consumo (software)",
+      "pinReference": "Referencia de Pines"
+    },
+    "powerHint": "Control de corriente estimada para evitar picos de consumo. Si se activa, el firmware escala brillo global automaticamente.",
+    "fields": {
+      "enableLimit": "Activar limite",
+      "maxCurrent": "Corriente maxima total (mA)",
+      "perLed": "Corriente estimada por LED (mA)"
+    },
+    "actions": {
+      "addOutput": "+ Agregar salida"
+    },
+    "status": {
+      "loading": "Leyendo configuracion GPIO...",
+      "loaded": "Configuracion GPIO cargada (HTTP {status}).",
+      "loadError": "Error leyendo GPIO.",
+      "saving": "Guardando configuracion GPIO...",
+      "saved": "GPIO guardado (HTTP {status}).",
+      "saveError": "Error guardando GPIO (HTTP {status}).",
+      "networkError": "Error de red guardando GPIO."
+    }
+  },
+  "palettesConfig": {
+    "systemTitle": "Paletas del Sistema",
+    "systemBadge": "Sistema",
+    "systemHint": "Paletas de fabrica. Solo lectura.",
+    "userTitle": "Mis Paletas",
+    "userBadge": "Usuario",
+    "userHint": "Paletas propias. Edita o elimina desde cada tarjeta.",
+    "lastApiResponse": "Ultima respuesta API",
+    "actions": {
+      "new": "+ Nueva"
+    },
+    "edit": {
+      "newTitle": "Nueva Paleta",
+      "editing": "Editando: {label}",
+      "id": "ID (slug)",
+      "label": "Nombre visual",
+      "style": "Estilo",
+      "description": "Descripcion (opcional)",
+      "color1": "Color 1",
+      "color2": "Color 2",
+      "color3": "Color 3"
+    },
+    "status": {
+      "applied": "Aplicada: {key}",
+      "error": "Error: {error}",
+      "confirmDelete": "Eliminar paleta \"{key}\"?",
+      "idRequired": "El ID es obligatorio",
+      "idInvalid": "ID solo puede contener a-z, 0-9, _ -",
+      "labelRequired": "El nombre es obligatorio",
+      "saved": "Guardada correctamente.",
+      "noSystem": "Sin paletas del sistema.",
+      "noUser": "Sin paletas propias aun.",
+      "loadError": "Error al cargar."
+    }
+  },
+  "profilesConfig": {
+    "title": "Perfiles de Configuracion",
+    "hint": "Un perfil guarda toda la configuracion del dispositivo: red Wi-Fi, GPIO, microfono y debug. El perfil <strong>default</strong> siempre refleja la configuracion activa en el dispositivo.",
+    "saveHint": "Captura un snapshot completo de toda la configuracion activa (red, GPIO, microfono, debug) y lo guarda con el nombre indicado. No tienes que escribir ningun JSON.",
+    "availableHint": "Haz clic en <em>Activar</em> para cargar un perfil y aplicarlo al dispositivo. <em>Ver config</em> muestra el JSON completo guardado.",
+    "sections": {
+      "save": "Guardar configuracion actual como perfil",
+      "available": "Perfiles disponibles"
+    },
+    "fields": {
+      "name": "Nombre",
+      "description": "Descripcion",
+      "descriptionOptional": "Descripcion (opcional)"
+    },
+    "actions": {
+      "refresh": "Actualizar lista",
+      "saveCurrent": "Guardar como perfil"
+    },
+    "edit": {
+      "title": "Editar perfil:",
+      "hint": "Modifica el JSON y pulsa <strong>Guardar cambios</strong>. Solo se sobrescriben los campos que edites.",
+      "json": "JSON completo del perfil (editable)"
+    },
+    "status": {
+      "loading": "Cargando perfiles...",
+      "loaded": "Perfiles cargados (HTTP {status}).",
+      "loadError": "Error cargando perfiles: {error}",
+      "empty": "No hay perfiles.",
+      "idRequired": "El ID del perfil es obligatorio.",
+      "savingSnapshot": "Guardando snapshot de configuracion...",
+      "confirmActivate": "Activar el perfil \"{id}\"?\n\nEsto reemplazara toda la configuracion activa del dispositivo (red, GPIO, microfono, debug).",
+      "activating": "Activando perfil \"{id}\"...",
+      "loadingProfileConfig": "Cargando configuracion del perfil \"{id}\"...",
+      "profileConfigLoaded": "Configuracion del perfil \"{id}\" cargada. Ver abajo.",
+      "profileLoadError": "Error cargando perfil: {error}",
+      "confirmDelete": "Borrar el perfil \"{id}\"?\n\nEsta accion no se puede deshacer.",
+      "deleting": "Borrando perfil \"{id}\"...",
+      "clonePromptId": "ID para el perfil clonado (sin espacios):",
+      "clonePromptName": "Nombre del perfil clonado:",
+      "cloning": "Clonando perfil \"{id}\"...",
+      "loadingProfile": "Cargando perfil \"{id}\"...",
+      "profileLoadedForEdit": "Perfil \"{id}\" cargado para editar.",
+      "invalidJson": "JSON invalido: {message}",
+      "savingChanges": "Guardando cambios en \"{id}\"...",
+      "operationOk": "Operacion completada (HTTP {status}).",
+      "operationError": "Error (HTTP {status}).",
+      "networkError": "Error de red: {error}"
+    }
+  },
+  "home": {
+    "title": "Inicio",
+    "subtitle": "Control rapido de efectos fijos y navegacion principal.",
+    "currentEffect": "Efecto Actual",
+    "currentPalette": "Paleta Actual",
+    "brightness": "Brillo",
+    "speed": "Velocidad",
+    "volume": "Sensibilidad de Audio",
+    "color": "Color",
+    "noEffectRunning": "Sin efecto activo",
+    "actions": {
+      "applyPalette": "Aplicar paleta",
+      "applyPaletteSave": "Aplicar y guardar",
+      "saveStartup": "Guardar arranque"
+    },
+    "sync": {
+      "bannerTitle": "Sync cliente conectado",
+      "bannerText": "Recibiendo trama por socket y reproduciendo en espejo.",
+      "bannerTextConnected": "Recibiendo trama por socket desde {ip} y reproduciendo en espejo. Paquetes: {packets}"
+    },
+    "colors": {
+      "title": "Seleccion de colores",
+      "hint": "Define el color de fondo y los tres colores de primer plano del efecto.",
+      "background": "Fondo / off",
+      "color1": "Color 1",
+      "color2": "Color 2",
+      "color3": "Color 3",
+      "palette": "Paleta predefinida",
+      "paletteManual": "Manual (colores libres)",
+      "preview": "Vista previa de paleta"
+    },
+    "effect": {
+      "title": "Seleccion de efecto",
+      "hint": "Elige el render principal, numero de secciones, velocidad y brillo global.",
+      "selectionActions": "Seleccion y acciones",
+      "effect": "Efecto",
+      "parameters": "Parametros y presets",
+      "sections": "Numero de secciones",
+      "speed": "Rapidez del efecto",
+      "speedHint": "Solo se usa en efectos animados.",
+      "level": "Nivel del efecto",
+      "brightness": "Brillo global",
+      "audioMode": "Audio del microfono: automatico segun el efecto",
+      "modeLoading": "Tipo de efecto: cargando...",
+      "modeLabel": "Tipo de efecto: {type}",
+      "presets": "Presets visuales",
+      "presetsSmooth": "Suave",
+      "presetsShow": "Show",
+      "presetsAggressive": "Agresivo",
+      "speedHintDetailed": "Valor 1..100. Disponible siempre; cada efecto decide si lo usa.",
+      "audioModeEnabled": "Audio del microfono: activado automaticamente para este efecto",
+      "audioModeDisabled": "Audio del microfono: desactivado en efectos visuales",
+      "typeAudio": "AUDIO REACTIVO",
+      "typeVisual": "VISUAL"
+    },
+    "playlist": {
+      "title": "Configuracion playlist",
+      "outputActive": "Salida activa",
+      "newEntryDuration": "Duracion para nueva entrada",
+      "addToList": "Anadir a lista",
+      "reloadList": "Recargar lista"
+    },
+    "persistence": {
+      "title": "Persistencia de efectos",
+      "hint": "Guarda el efecto de arranque y prepara la secuencia futura con duracion por entrada.",
+      "empty": "No hay efectos guardados en la secuencia.",
+      "noStartup": "Sin efecto de arranque guardado.",
+      "loaded": "Persistencia cargada",
+      "loading": "Leyendo persistencia...",
+      "savingStartup": "Guardando arranque...",
+      "startupSaved": "Efecto de arranque guardado",
+      "startupSaveError": "No se pudo guardar arranque",
+      "addingEntry": "Guardando efecto en la lista...",
+      "entryAdded": "Entrada anadida a la secuencia",
+      "entryAddError": "No se pudo anadir la entrada",
+      "deletingEntry": "Eliminando entrada...",
+      "entryDeleted": "Entrada eliminada",
+      "entryDeleteError": "No se pudo eliminar la entrada"
+    },
+    "runtime": {
+      "title": "Estado runtime",
+      "hint": "El efecto se guarda en LittleFS al aplicar cambios.",
+      "show": "Mostrar runtime"
+    },
+    "status": {
+      "loaded": "Estado cargado",
+      "configUnavailable": "Configuracion no disponible",
+      "paletteLabel": "palette {id}",
+      "manual": "manual",
+      "paletteWord": "paleta",
+      "sectionsWord": "secciones",
+      "speedWord": "velocidad",
+      "levelWord": "nivel",
+      "brightnessWord": "brillo",
+      "selectPalette": "Selecciona una paleta predefinida para aplicar.",
+      "applyingPaletteSaving": "Aplicando paleta y guardando...",
+      "applyingPalette": "Aplicando paleta...",
+      "paletteAppliedSaved": "Paleta aplicada y guardada",
+      "paletteApplied": "Paleta aplicada",
+      "restarting": "Enviando reinicio...",
+      "restartSent": "Reinicio enviado. Esperando reconexion...",
+      "restartingBoard": "La placa se esta reiniciando...",
+      "waitingBoard": "Esperando a que la placa vuelva a responder...",
+      "invalidPreset": "Preset no valido",
+      "applyingPreset": "Aplicando preset {preset}...",
+      "presetApplied": "Preset {preset} aplicado",
+      "loading": "Leyendo estado...",
+      "applying": "Aplicando cambios...",
+      "applied": "Cambios aplicados"
+    }
+  },
+  "effects": {
+    "title": "Efectos",
+    "search": "Buscar efectos...",
+    "category": "Categoría",
+    "visual": "Visual",
+    "audioReactive": "Reactivo al Audio",
+    "favorite": "Favorito",
+    "unfavorite": "Quitar de Favoritos",
+    "description": "Descripción",
+    "parameters": "Parámetros"
+  },
+  "profiles": {
+    "title": "Perfiles",
+    "description": "Guardar y cargar configuraciones de efectos",
+    "create": "Crear Perfil",
+    "new": "Nuevo Perfil",
+    "edit": "Editar Perfil",
+    "delete": "Eliminar Perfil",
+    "confirm": "¿Estás seguro?",
+    "loaded": "Perfil cargado",
+    "saved": "Perfil guardado",
+    "nameRequired": "El nombre del perfil es requerido"
+  },
+  "palettes": {
+    "title": "Paletas",
+    "description": "Paletas de colores para efectos",
+    "create": "Crear Paleta",
+    "import": "Importar Paleta",
+    "export": "Exportar Paleta",
+    "colors": "Colores"
+  },
+  "settings": {
+    "title": "Configuración",
+    "general": "General",
+    "network": "Red",
+    "power": "Gestión de Energía",
+    "display": "Pantalla",
+    "audio": "Audio",
+    "about": "Acerca de"
+  },
+  "generalSettings": {
+    "title": "Configuración General",
+      "hint": "Configuracion de idioma, region, debug y comportamiento general del sistema.",
+      "language": "Idioma de la interfaz",
+      "languageHint": "El idioma se aplica inmediatamente al guardar.",
+      "region": "Region / Locale",
+    "defaultBrightness": "Brillo Predeterminado",
+    "defaultSpeed": "Velocidad Predeterminada",
+    "theme": "Tema",
+    "lightTheme": "Claro",
+    "darkTheme": "Oscuro"
+  },
+  "networkSettings": {
+    "title": "Configuración de Red",
+    "wifiMode": "Modo WiFi",
+    "accessPoint": "Punto de Acceso",
+    "station": "Estación",
+    "ssid": "SSID",
+    "password": "Contraseña",
+    "ipAddress": "Dirección IP",
+    "gateway": "Puerta de Enlace",
+    "subnet": "Máscara de Subred",
+    "dns": "Servidor DNS",
+    "hostname": "Nombre del Host",
+    "timeServer": "Servidor NTP"
+  },
+  "powerSettings": {
+    "title": "Gestión de Energía",
+    "powerLimit": "Límite de Potencia",
+    "enabled": "Activado",
+    "maxCurrent": "Corriente Máxima (mA)",
+    "perLedCurrent": "Corriente por LED (mA)",
+    "voltageSag": "Corrección de Caída de Voltaje",
+    "cableResistance": "Resistencia del Cable (Ω)",
+    "nominalVoltage": "Voltaje Nominal (V)",
+    "minVoltage": "Voltaje Mínimo (V)",
+    "thermal": "Protección Térmica",
+    "tempStart": "Comenzar Reducción (°C)",
+    "tempMax": "Temperatura Máxima (°C)"
+  },
+  "advanced": {
+    "title": "Avanzado",
+    "debug": "Opciones de Debug",
+    "debugEnabled": "Activar Salida de Debug",
+    "heartbeat": "Intervalo de Latido (ms)",
+    "resetDevice": "Restablecer Dispositivo",
+    "resetConfig": "Restablecer Configuración",
+    "restoreDefaults": "Restaurar Valores de Fábrica",
+    "confirmReset": "Esto no se puede deshacer. ¿Continuar?",
+    "deviceInfo": "Información del Dispositivo",
+    "firmwareVersion": "Versión del Firmware",
+    "buildTime": "Fecha de Compilación",
+    "uptime": "Tiempo de Actividad"
+  },
+  "messages": {
+    "connecting": "Conectando...",
+    "connected": "Conectado",
+    "disconnected": "Desconectado",
+    "saving": "Guardando...",
+    "saved": "Guardado exitosamente",
+    "failed": "Falló",
+    "invalid": "Entrada inválida",
+    "required": "Este campo es requerido",
+    "confirmDelete": "¿Eliminar este elemento?",
+    "noConnection": "Sin conexión al dispositivo",
+    "connectionError": "Error de conexión",
+    "timeout": "Tiempo de espera agotado"
+  },
+  "statusBar": {
+    "online": "En línea",
+    "offline": "Desconectado",
+    "battery": "Batería",
+    "signal": "Señal"
+  }
+}

@@ -1,0 +1,265 @@
+﻿
+<!doctype html>
+<html>
+<head>
+  <meta charset='utf-8'>
+  <meta name='viewport' content='width=device-width,initial-scale=1'>
+  <title>DUXMAN GPIO Config</title>
+  __CSS__
+</head>
+<body>
+<div class='gen-page-outer'>
+<script>
+  (function() {
+    try {
+      var request = new XMLHttpRequest();
+      request.open('GET', '/ui/nav.html?v=20260502', false);
+      request.send(null);
+      if (request.status >= 200 && request.status < 300 && request.responseText) {
+        document.write(request.responseText);
+        return;
+      }
+    } catch (_) {}
+    document.write("<nav class='gen-nav' style='padding:12px 16px;'>Navigation unavailable</nav>");
+  })();
+</script>
+  <main>
+    <div class='card'>
+      <h1 data-i18n='gpioConfig.title'>Configuracion LED (GPIO)</h1>
+      <p class='hint' data-i18n='gpioConfig.hint'>Configura las salidas LED del controlador. Max __MAX_OUTPUTS__ salidas.</p>
+      <div class='actions'>
+        <button class='btn alt' onclick='loadGpio()' data-i18n='common.reload'>Recargar</button>
+        <button class='btn' onclick='saveGpio()' data-i18n='common.save'>Guardar</button>
+      </div>
+      <p id='status' class='status-live' aria-live='polite'></p>
+    </div>
+
+    <div class='card' id='outputsCard'>
+      <div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:10px'>
+        <h2 data-i18n='gpioConfig.sections.outputs'>Salidas LED</h2>
+        <button class='btn' onclick='addOutput()' id='btnAdd' data-i18n='gpioConfig.actions.addOutput'>+ Agregar salida</button>
+      </div>
+      <div id='outputsList'></div>
+    </div>
+
+    <div class='card'>
+      <h2 data-i18n='gpioConfig.sections.powerLimit'>Limite de consumo (software)</h2>
+      <p class='hint' data-i18n='gpioConfig.powerHint'>Control de corriente estimada para evitar picos de consumo. Si se activa, el firmware escala brillo global automaticamente.</p>
+      <div class='row'>
+        <div class='col field'>
+          <label><input type='checkbox' id='plEnabled'> <span data-i18n='gpioConfig.fields.enableLimit'>Activar limite</span></label>
+        </div>
+      </div>
+      <div class='row'>
+        <div class='col field'><label data-i18n='gpioConfig.fields.maxCurrent'>Corriente maxima total (mA)</label><input type='number' id='plMaxCurrent' min='200' max='50000' step='50'></div>
+        <div class='col field'><label data-i18n='gpioConfig.fields.perLed'>Corriente estimada por LED (mA)</label><input type='number' id='plPerLed' min='5' max='80' step='1'></div>
+      </div>
+    </div>
+
+    <div class='card'>
+      <h2 data-i18n='gpioConfig.sections.pinReference'>Referencia de Pines</h2>
+      <p class='hint'>Pin de compilacion (BuildProfile): <strong>__BUILD_PIN__</strong> &middot; LEDs: <strong>__BUILD_COUNT__</strong></p>
+      <table>
+        <tr><th>Placa</th><th>Pin LED tipico</th><th>Notas</th></tr>
+        <tr><td>ESP32-C3 Super Mini</td><td>GPIO 8</td><td>GPIO 0-5 strapping pins</td></tr>
+        <tr><td>ESP32 DevKit</td><td>GPIO 5</td><td>GPIO 34-39 solo entrada</td></tr>
+        <tr><td>ESP32-S3 DevKit</td><td>GPIO 48</td><td>GPIO 0,3,45,46 strapping</td></tr>
+      </table>
+    </div>
+
+    <div class='card json-card'>
+      <h3 data-i18n='common.payload'>Payload</h3>
+      <pre id='payloadOut'>{}</pre>
+      <h3 data-i18n='common.response'>Respuesta</h3>
+      <pre id='resultOut'>Sin llamadas aun.</pre>
+    </div>
+  </main>
+
+  <script>
+    if(localStorage.getItem('dux_show_json')==='1') document.body.classList.add('show-json');
+
+    const MAX_OUTPUTS = __MAX_OUTPUTS__;
+    const INPUT_ONLY = [34,35,36,39];
+    const STRAPPING_C3 = [0,1,2,3,4,5];
+    const STRAPPING_S3 = [0,3,45,46];
+    const LED_TYPES = ['digital','ws2812b','ws2811','ws2813','ws2815','sk6812','tm1814'];
+    const COLOR_ORDERS_3CH = ['GRB','RGB','BRG','RBG','GBR','BGR'];
+    const COLOR_ORDERS_4CH = ['RGBW','GRBW'];
+    const DIGITAL_COLORS = ['R','G','B','W'];
+    const ALL_ORDERS = COLOR_ORDERS_3CH.concat(COLOR_ORDERS_4CH);
+    const powerLimit = { enabled: false, maxCurrentmA: 2500, milliAmpsPerLed: 60 };
+
+    function isDigital(type) { return type === 'digital'; }
+    function colorOptionsFor(type) { return isDigital(type) ? DIGITAL_COLORS : ALL_ORDERS; }
+
+    let outputs = [];
+
+    function byId(id) { return document.getElementById(id); }
+    function tx(key, params, fallback) { return window.duxT ? window.duxT(key, params, fallback) : (fallback || key); }
+    function setStatus(msg, isErr) {
+      const el = byId('status');
+      if (window.duxUpdateStatus) {
+        window.duxUpdateStatus(el, msg, !!isErr);
+        return;
+      }
+      el.textContent = msg || '';
+    }
+
+    function pinWarning(pin) {
+      if (INPUT_ONLY.includes(pin)) return 'GPIO ' + pin + ' es solo entrada en ESP32 clasico. No usar para LEDs.';
+      if (STRAPPING_C3.includes(pin)) return 'GPIO ' + pin + ' es strapping pin en ESP32-C3. Usar con precaucion.';
+      if (STRAPPING_S3.includes(pin)) return 'GPIO ' + pin + ' es strapping pin en ESP32-S3. Usar con precaucion.';
+      return '';
+    }
+
+    function buildSelect(id, options, selected) {
+      let s = '<select id="' + id + '">';
+      for (const o of options) {
+        s += '<option value="' + o + '"' + (o === selected ? ' selected' : '') + '>' + o.toUpperCase() + '</option>';
+      }
+      return s + '</select>';
+    }
+
+    function renderOutputs() {
+      const list = byId('outputsList');
+      list.innerHTML = '';
+      byId('btnAdd').style.display = outputs.length >= MAX_OUTPUTS ? 'none' : '';
+
+      for (let i = 0; i < outputs.length; i++) {
+        const o = outputs[i];
+        const dig = isDigital(o.ledType);
+        const warn = pinWarning(o.pin);
+        const colorOpts = colorOptionsFor(o.ledType);
+        const colorLabel = dig ? 'Color LED' : 'Orden Color';
+        const block = document.createElement('div');
+        block.className = 'output-block';
+        block.innerHTML =
+          '<div class="output-header"><h2>Salida #' + i + (dig ? ' (digital)' : '') + '</h2>' +
+          (outputs.length > 1 ? '<button class="btn danger" onclick="removeOutput(' + i + ')">Eliminar</button>' : '') +
+          '</div>' +
+          '<div class="row">' +
+            '<div class="col field"><label>GPIO Pin</label><input type="number" min="-1" max="48" value="' + o.pin + '" onchange="updField(' + i + ',\'pin\',Number(this.value))"></div>' +
+            (dig ? '' : '<div class="col field"><label>Cantidad LEDs</label><input type="number" min="1" max="1500" value="' + o.ledCount + '" onchange="updField(' + i + ',\'ledCount\',Number(this.value))"></div>') +
+          '</div>' +
+          '<div class="row">' +
+            '<div class="col field"><label>Tipo LED</label>' + buildSelect('type_' + i, LED_TYPES, o.ledType) + '</div>' +
+            '<div class="col field"><label>' + colorLabel + '</label>' + buildSelect('order_' + i, colorOpts, o.colorOrder) + '</div>' +
+          '</div>' +
+          (warn ? '<div class="warn">' + warn + '</div>' : '');
+        list.appendChild(block);
+
+        byId('type_' + i).addEventListener('change', function() {
+          const newType = this.value;
+          if (isDigital(newType)) {
+            outputs[i].ledCount = 1;
+            if (!DIGITAL_COLORS.includes(outputs[i].colorOrder)) outputs[i].colorOrder = 'W';
+          } else {
+            if (DIGITAL_COLORS.includes(outputs[i].colorOrder)) outputs[i].colorOrder = 'GRB';
+          }
+          outputs[i].ledType = newType;
+          renderOutputs();
+        });
+        byId('order_' + i).addEventListener('change', function() { updField(i, 'colorOrder', this.value); });
+      }
+    }
+
+    function updField(idx, field, val) {
+      outputs[idx][field] = val;
+      renderOutputs();
+    }
+
+    function addOutput() {
+      if (outputs.length >= MAX_OUTPUTS) return;
+      outputs.push({ pin: -1, ledCount: 1, ledType: 'ws2812b', colorOrder: 'GRB' });
+      renderOutputs();
+    }
+
+    function removeOutput(idx) {
+      if (outputs.length <= 1) return;
+      outputs.splice(idx, 1);
+      renderOutputs();
+    }
+
+    function fillFromConfig(cfg) {
+      const gpio = cfg && cfg.gpio ? cfg.gpio : {};
+      const pl = gpio.powerLimit || {};
+      const arr = gpio.outputs || [];
+      outputs = arr.map(function(o) {
+        return {
+          pin: o.pin != null ? o.pin : -1,
+          ledCount: o.ledCount != null ? o.ledCount : 1,
+          ledType: o.ledType || 'ws2812b',
+          colorOrder: o.colorOrder || 'GRB'
+        };
+      });
+      if (outputs.length === 0) outputs.push({ pin: -1, ledCount: 1, ledType: 'ws2812b', colorOrder: 'GRB' });
+      powerLimit.enabled = !!pl.enabled;
+      powerLimit.maxCurrentmA = Number.isFinite(Number(pl.maxCurrentmA)) ? Number(pl.maxCurrentmA) : 2500;
+      powerLimit.milliAmpsPerLed = Number.isFinite(Number(pl.milliAmpsPerLed)) ? Number(pl.milliAmpsPerLed) : 60;
+      byId('plEnabled').checked = powerLimit.enabled;
+      byId('plMaxCurrent').value = powerLimit.maxCurrentmA;
+      byId('plPerLed').value = powerLimit.milliAmpsPerLed;
+      renderOutputs();
+    }
+
+    function buildPayload() {
+      return {
+        gpio: {
+          powerLimit: {
+            enabled: !!byId('plEnabled').checked,
+            maxCurrentmA: Number(byId('plMaxCurrent').value || 2500),
+            milliAmpsPerLed: Number(byId('plPerLed').value || 60)
+          },
+          outputs: outputs.map(function(o, i) {
+            return { id: i, pin: o.pin, ledCount: o.ledCount, ledType: o.ledType, colorOrder: o.colorOrder };
+          })
+        }
+      };
+    }
+
+    async function loadGpio() {
+      setStatus(tx('gpioConfig.status.loading', null, 'Leyendo configuracion GPIO...'), false);
+      try {
+        const res = await fetch('/api/v1/config/gpio');
+        const data = await res.json();
+        fillFromConfig(data);
+        byId('resultOut').textContent = JSON.stringify(data, null, 2);
+        setStatus(tx('gpioConfig.status.loaded', { status: res.status }, 'Configuracion GPIO cargada (HTTP ' + res.status + ').'), false);
+      } catch (err) {
+        byId('resultOut').textContent = String(err);
+        setStatus(tx('gpioConfig.status.loadError', null, 'Error leyendo GPIO.'), true);
+      }
+    }
+
+    async function saveGpio() {
+      const payload = buildPayload();
+      byId('payloadOut').textContent = JSON.stringify(payload, null, 2);
+      setStatus(tx('gpioConfig.status.saving', null, 'Guardando configuracion GPIO...'), false);
+      try {
+        const res = await fetch('/api/v1/config/gpio', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const text = await res.text();
+        let pretty = text;
+        try { pretty = JSON.stringify(JSON.parse(text), null, 2); } catch (_) {}
+        byId('resultOut').textContent = pretty;
+        setStatus(
+          res.ok
+            ? tx('gpioConfig.status.saved', { status: res.status }, 'GPIO guardado (HTTP ' + res.status + ').')
+            : tx('gpioConfig.status.saveError', { status: res.status }, 'Error guardando GPIO (HTTP ' + res.status + ').'),
+          !res.ok
+        );
+      } catch (err) {
+        byId('resultOut').textContent = String(err);
+        setStatus(tx('gpioConfig.status.networkError', null, 'Error de red guardando GPIO.'), true);
+      }
+    }
+
+    loadGpio();
+  </script>
+</div>
+</body>
+</html>
+

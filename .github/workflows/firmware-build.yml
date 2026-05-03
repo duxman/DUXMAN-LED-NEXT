@@ -48,7 +48,7 @@ jobs:
             ~/.platformio/.cache
             ~/.platformio/packages
             ~/.platformio/platforms
-          key: ${{ runner.os }}-platformio-${{ hashFiles('platformio.ini') }}
+          key: ${{ runner.os }}-platformio-${{ hashFiles('projects/firmware-platformio/platformio.ini') }}
           restore-keys: |
             ${{ runner.os }}-platformio-
 
@@ -57,6 +57,7 @@ jobs:
 
       - name: Build firmware
         run: pio run -e ${{ matrix.environment }}
+        working-directory: projects/firmware-platformio
 
       - name: Package build artifacts
         shell: bash
@@ -64,7 +65,7 @@ jobs:
           set -euo pipefail
 
           env_name="${{ matrix.environment }}"
-          build_dir=".pio/build/${env_name}"
+          build_dir="projects/firmware-platformio/.pio/build/${env_name}"
           out_dir="dist/${env_name}"
 
           mkdir -p "${out_dir}"
@@ -150,7 +151,7 @@ jobs:
           import os
           from pathlib import Path
 
-          info = json.loads(Path("firmware/config/release-info.json").read_text(encoding="utf-8"))
+          info = json.loads(Path("projects/firmware-platformio/firmware/config/release-info.json").read_text(encoding="utf-8"))
           version = info["version"]
           build_date = info.get("buildDate", "unknown")
           branch = info.get("branch", "unknown")

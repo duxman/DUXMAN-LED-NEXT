@@ -1,0 +1,25 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "projects/firmware-platformio"
+		},
+		{
+			"path": "projects/mockup-python"
+		},
+		{
+			"path": "projects/android-app"
+		}
+	],
+	"settings": {
+		"chat.tools.terminal.autoApprove": {
+			"pio": true,
+			"/^powershell -ExecutionPolicy Bypass -File \\.\\projects\\firmware-platformio\\tools\\flash\\.ps1 -Profile esp32c3supermini -Action upload -Port COM6$/": {
+				"approve": true,
+				"matchCommandLine": true
+			}
+		}
+	}
+}

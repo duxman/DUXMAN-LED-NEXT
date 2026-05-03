@@ -1,0 +1,36 @@
+/*
+ * duxman-led next - v0.3.7-beta
+ * Licensed under the Apache License 2.0
+ * File: firmware/src/core/PaletteRegistry.h
+ * Last commit: 2c35a63 - 2026-04-28
+ */
+
+#pragma once
+
+#include <Arduino.h>
+
+struct ColorPaletteDescriptor {
+  int16_t id;
+  const char *key;
+  const char *label;
+  const char *style;
+  uint32_t color1;
+  uint32_t color2;
+  uint32_t color3;
+  const char *description;
+};
+
+namespace PaletteRegistry {
+constexpr int16_t kManualPalette = -1;
+
+const ColorPaletteDescriptor *all();
+size_t count();
+const ColorPaletteDescriptor *findById(int16_t paletteId);
+const ColorPaletteDescriptor *findByKey(const String &paletteKey);
+int16_t parseId(const String &value, int16_t fallback);
+const char *keyFor(int16_t paletteId);
+const char *labelFor(int16_t paletteId);
+const char *styleFor(int16_t paletteId);
+bool applyToColors(int16_t paletteId, uint32_t (&primaryColors)[3]);
+String toJsonArray();
+} // namespace PaletteRegistry
