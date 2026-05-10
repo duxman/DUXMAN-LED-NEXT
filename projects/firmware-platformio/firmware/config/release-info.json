@@ -1,7 +1,7 @@
 {
-  "version": "0.6.3-alpha",
-  "versionCode": 19,
-  "buildDate": "2026-05-02",
+  "version": "0.6.4-alpha",
+  "versionCode": 20,
+  "buildDate": "2026-05-10",
   "branch": "main",
   "features": [
     "Fase 4A: FreeRTOS dual-core architecture (TaskControl + TaskRender)",
@@ -30,7 +30,8 @@
     "LedFx realtime input via DDP with double buffering and automatic timeout fallback",
     "E1.31 fallback input mapped to the same external frame pipeline",
     "Cluster sync over UDP with monotonic sequence, anti-replay and groupMask filtering",
-    "Global synchronized effect clock with soft drift correction for distributed phase alignment"
+    "Global synchronized effect clock with soft drift correction for distributed phase alignment",
+    "PC LED Simulator (tools/simulator): Python/pygame port of all visual effects for desktop preview"
   ],
   "hardwareSupported": [
     "ESP32-D0WD-V3 (esp32dev)",
